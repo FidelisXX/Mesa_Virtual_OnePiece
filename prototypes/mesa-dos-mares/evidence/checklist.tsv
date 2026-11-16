@@ -1,0 +1,30 @@
+L1	pass	evidence/play.png	Mar 3D low-poly toon, ceu claro, espuma, navios com vela e emblema; ilhas em pergaminho com grade e rosa dos ventos (island.png); UI em madeira e latao. A linha pontilhada da rota nao aparece destacada nas capturas
+L2	not_assessed	-	Jogos de referencia sao inspiracao, nada que uma captura prove
+L3	pass	evidence/play.png	Mar em terceira pessoa atras do navio (sea.js render); ilha vista de cima (island.png). Pan e zoom no cursor estao em island.js mas nao foram exercitados
+F1	pass	evidence/create.png	Criacao com Pirata/Marinha, 6 atributos, 6 estilos, Akuma opcional, upload de imagem e Recompensa (Patente aparece ao escolher Marinha: index.html:247); ficha em evidence/ficha.png. O upload de imagem em si nao foi exercitado
+F2	not_assessed	evidence/play.png	Pilotagem e atracar na Vila Foosha vistos (play.png, island.png); as outras 3 ilhas e o bonus do Navegador (sea.js:167) nao foram vistos
+F3	not_assessed	evidence/island.png	Mapa de pergaminho com grade, NPCs e o token do jogador no cais vistos; arrastar, permissao por dono e criar NPC (island.js, index.html:412) nao foram exercitados
+F4	not_assessed	evidence/roll.png	Chat preso a ilha, narracao e rolagem intercalada vistos; digitar fala, OOC, sussurro, grito e cor (chat.js:74) nao foi exercitado: o teclado da verificacao nao digita texto
+F5	not_assessed	evidence/roll.png	Botao Testar da ficha rola d20+FOR, o dado cai no palco e o resultado aparece no chat; /r, vantagem e CD nao foram exercitados
+F6	not_assessed	-	Iniciativa (index.html:453) nao foi exercitada
+F7	not_assessed	-	A sincronizacao entre abas (db.js, BroadcastChannel) precisa de duas abas abertas: a verificacao joga uma so
+S1	pass	evidence/ficha.png	Ficha com lado, estilo, Vida, Estamina, 6 atributos, Defesa e Recompensa
+S2	not_assessed	evidence/play.png	Pilotagem por teclado vista; o bonus do Navegador (sea.js:167) nao foi visto
+S3	pass	evidence/island.png	Mesa 2D da ilha com mapa, grade, NPCs e token
+S4	not_assessed	evidence/roll.png	Chat por ilha visto; texto rico digitado nao foi exercitado
+S5	pass	evidence/roll.png	d20 + FOR = 17+3 = 20 no palco e no chat
+S6	not_assessed	-	Upload de imagem e criar token (index.html:297, index.html:524) nao foram exercitados
+S7	pass	evidence/create.png	Escolha Pirata ou Marinha na criacao; o lado muda patente e a cor do token (art.js ringOf)
+S8	not_assessed	-	Combate e iniciativa nao foram exercitados
+M1	pass	evidence/gm.png	Titulo com Criar personagem e Entrar como Narrador; a tela do Narrador aparece em gm.png
+M2	pass	evidence/create.png	Nome, Pirata/Marinha, estilo, atributos e imagem na tela de criacao
+M3	not_assessed	evidence/ficha.png	O navio aparece perto da Vila Foosha e a dica do W aparece em ficha.png; a dica sumir depois de soltar as velas (index.html updateHud) nao foi visto
+M4	pass	evidence/island.png	Navegou ate o anel de atracacao (ficha.png) e E atracou: a vista virou foosha
+M5	pass	evidence/island.png	Battlemap de pergaminho, token no cais e chat Vila Foosha
+M6	not_assessed	evidence/roll.png	Narracao inicial e rolagem vistas; a resposta digitada e o negrito/cor nao foram exercitados
+M7	not_assessed	-	Se o gancho funciona e questao de jogo, so a sua partida mostra
+C1	not_assessed	-	Linha de sensacao: o desafio vem do Narrador
+C2	not_assessed	evidence/roll.png	Teste d20+atributo visto; CD, vantagem, iniciativa e Nocaute nao foram exercitados
+C3	not_assessed	-	O tempo da viagem entre ilhas e as perdas pelo vento precisam de jogo
+C4	not_assessed	-	Linha de sensacao: perder nao apaga nada
+C5	not_assessed	-	Fragmento *(guessed)* da linha anterior

@@ -1,0 +1,81 @@
+time	2026-11-16 14:42:35
+keep	lines	0	pinned	0
+briefword	3D	shown	evidence/play.png
+briefword	2D	shown	evidence/island.png
+briefword	low-poly	shown	evidence/play.png
+checklist	L1	unlisted	-	Look: mar 3D low-poly toon — água turquesa com espuma branca em faixas desenhadas, céu claro com nuvens chapadas, ilhas como montes verdes com casinhas; navios low-poly com vela branca e caveira (pirata) ou vela com gaivota azul (Marinha). Ilhas: battlemap 2D em pergaminho envelhecido, traço de nanquim, grade sépia, rosa dos ventos no canto. UI em madeira escura e latão. Paleta: turquesa (mar), creme (pergaminho), nanquim (traço), vermelho-pirata (destaque do jogador), azul-marinha (destaque da Marinha). Detalhe assinatura: a rota percorrida fica marcada no mar como traço pontilhado de mapa de tesouro. Every figure drawn, no emoji, no plain circles.	
+checklist	L2	unlisted	-	References: Zelda: Wind Waker (mar toon, navegação livre); a Mesa Virtual HxH5e, MESA_VIRTUAL_GUIA.md (tokens, dados, chat, iniciativa, broadcast vs estado durável); Roll20 (chat com rolagens intercaladas).	
+checklist	L3	unlisted	-	View: 3D no mar · 2D nas ilhas · Camera: mar = terceira pessoa atrás do navio, orbitável; ilha = de cima, pan e zoom no cursor.	
+checklist	F1	unlisted	-	Ficha de personagem: Pirata ou Marinha, FOR/AGI/VIG/TEC/ESP/CAR, Vida e Estamina, estilo de luta (espadachim, atirador, lutador, navegador, cozinheiro, médico), Akuma no Mi opcional, Recompensa (pirata) ou Patente (marinha), imagem enviada vira token	
+checklist	F2	unlisted	-	Mar 3D toon pilotável por teclado com 4 ilhas (Vila Foosha, Shells Town, Orange Town, Baratie) *(provisional)*; velocidade sobe com Navegador	
+checklist	F3	unlisted	-	Battlemap 2D por ilha (pergaminho + grade) com tokens arrastáveis; jogador só move os seus; Narrador cria tokens de NPC e move qualquer um	
+checklist	F4	unlisted	-	Chat preso à ilha (+ chat "a bordo"): fala com retrato, narração, OOC; negrito, itálico, cor, sussurro, grito; cor e fonte por personagem; rolagens intercaladas	
+checklist	F5	unlisted	-	Dados: d20 + atributo vs CD, `/r` com fórmula, vantagem/desvantagem, animação no palco, botões de teste na ficha	
+checklist	F6	unlisted	-	Iniciativa e turnos simples com Vida/Estamina no token (thin stand-in)	
+checklist	F7	unlisted	-	Narrador e Jogadores em abas separadas, sincronizados ao vivo (stand-in do Supabase Realtime)	
+checklist	S1	unlisted	-	ficha com status de One Piece · in the slice	
+checklist	S2	unlisted	-	navegação 3D pilotada por teclado, navegador dá velocidade · in the slice	
+checklist	S3	unlisted	-	mesa 2D por ilha com mapa e tokens · in the slice	
+checklist	S4	unlisted	-	chat por ilha com texto rico customizável · in the slice	
+checklist	S5	unlisted	-	dados d20 + atributo · in the slice	
+checklist	S6	unlisted	-	upload de imagem do personagem e criação de tokens · in the slice	
+checklist	S7	unlisted	-	pirata ou marinha · in the slice	
+checklist	S8	unlisted	-	combate/iniciativa · thin stand-in *(guessed)*	
+checklist	M1	unlisted	-	O jogador abre o lobby, escolhe Narrador ou Jogador.	
+checklist	M2	unlisted	-	O Jogador cria a ficha (nome, Pirata/Marinha, estilo — ex.: Navegador —, distribui 6 atributos, sobe a imagem que vira token).	
+checklist	M3	unlisted	-	Aparece no mar 3D sobre o navio da tripulação perto da Vila Foosha; uma dica "W para soltar as velas" aparece uma vez.	
+checklist	M4	unlisted	-	Navega, vê a ilha crescer, aperta E ao entrar no anel de atracação.	
+checklist	M5	unlisted	-	A tela vira o battlemap de pergaminho da ilha com o token dele no cais, e o chat troca para "Vila Foosha".	
+checklist	M6	unlisted	-	O Narrador (outra aba) já escreveu uma narração; o jogador responde como personagem, testa negrito/cor, e rola `/r 1d20+FOR` — o dado anima no palco e o resultado cai no chat.	
+checklist	M7	unlisted	-	É aqui que o gancho se paga.	
+checklist	C1	unlisted	-	É uma mesa: o desafio vem do Narrador.	
+checklist	C2	unlisted	-	O sistema dá: testes d20 + atributo contra CD 10/15/20, vantagem/desvantagem, combate por iniciativa (d20 + AGI), Vida e Estamina nos tokens; Vida 0 = Nocauteado.	
+checklist	C3	unlisted	-	No mar, a primeira "dificuldade" chega em 2–3 min: o mar aberto entre ilhas é longe, e sem Navegador a viagem é mais lenta.	
+checklist	C4	unlisted	-	Perder não apaga nada: o Narrador decide as consequências.	
+checklist	C5	unlisted	-	*(guessed)*	
+webgl	ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)
+browser	HeadlessChrome/157.0.0.0
+console	play	1391	[.WebGL-0x79ac00443200]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
+scene	play	0	title
+scene	play	1	create
+scene	play	5	play
+measure	step-time	play	1.277	174.900	290
+lane	play	stop	4.8	2221
+console	play	0	[.WebGL-0x79ac00443200]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
+console	play	0	[.WebGL-0x79ac00443200]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)
+saved	play	290	localstorage	mdm-db-v1
+uncaught	play	0
+text	play	html	192,24,287,41	21.0	6.82	inside	Navio pirata
+text	play	html	192,46,269,63	21.0	11.28	inside	Velocidade
+text	play	html	269,46,285,63	21.0	6.82	inside	15
+text	play	html	192,89,350,106	21.0	7.79	inside	Sem Navegador a bordo
+text	play	html	35,680,50,695	19.5	16.93	inside	W
+text	play	html	68,680,76,695	19.5	16.93	inside	S
+text	play	html	85,678,133,695	21.0	11.28	inside	velas ·
+text	play	html	142,680,152,695	19.5	16.93	inside	A
+text	play	html	170,680,181,695	19.5	16.93	inside	D
+text	play	html	246,680,255,695	19.5	16.93	inside	E
+text	play	html	485,680,523,695	19.5	16.93	inside	Enter
+text	play	html	900,18,940,38	24.0	11.29	inside	Chat
+text	play	html	1037,18,1086,38	24.0	8.60	inside	Ficha
+text	play	html	1180,18,1226,38	24.0	8.60	inside	Mesa
+text	play	html	865,56,1118,80	30.0	11.29	inside	Convés do navio pirata
+text	play	html	898,88,934,104	19.5	4.51	inside	1 aqui
+text	play	html	865,111,1083,127	19.5	4.51	inside	Só a tripulação a bordo lê este chat.
+text	play	html	884,149,1253,166	21.0	5.07	inside	Ninguém falou nada em Convés do navio pirata ainda.
+text	play	html	871,567,899,584	21.0	12.69	inside	Fala
+text	play	html	923,567,956,584	21.0	12.69	inside	Ação
+text	play	html	980,567,1012,584	21.0	12.69	inside	OOC
+text	play	html	1036,567,1095,584	21.0	12.69	inside	Sussurro
+text	play	html	1119,567,1154,584	21.0	12.69	inside	Grito
+text	play	html	870,598,882,617	21.0	12.69	inside	B
+text	play	html	907,598,913,617	21.0	12.69	inside	I
+text	play	html	940,598,948,617	21.0	12.69	inside	S
+text	play	html	972,598,984,617	21.0	12.69	inside	R
+text	play	html	1005,598,1033,617	21.0	12.69	inside	(( ))
+text	play	html	1053,598,1074,617	21.0	12.69	inside	[d]
+text	play	html	1112,630,1120,649	21.0	12.69	inside	?
+text	play	html	1191,671,1246,690	21.0	11.29	inside	Enviar
+screen	play	drawn
+shot	play	prototypes/mesa-dos-mares/evidence/play.png
+responds	changed	8

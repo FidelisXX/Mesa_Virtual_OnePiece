@@ -1,0 +1,187 @@
+# The one-shot's small check (check-run/1).
+# Written by one-shot-check.sh --record: the results are /prototype's reading of
+# evidence/self-check.tsv; never edited by hand.
+kind: check-run/1
+engine: web
+browser: "HeadlessChrome/157.0.0.0"
+time: "2026-11-16 14:42:35"
+checks:
+  - id: boots
+    result: pass
+    evidence:
+      - "evidence/self-check.tsv"
+  - id: shot
+    result: pass
+    evidence:
+      - "evidence/play.png"
+  - id: outlines
+    result: pass
+    evidence:
+      - "evidence/figures.png"
+  - id: brief-words
+    result: pass
+    evidence:
+      - "evidence/brief-words.tsv"
+  - id: emoji
+    result: pass
+    evidence:
+      - "evidence/self-check.tsv"
+  - id: nearest-game
+    result: pass
+    evidence:
+      - "evidence/nearest-game.txt"
+brief_checklist:
+  - id: L1
+    result: pass
+    evidence: "evidence/play.png"
+    item: "Look: mar 3D low-poly toon — água turquesa com espuma branca em faixas desenhadas, céu claro com nuvens chapadas, ilhas como montes verdes com casinhas; navios low-poly com vela branca e caveira (pirata) ou vela com gaivota azul (Marinha). Ilhas: battlemap 2D em pergaminho envelhecido, traço de nanquim, grade sépia, rosa dos ventos no canto. UI em madeira escura e latão. Paleta: turquesa (mar), creme (pergaminho), nanquim (traço), vermelho-pirata (destaque do jogador), azul-marinha (destaque da Marinha). Detalhe assinatura: a rota percorrida fica marcada no mar como traço pontilhado de mapa de tesouro. Every figure drawn, no emoji, no plain circles."
+  - id: L2
+    result: not_run
+    mark: not assessed
+    why: "Jogos de referencia sao inspiracao, nada que uma captura prove"
+    item: "References: Zelda: Wind Waker (mar toon, navegação livre); a Mesa Virtual HxH5e, MESA_VIRTUAL_GUIA.md (tokens, dados, chat, iniciativa, broadcast vs estado durável); Roll20 (chat com rolagens intercaladas)."
+  - id: L3
+    result: pass
+    evidence: "evidence/play.png"
+    item: "View: 3D no mar · 2D nas ilhas · Camera: mar = terceira pessoa atrás do navio, orbitável; ilha = de cima, pan e zoom no cursor."
+  - id: F1
+    result: pass
+    evidence: "evidence/create.png"
+    item: "Ficha de personagem: Pirata ou Marinha, FOR/AGI/VIG/TEC/ESP/CAR, Vida e Estamina, estilo de luta (espadachim, atirador, lutador, navegador, cozinheiro, médico), Akuma no Mi opcional, Recompensa (pirata) ou Patente (marinha), imagem enviada vira token"
+  - id: F2
+    result: not_run
+    mark: not assessed
+    why: "Pilotagem e atracar na Vila Foosha vistos (play.png, island.png); as outras 3 ilhas e o bonus do Navegador (sea.js:167) nao foram vistos"
+    evidence: "evidence/play.png"
+    item: "Mar 3D toon pilotável por teclado com 4 ilhas (Vila Foosha, Shells Town, Orange Town, Baratie) *(provisional)*; velocidade sobe com Navegador"
+  - id: F3
+    result: not_run
+    mark: not assessed
+    why: "Mapa de pergaminho com grade, NPCs e o token do jogador no cais vistos; arrastar, permissao por dono e criar NPC (island.js, index.html:412) nao foram exercitados"
+    evidence: "evidence/island.png"
+    item: "Battlemap 2D por ilha (pergaminho + grade) com tokens arrastáveis; jogador só move os seus; Narrador cria tokens de NPC e move qualquer um"
+  - id: F4
+    result: not_run
+    mark: not assessed
+    why: "Chat preso a ilha, narracao e rolagem intercalada vistos; digitar fala, OOC, sussurro, grito e cor (chat.js:74) nao foi exercitado: o teclado da verificacao nao digita texto"
+    evidence: "evidence/roll.png"
+    item: "Chat preso à ilha (+ chat \"a bordo\"): fala com retrato, narração, OOC; negrito, itálico, cor, sussurro, grito; cor e fonte por personagem; rolagens intercaladas"
+  - id: F5
+    result: not_run
+    mark: not assessed
+    why: "Botao Testar da ficha rola d20+FOR, o dado cai no palco e o resultado aparece no chat; /r, vantagem e CD nao foram exercitados"
+    evidence: "evidence/roll.png"
+    item: "Dados: d20 + atributo vs CD, `/r` com fórmula, vantagem/desvantagem, animação no palco, botões de teste na ficha"
+  - id: F6
+    result: not_run
+    mark: not assessed
+    why: "Iniciativa (index.html:453) nao foi exercitada"
+    item: "Iniciativa e turnos simples com Vida/Estamina no token (thin stand-in)"
+  - id: F7
+    result: not_run
+    mark: not assessed
+    why: "A sincronizacao entre abas (db.js, BroadcastChannel) precisa de duas abas abertas: a verificacao joga uma so"
+    item: "Narrador e Jogadores em abas separadas, sincronizados ao vivo (stand-in do Supabase Realtime)"
+  - id: S1
+    result: pass
+    evidence: "evidence/ficha.png"
+    item: "ficha com status de One Piece · in the slice"
+  - id: S2
+    result: not_run
+    mark: not assessed
+    why: "Pilotagem por teclado vista; o bonus do Navegador (sea.js:167) nao foi visto"
+    evidence: "evidence/play.png"
+    item: "navegação 3D pilotada por teclado, navegador dá velocidade · in the slice"
+  - id: S3
+    result: pass
+    evidence: "evidence/island.png"
+    item: "mesa 2D por ilha com mapa e tokens · in the slice"
+  - id: S4
+    result: not_run
+    mark: not assessed
+    why: "Chat por ilha visto; texto rico digitado nao foi exercitado"
+    evidence: "evidence/roll.png"
+    item: "chat por ilha com texto rico customizável · in the slice"
+  - id: S5
+    result: pass
+    evidence: "evidence/roll.png"
+    item: "dados d20 + atributo · in the slice"
+  - id: S6
+    result: not_run
+    mark: not assessed
+    why: "Upload de imagem e criar token (index.html:297, index.html:524) nao foram exercitados"
+    item: "upload de imagem do personagem e criação de tokens · in the slice"
+  - id: S7
+    result: pass
+    evidence: "evidence/create.png"
+    item: "pirata ou marinha · in the slice"
+  - id: S8
+    result: not_run
+    mark: not assessed
+    why: "Combate e iniciativa nao foram exercitados"
+    item: "combate/iniciativa · thin stand-in *(guessed)*"
+  - id: M1
+    result: pass
+    evidence: "evidence/gm.png"
+    item: "O jogador abre o lobby, escolhe Narrador ou Jogador."
+  - id: M2
+    result: pass
+    evidence: "evidence/create.png"
+    item: "O Jogador cria a ficha (nome, Pirata/Marinha, estilo — ex.: Navegador —, distribui 6 atributos, sobe a imagem que vira token)."
+  - id: M3
+    result: not_run
+    mark: not assessed
+    why: "O navio aparece perto da Vila Foosha e a dica do W aparece em ficha.png; a dica sumir depois de soltar as velas (index.html updateHud) nao foi visto"
+    evidence: "evidence/ficha.png"
+    item: "Aparece no mar 3D sobre o navio da tripulação perto da Vila Foosha; uma dica \"W para soltar as velas\" aparece uma vez."
+  - id: M4
+    result: pass
+    evidence: "evidence/island.png"
+    item: "Navega, vê a ilha crescer, aperta E ao entrar no anel de atracação."
+  - id: M5
+    result: pass
+    evidence: "evidence/island.png"
+    item: "A tela vira o battlemap de pergaminho da ilha com o token dele no cais, e o chat troca para \"Vila Foosha\"."
+  - id: M6
+    result: not_run
+    mark: not assessed
+    why: "Narracao inicial e rolagem vistas; a resposta digitada e o negrito/cor nao foram exercitados"
+    evidence: "evidence/roll.png"
+    item: "O Narrador (outra aba) já escreveu uma narração; o jogador responde como personagem, testa negrito/cor, e rola `/r 1d20+FOR` — o dado anima no palco e o resultado cai no chat."
+  - id: M7
+    result: not_run
+    mark: not assessed
+    why: "Se o gancho funciona e questao de jogo, so a sua partida mostra"
+    item: "É aqui que o gancho se paga."
+  - id: C1
+    result: not_run
+    mark: not assessed
+    why: "Linha de sensacao: o desafio vem do Narrador"
+    item: "É uma mesa: o desafio vem do Narrador."
+  - id: C2
+    result: not_run
+    mark: not assessed
+    why: "Teste d20+atributo visto; CD, vantagem, iniciativa e Nocaute nao foram exercitados"
+    evidence: "evidence/roll.png"
+    item: "O sistema dá: testes d20 + atributo contra CD 10/15/20, vantagem/desvantagem, combate por iniciativa (d20 + AGI), Vida e Estamina nos tokens; Vida 0 = Nocauteado."
+  - id: C3
+    result: not_run
+    mark: not assessed
+    why: "O tempo da viagem entre ilhas e as perdas pelo vento precisam de jogo"
+    item: "No mar, a primeira \"dificuldade\" chega em 2–3 min: o mar aberto entre ilhas é longe, e sem Navegador a viagem é mais lenta."
+  - id: C4
+    result: not_run
+    mark: not assessed
+    why: "Linha de sensacao: perder nao apaga nada"
+    item: "Perder não apaga nada: o Narrador decide as consequências."
+  - id: C5
+    result: not_run
+    mark: not assessed
+    why: "Fragmento *(guessed)* da linha anterior"
+    item: "*(guessed)*"
+measures:
+  - id: step-time
+    value: 174.900
+    unit: ms
+    by: browser
+    detail: "mean 1.277 ms, slowest 174.900 ms, 290 steps"

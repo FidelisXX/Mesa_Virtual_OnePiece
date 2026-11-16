@@ -1,0 +1,1 @@
+Nearest game: Roll20 (a virtual tabletop with chat, tokens and dice) plus Sea of Thieves for the sailing; this one differs in binding the chat to the place the ship is docked, so only the crew on an island reads that island's chat, with a piloted 3D sea between 2D parchment tables and a Navigator who makes the ship faster.

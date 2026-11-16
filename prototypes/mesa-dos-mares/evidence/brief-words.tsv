@@ -1,0 +1,8 @@
+low-poly	mar e navios modelados em poligonos chapados (sea.js buildShip, buildIsland), sombreado flat	evidence/play.png
+3D	mar aberto em three.js: navio pilotavel, ilhas, ondas, camera atras do navio	evidence/play.png
+2D	ilhas como battlemap 2D em canvas com grade (island.js)	evidence/island.png
+Wind Waker	mar turquesa toon, ceu claro com nuvens chapadas, espuma em faixas, navegacao livre	evidence/play.png
+pergaminho	mapa da ilha em pergaminho com manchas, tracos de nanquim e grade sepia (art.js islandMap)	evidence/island.png
+nanquim	tracos de tinta escura nos contornos, casas e arvores do mapa	evidence/island.png
+rosa dos ventos	drawCompass no canto do mapa de cada ilha	evidence/island.png
+Mesa Virtual	tokens, dados, chat e iniciativa seguindo MESA_VIRTUAL_GUIA.md (db.js, chat.js, island.js)	evidence/roll.png
