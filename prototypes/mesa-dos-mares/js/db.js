@@ -52,7 +52,7 @@ let myId = sessionStorage.getItem('mdm-me') || null;
 let db = null;
 function emptyDb() {
   const d = {
-    chars: {}, tokens: {}, msgs: [], combat: {},
+    chars: {}, tokens: {}, msgs: [], combat: {}, naval: {},
     ships: {
       pirata:  { x: -205, z: 255, h: Math.PI, speed: 0, sail: 0, at: null, pilot: null, route: [] },
       marinha: { x: -10,  z: -30, h: 0.6,     speed: 0, sail: 0, at: null, pilot: null, route: [] },
@@ -80,6 +80,7 @@ function emptyDb() {
 function loadDb() {
   try { db = JSON.parse(localStorage.getItem(DB_KEY)); } catch (e) { db = null; }
   if (!db || !db.ships) db = emptyDb();
+  if (!db.naval) db.naval = {}; // mesas gravadas antes da batalha naval
 }
 let saveTimer = 0;
 function saveDb() {

@@ -28,6 +28,7 @@
         <button class="btn wood" id="btnCentro">Centralizar mapa</button>
         <div class="plate" id="turnPlate" hidden></div>
       </div>
+      <div id="navalHud" hidden></div>
       <div id="islandHelp" class="plate" hidden>Arraste tokens · roda: zoom · <kbd>Espaço</kbd> ou botão do meio: mover o mapa · <kbd>Enter</kbd> chat</div>
     </div>
     <div id="diceStage"></div>
@@ -109,6 +110,7 @@
 <script src="js/art.js"></script>
 <script src="js/sea.js"></script>
 <script src="js/island.js"></script>
+<script src="js/naval.js"></script>
 <script src="js/chat.js"></script>
 <script>
 'use strict';
@@ -182,7 +184,7 @@ function toast(msg) {
   setTimeout(() => el.remove(), 3600);
 }
 const currentView = () => chanOf(me());
-const pilotingNow = () => scene === 'play' && me() && !me().gm && !isIsland(currentView());
+const pilotingNow = () => scene === 'play' && me() && !me().gm && !isIsland(currentView()) && !Naval.lockedFor();
 function uiSelChanged() { mesaDirty = true; }
 let mesaDirty = true;
 
@@ -415,6 +417,12 @@ function renderMesa() {
   if (c.gm) {
     h += '<h3>Lugares</h3>' + PLACES.map(p => { const n = Chat.unread(p); return `<button class="place ${v === p ? 'on' : ''}" data-pl="${p}">${esc(chanName(p))}<span class="ship">${esc(shipsAt(p))}</span>${n && v !== p ? `<span class="ct">${n}</span>` : ''}</button>`; }).join('');
     h += '<h3>Navios</h3>' + ['pirata', 'marinha'].map(f => { const s = db.ships[f]; return `<div class="row"><span class="tag ${f}">${f === 'pirata' ? 'Pirata' : 'Marinha'}</span><span class="note" style="flex:1">${s.at ? 'atracado em ' + esc(chanName(s.at)) : 'no mar'} · tripulação: ${crewOf(f).length}</span>${s.at ? `<button class="btn sm wood" data-zarpar="${f}">Zarpar</button>` : `<select data-dockto="${f}"><option value="">Atracar em…</option>${ISLANDS.map(i => `<option value="${i.id}">${i.nome}</option>`).join('')}</select>`}</div>`; }).join('');
+    const nv = Naval.cur();
+    h += '<h3>Batalha naval</h3>' + (nv
+      ? `<div class="note">Em andamento: rodada <b>${nv.round}</b>. O navio inimigo age sozinho na sua vez.</div><div class="row"><button class="btn sm" data-nv="next">Próximo turno</button><button class="btn sm wood" data-nv="npc">Turno do inimigo agora</button><button class="btn sm red" data-nv="end">Encerrar batalha</button></div>`
+      : `<div class="row"><select id="nvEnemy">${Object.entries(Naval.ENEMIES).map(([k, e]) => `<option value="${k}">${e.nome}</option>`).join('')}</select><select id="nvCount"><option>1</option><option>2</option><option>3</option></select><span class="note">navio(s) inimigo(s)</span></div>
+         <div class="row"><label><input type="checkbox" id="nvP" checked> Navio pirata</label> <label><input type="checkbox" id="nvM"> Navio da Marinha</label></div>
+         <div class="row"><button class="btn sm red" data-nv="start">Iniciar batalha naval (por turnos)</button></div><div class="note">Os navios escolhidos precisam estar no mar. Modo em tempo real: ainda não.</div>`);
     h += `<h3>Vento</h3><div class="row"><input type="range" id="wind" min="0" max="359" value="${Math.round(((db.world.wind * 180 / Math.PI) % 360 + 360) % 360)}" style="flex:1"><span class="note">contra o vento o navio perde velocidade; o Navegador perde menos</span></div>`;
   }
   if (isIsland(v)) {
@@ -439,7 +447,13 @@ function renderMesa() {
   el.querySelectorAll('[data-pl]').forEach(b => b.onclick = () => gmGo(b.dataset.pl));
   el.querySelectorAll('[data-zarpar]').forEach(b => b.onclick = () => Sea.undock(b.dataset.zarpar));
   el.querySelectorAll('[data-dockto]').forEach(s => s.onchange = () => { if (s.value) Sea.dock(s.dataset.dockto, ISLAND[s.value]); });
-  if ($('wind')) $('wind').onchange = e => { db.world.wind = +e.target.value * Math.PI / 180; commit('world', 'w', db.world); };
+  el.querySelectorAll('[data-nv]').forEach(b => b.onclick = () => {
+    const a = b.dataset.nv;
+    if (a === 'start') { const fac = [$('nvP').checked ? 'pirata' : null, $('nvM').checked ? 'marinha' : null].filter(Boolean); if (!fac.length) { toast('Escolha ao menos um navio.'); return; } Naval.start({ enemy: $('nvEnemy').value, count: +$('nvCount').value, fac }); if (Naval.cur()) gmGo('navio-' + fac[0]); }
+    if (a === 'next') Naval.endTurn(); if (a === 'npc') Naval.npcTurn(); if (a === 'end') Naval.end('O Narrador encerrou a batalha naval.');
+    mesaDirty = true;
+  });
+  if ($('wind')) $('wind').onchange =e => { db.world.wind = +e.target.value * Math.PI / 180; commit('world', 'w', db.world); };
   el.querySelectorAll('[data-d]').forEach(b => b.onclick = () => damage(db.tokens[Island.sel], +b.dataset.d));
   el.querySelectorAll('[data-pub]').forEach(b => b.onclick = () => { const t = db.tokens[Island.sel]; t.pub = !t.pub; commit('tokens', t.id, t); });
   el.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { commit('tokens', b.dataset.del, null); Island.sel = null; mesaDirty = true; });
@@ -498,7 +512,9 @@ function bindPanels() {
 const miniCtx = $('mini').getContext('2d');
 function updateHud() {
   const c = me(), v = c && currentView(), playing = scene === 'play' && c;
-  const sea = playing && !isIsland(v), isl = playing && isIsland(v);
+  const nav = playing && !isIsland(v) && Naval.visible();
+  Naval.hud($('navalHud'));
+  const sea = playing && !isIsland(v) && !nav, isl = playing && isIsland(v);
   $('seaHud').hidden = !sea; $('seaHelp').hidden = !sea; $('islandHud').hidden = !isl; $('islandHelp').hidden = !isl;
   $('hint').hidden = true; $('dockPrompt').hidden = true;
   if (sea) {
@@ -561,7 +577,9 @@ const scenes = {
       if (pressed('Enter')) { setTab('chat'); $('chatInput').focus(); }
       state.t += dt;
       const v = currentView(); state.view = v;
-      if (seaOK) Sea.update(dt, v && !isIsland(v) ? 'play' : 'idle');
+      const naval = !isIsland(v) && Naval.visible();
+      if (seaOK) Sea.update(dt, v && !isIsland(v) && !naval ? 'play' : 'idle');
+      if (naval) Naval.update(dt);
       if (isIsland(v) && !isGM()) Island.ensureMyToken(v);
       Dice.update(dt);
       throttled(dt);
@@ -573,6 +591,7 @@ const scenes = {
         try { Island.draw(ctx, W, H, v); }
         catch (e) { console.error('Island.draw:', e && e.stack || e); ctx.fillStyle = '#2a1d14'; ctx.fillRect(0, 0, W, H); text('Erro ao desenhar a ilha: ' + (e && e.message), W / 2, H / 2, 22, '#f3e6c4'); }
       }
+      else if (Naval.visible()) { showCanvas('2d'); Naval.draw(ctx, W, H); }
       else if (seaOK) { showCanvas('sea'); Sea.render('play', W, H); }
       else { showCanvas('2d'); ctx.fillStyle = '#8fd3f4'; ctx.fillRect(0, 0, W, H); text('3D indisponível neste navegador', W / 2, H / 2, 28, INK); }
     },
@@ -595,19 +614,24 @@ function throttled(dt) {
     panelClock = 0;
     if (dirty.chars || dirty.ships || dirty.tokens) { Chat.head(); document.body.classList.toggle('gm', isGM()); }
     if (tab === 'ficha' && (sheetDirty || dirty.chars) && !typing()) { renderSheet(); sheetDirty = false; }
-    if (tab === 'mesa' && (mesaDirty || dirty.tokens || dirty.combat || dirty.ships || dirty.chars || dirty.world) && !drag_active()) { renderMesa(); mesaDirty = false; }
+    if (tab === 'mesa' && (mesaDirty || dirty.tokens || dirty.combat || dirty.ships || dirty.chars || dirty.world || dirty.naval) && !drag_active()) { renderMesa(); mesaDirty = false; }
     const un = Object.keys(db.chars).length ? PLACES.filter(p => p !== currentView()).reduce((a, p) => a + (chanOkToSee(p) ? Chat.unread(p) : 0), 0) : 0;
     const bd = $('chatBadge'); bd.hidden = !(tab !== 'chat' && un); bd.textContent = un;
-    dirty.chars = dirty.ships = dirty.tokens = dirty.combat = dirty.world = false;
+    dirty.chars = dirty.ships = dirty.tokens = dirty.combat = dirty.world = dirty.naval = false;
   }
 }
 const drag_active = () => false;
+let lastNavalTurn = '';
 const chanOkToSee = p => isGM() || p === currentView();
 
 // Mudanças que chegam de outras abas.
 listeners.push((table, row, remote) => {
   if (table === 'msgs' && remote && row) { Chat.onNew(row, true); }
   if (table === 'combat' && remote && row && row.on) announceTurnMine(row);
+  if (table === 'naval' && remote && row && row.on) { // a vez do meu navio na batalha naval
+    const k = row.round + ':' + row.turn, s = row.ships[row.order[row.turn]];
+    if (k !== lastNavalTurn) { lastNavalTurn = k; if (s && s.side === 'pj' && me() && !me().gm && s.fac === me().faccao) { toast('É a vez do seu navio!'); tone(784, 0.15, 'triangle', 0.3); } }
+  }
   if (table === 'ships') { const c = me(); if (c && !c.gm && scene === 'play' && !isIsland(currentView())) { /* a vista muda sozinha */ } }
 });
 function announceTurnMine(cb) { const t = db.tokens[cb.order[cb.turn]]; if (t && t.owner === myId) { toast('É a sua vez!'); tone(784, 0.15, 'triangle', 0.3); } }
@@ -641,7 +665,7 @@ window.game = {
 loadDb();
 fit();
 try { Sea.init($('sea')); } catch (e) { seaOK = false; console.warn('3D indisponível:', e && e.message); }
-Island.attach(canvas);
+Island.attach(canvas); Naval.attach(canvas);
 Chat.init(); bindPanels(); setTab('chat');
 reset();
 setScene(params.get('scene') || 'title');

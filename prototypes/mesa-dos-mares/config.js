@@ -50,6 +50,25 @@ window.CONFIG = {
   msgCap:         { value: 600,  min: 50,  max: 5000, step: 50 },   // mensagens guardadas na mesa
   msgMaxLen:      { value: 600,  min: 50,  max: 4000, step: 50 },   // caracteres por mensagem
 
+  // ---- Batalha naval por turnos (grade de mar; 1 quadrado ≈ 25 m) ----
+  navalCols:      { value: 24,   min: 12,  max: 40,  step: 1 },     // quadrados de largura do mapa de mar
+  navalRows:      { value: 12,   min: 8,   max: 26,  step: 1 },     // quadrados de altura
+  navalCasco:     { value: 40,   min: 10,  max: 120, step: 1 },     // Casco (Vida) do navio dos jogadores
+  navalCanhoes:   { value: 3,    min: 1,   max: 8,   step: 1 },     // canhões por bordo: dados de dano por tiro
+  navalVel:       { value: 4,    min: 1,   max: 10,  step: 1 },     // pontos de movimento por turno (1 ponto = avançar 1 quadrado ou virar 45°)
+  navalNavVel:    { value: 1,    min: 0,   max: 4,   step: 1 },     // pontos extras com um Navegador a bordo
+  navalDef:       { value: 12,   min: 6,   max: 22,  step: 1 },     // Defesa do navio dos jogadores
+  navalMoral:     { value: 12,   min: 3,   max: 40,  step: 1 },     // Moral da tripulação: cada acerto sofrido tira 1 (crítico, 2)
+  navalRange:     { value: 6,    min: 2,   max: 14,  step: 1 },     // quadrados de alcance do canhão
+  navalArc:       { value: 50,   min: 15,  max: 85,  step: 5 },     // graus de abertura do arco de tiro, de cada lado da perpendicular
+  navalDmgDie:    { value: 6,    min: 4,   max: 12,  step: 2 },     // lados do dado de dano (um dado por canhão)
+  navalRangePen:  { value: 3,    min: 1,   max: 8,   step: 1 },     // a cada tantos quadrados de distância, −1 no ataque
+  navalVacantPen: { value: 2,    min: 0,   max: 6,   step: 1 },     // penalidade de quem cobre um posto que não é dele
+  navalManeuver:  { value: 2,    min: 0,   max: 4,   step: 1 },     // pontos extras de movimento com a manobra do Timoneiro bem-sucedida
+  navalFillerAtk: { value: 1,    min: 0,   max: 6,   step: 1 },     // bônus de um posto operado pelo Narrador
+  navalFleeCD:    { value: 18,   min: 8,   max: 30,  step: 1 },     // CD para fugir pela borda do mapa
+  navalNpcDelay:  { value: 1.1,  min: 0.2, max: 4,   step: 0.1 },   // s antes de o navio inimigo agir
+
   // ---- Ilha (battlemap 2D) ----
   cellPx:         { value: 48,   min: 24,  max: 96,  step: 4 },     // px por quadrado no zoom 1
   tokenImgSize:   { value: 128,  min: 48,  max: 256, step: 16 },    // px da imagem enviada (recorte quadrado)

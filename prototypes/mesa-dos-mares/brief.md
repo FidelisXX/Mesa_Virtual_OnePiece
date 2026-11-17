@@ -11,6 +11,9 @@ VTT de One Piece no East Blue, antes da Grand Line, no estilo da Mesa Virtual do
 4. Chat: Concordo
 5. Visual: Mar 3D low-poly em toon, estilo Zelda: Wind Waker; nas ilhas, battlemap 2D com grade e cara de mapa pirata (pergaminho, nanquim, rosa dos ventos)
 
+After play: "Gostaria de ter encontros de batalha naval também, acha que é possivel isso? NE como poderiamos fazer uma batalha naval com rolagem de dados"
+After play: "E se tiver a opção, de combate por turno ou real? Quero experimentar os dois" · "Faça isso agora" (a proposta aceita: ficha do navio, postos da tripulação, tiro com d20 + TEC contra a Defesa; primeiro o modo por turnos, depois o tempo real; abordagem depois)
+
 **Pitch:** Uma mesa de RPG de One Piece onde a tripulação pilota o próprio navio por um East Blue 3D e, ao atracar, entra no battlemap e no chat daquela ilha.
 
 **Genre:** mesa virtual de RPG (VTT) + navegação 3D
@@ -39,6 +42,7 @@ O jogador abre o lobby, escolhe Narrador ou Jogador. O Jogador cria a ficha (nom
 - Atracar: entrar na ilha troca para o battlemap e o chat dela; quem ficou no mar não lê esse chat.
 - Jogar: interpretar pelo chat (fala/narração/OOC), rolar d20 + atributo, mover tokens, combate por iniciativa.
 - Zarpar: voltar ao navio e seguir para a próxima ilha.
+- Combater no mar (opcional): o Narrador avista um navio inimigo; a tripulação assume os postos e troca tiros por turnos, com dados.
 
 ## Goal & fail state
 - Uma sessão está completa quando a tripulação visita uma ilha, joga uma cena pelo chat dela, navega até outra e vê o chat trocar.
@@ -52,6 +56,8 @@ O jogador abre o lobby, escolhe Narrador ou Jogador. O Jogador cria a ficha (nom
 - [ ] Dados: d20 + atributo vs CD, `/r` com fórmula, vantagem/desvantagem, animação no palco, botões de teste na ficha
 - [ ] Iniciativa e turnos simples com Vida/Estamina no token (thin stand-in)
 - [ ] Narrador e Jogadores em abas separadas, sincronizados ao vivo (stand-in do Supabase Realtime)
+- [x] Batalha naval por turnos: o Narrador inicia o encontro; mapa de mar em grade; ficha do navio (Casco, Velas, Canhões, Defesa, Moral); postos Timoneiro, Artilheiro, Carpinteiro e Capitão; tiro com d20 + TEC contra a Defesa; vento; fuga, afundar e render; navio inimigo NPC
+- [ ] Batalha naval em tempo real (modo experimental, segundo modo do mesmo encontro): navios pilotados no mar 3D, tiro de bombordo/boreste por tecla com recarga *(não nesta rodada)*
 
 ## Your systems
 - ficha com status de One Piece · in the slice
@@ -62,6 +68,8 @@ O jogador abre o lobby, escolhe Narrador ou Jogador. O Jogador cria a ficha (nom
 - upload de imagem do personagem e criação de tokens · in the slice
 - pirata ou marinha · in the slice
 - combate/iniciativa · thin stand-in *(guessed)*
+- batalha naval por turnos · in the slice
+- batalha naval em tempo real · later
 - Haki · later
 
 ## Keep
@@ -76,6 +84,7 @@ O jogador abre o lobby, escolhe Narrador ou Jogador. O Jogador cria a ficha (nom
 - Supabase, login e contas: needs a server
 - Trilha sonora do YouTube, gerador procedural de mapas, bestiário: add it as a feature
 - Sigilo real de rolagens secretas: needs a server
+- Abordagem (abordo) nas batalhas navais, com o convés virando mesa de ilha: add it as a feature
 
 ## Build order
 1. A fatia: criar ficha com imagem → navegar no 3D → atracar → jogar no chat da ilha com dados e tokens → zarpar até outra ilha e ver o chat trocar. Tudo em duas abas (Narrador + Jogador).
