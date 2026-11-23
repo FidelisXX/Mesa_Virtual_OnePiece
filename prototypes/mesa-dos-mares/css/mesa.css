@@ -31,7 +31,7 @@ body.wide #app { grid-template-columns: minmax(0, 1fr) minmax(440px, 56%); }
 #stage canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
 #sea, #game { touch-action: none; }
 body.in-title #side, body.in-create #side { display: none; }
-body.in-title #app, body.in-create #app { grid-template-columns: 1fr; }
+body.in-title #app, body.in-create #app { grid-template-columns: minmax(0, 1fr); }
 
 /* ---- HUD de vidro por cima do palco ---- */
 #hud { position: absolute; inset: 0; pointer-events: none; }
@@ -207,7 +207,7 @@ h3 { margin: 16px 0 6px; font-size: 12px; text-transform: uppercase; letter-spac
 .home-card { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 14px; }
 .home-card .pic { width: 52px; height: 52px; }
 .cr-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 28px; }
-@media (max-width: 880px) { .cr-grid { grid-template-columns: 1fr; } #app { grid-template-columns: 1fr; grid-template-rows: 55% 45%; } #side { border-left: none; border-top: 1px solid var(--border); } }
+@media (max-width: 880px) { .cr-grid { grid-template-columns: 1fr; } #app { grid-template-columns: minmax(0, 1fr); grid-template-rows: 55% 45%; } #side { border-left: none; border-top: 1px solid var(--border); } }
 .field { margin: 10px 0; } .field > label { display: block; font-weight: 650; margin-bottom: 4px; font-size: 14px; }
 .field input[type=text], .field input[type=password], .field select { width: 100%; }
 .card a { color: var(--accent); }
@@ -252,3 +252,63 @@ h3 { margin: 16px 0 6px; font-size: 12px; text-transform: uppercase; letter-spac
 #callBar .note { font-size: 12px; line-height: 1.3; }
 .narra-ask .btn { margin: 2px 0; }
 .narra-txt p { margin: 0 0 8px; }
+
+/* ---- Celular: abas embaixo, chat em primeiro lugar, aba Cena em tela cheia ---- */
+.only-mobile { display: none; }
+#tabs .ic { display: none; }
+#tpad, #fabCall { display: none; }
+@media (max-width: 820px) {
+  html, body { overscroll-behavior: none; }
+  body.mobile .only-mobile { display: inline-block; }
+  body.mobile #app { grid-template-columns: minmax(0, 1fr); grid-template-rows: 30% minmax(0, 1fr); height: 100dvh; bottom: auto; }
+  body.mobile.cena #app { grid-template-rows: minmax(0, 1fr) auto; }
+  body.mobile.in-title #app, body.mobile.in-create #app { grid-template-rows: 1fr; }
+  body.mobile #side { border-left: 0; border-top: 1px solid var(--border); }
+  body.mobile #tabs { order: 2; padding: 0 4px env(safe-area-inset-bottom); border-bottom: 0; border-top: 1px solid var(--border); background: var(--surface); }
+  body.mobile #tabs button[data-t] { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 7px 2px 6px; font-size: 11px; min-height: 52px; border-bottom: 0; border-top: 2px solid transparent; }
+  body.mobile #tabs button[data-t].on { border-top-color: var(--accent); }
+  body.mobile #tabs .ic { display: block; font-size: 19px; line-height: 1.1; }
+  body.mobile #tabs .badge { right: 8px; top: 3px; }
+  body.mobile #tabs .tbtn { display: none; }
+  body.mobile.cena .panel { display: none !important; }
+  body.mobile .panel { order: 1; }
+  body.mobile #stage { min-height: 0; }
+  /* chat: lista grande, rodapé enxuto */
+  body.mobile #chatHead .row, body.mobile #chatHead #chatLock { display: none; }
+  body.mobile #chatTools .row + .row { display: none; }
+  body.mobile.fmt #chatTools .row + .row { display: flex; flex-wrap: wrap; }
+  body.mobile #chatHelp { font-size: 12px; }
+  body.mobile #callBar { padding: 4px 8px; gap: 6px; flex-wrap: nowrap; }
+  body.mobile #callBar .note, body.mobile #callCfg { display: none; }
+  body.mobile #callMaster { flex: 1; min-height: 44px; }
+  body.mobile #actChips { overflow-x: auto; white-space: nowrap; flex-wrap: nowrap; }
+  body.mobile #chatBox { display: flex; gap: 6px; align-items: flex-end; padding: 6px 8px calc(6px + 0px); }
+  body.mobile #chatInput { font-size: 16px; min-height: 44px; flex: 1; }
+  body.mobile #chatBox .btn { min-height: 44px; min-width: 52px; }
+  body.mobile input, body.mobile select, body.mobile textarea { font-size: 16px; }
+  body.mobile .btn { min-height: 40px; }
+  body.mobile .btn.sm { min-height: 34px; }
+  body.mobile #hotbar { bottom: 8px; }
+  body.mobile #islandHelp { display: none; }
+  body.mobile #islandHud { left: 8px; top: 8px; gap: 6px; }
+  body.mobile #islandHud .plate, body.mobile #islandHud .btn { font-size: 13px; padding: 6px 10px; }
+  body.mobile .hot { min-width: 96px; min-height: 48px; }
+  body.mobile .toast { max-width: 80vw; }
+  body.mobile .scroll { padding-bottom: 16px; }
+  /* luta 3D: direcional de toque */
+  body.mobile #tpad { display: flex; position: absolute; left: 0; right: 0; bottom: 8px; padding: 0 10px; justify-content: space-between; align-items: flex-end; gap: 8px; z-index: 6; pointer-events: none; }
+  body.mobile #tpad[hidden] { display: none; }
+  body.mobile #tpad > div { display: flex; gap: 8px; pointer-events: auto; }
+  body.mobile .tp-m, body.mobile .tp-r { flex-direction: column; }
+  body.mobile #tpad button { min-width: 58px; min-height: 52px; padding: 6px 10px; border-radius: 14px; border: 1px solid var(--glass-border); background: var(--glass); color: var(--glass-text); font-weight: 700; font-size: 13px; touch-action: none; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+  body.mobile #tpad button.on { background: var(--accent); color: var(--on-accent); }
+  body.mobile .tp-l button { min-width: 72px; min-height: 72px; font-size: 24px; }
+  /* botão flutuante do narrador na aba Cena */
+  body.mobile #fabCall { position: absolute; right: 12px; bottom: 12px; z-index: 6; min-height: 48px; padding: 8px 16px; border-radius: 24px; border: 0; background: var(--accent); color: var(--on-accent); font-weight: 700; box-shadow: 0 4px 16px rgba(0, 0, 0, .35); }
+  body.mobile #fabCall { display: block; } body.mobile #fabCall[hidden] { display: none; }
+  body.mobile.cena #hotbar { bottom: 72px; }
+}
+@media (max-width: 820px) and (orientation: landscape) { body.mobile #app { grid-template-rows: 44% minmax(0, 1fr); } body.mobile #tabs button[data-t] { min-height: 40px; } }
+@media (max-width: 820px) { body.mobile .card { padding: 18px 16px; border-radius: 16px; } body.mobile .card h1 { font-size: 30px; } .cr-grid { grid-template-columns: minmax(0, 1fr); } }
+.codigo { font-family: ui-monospace, Consolas, monospace; letter-spacing: .12em; color: var(--accent); }
+.convite-cod { text-align: center; font: 800 38px ui-monospace, Consolas, monospace; letter-spacing: .25em; color: var(--accent); margin: 8px 0 14px; user-select: all; }

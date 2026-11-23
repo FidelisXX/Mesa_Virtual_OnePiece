@@ -28,8 +28,17 @@ function gravarEnv(pares) {
   Object.entries(pares).forEach(([k, v]) => { const i = linhas.findIndex(l => l.trim().startsWith(k + '=')); const l = k + '=' + v; if (i >= 0) linhas[i] = l; else linhas.push(l); });
   fs.writeFileSync(ENV_FILE, linhas.filter((l, i, a) => l !== '' || i < a.length - 1).join('\n').replace(/\n*$/, '\n'));
 }
-// Só o jogo aberto do arquivo (origem "null") ou de localhost pode falar com o servidor: um site qualquer, não
-const origemOk = req => { const o = req.headers.origin; return !o || o === 'null' || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o); };
+const rede = require('./mesa-rede.js');
+const LAN = process.argv.includes('--lan') || process.env.LAN === '1';
+rede.config({ porta: PORT, lan: LAN });
+// Só a sua máquina e (com --lan) a sua rede local falam com o servidor: nenhum site da internet, nenhum IP público
+const ehPrivado = h => /^(localhost|127\.\d+\.\d+\.\d+|\[::1\]|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|169\.254\.\d+\.\d+)$/i.test(h);
+const origemOk = req => { const o = req.headers.origin; if (!o || o === 'null') return true; try { return ehPrivado(new URL(o).hostname); } catch (e) { return false; } };
+const enderecoDe = req => String(req.socket.remoteAddress || '').replace(/^::ffff:/, '');
+const ehLoopback = a => a === '::1' || /^127\./.test(a);
+const ipOk = req => { const a = enderecoDe(req); return ehLoopback(a) || ehPrivado(a) || /^f[cd][0-9a-f]{2}:/i.test(a) || /^fe80:/i.test(a); };
+// a chave do Gemini só se mexe de dentro desta máquina, nunca de um celular na rede
+const soLocal = req => ehLoopback(enderecoDe(req));
 const TIMEOUT_MS = 22000, MAX_BODY = 40000;
 const ATTRS = ['FOR', 'AGI', 'VIG', 'TEC', 'ESP', 'CAR'], TIPOS = ['aldeao', 'bandido', 'marujo', 'oficial', 'rival', 'cozinha'];
 
@@ -145,7 +154,8 @@ const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods
 const send = (res, code, obj) => { res.writeHead(code, Object.assign({ 'Content-Type': 'application/json; charset=utf-8' }, CORS)); res.end(JSON.stringify(obj)); };
 http.createServer((req, res) => {
   if (req.method === 'OPTIONS') { res.writeHead(204, CORS); res.end(); return; }
-  if (!origemOk(req)) { send(res, 403, { erro: 'origem não permitida' }); return; }
+  if (!ipOk(req) || !origemOk(req)) { send(res, 403, { erro: 'origem não permitida' }); return; }
+  if (['/chave', '/teste', '/modelos'].includes(req.url) && !soLocal(req)) { send(res, 403, { erro: 'a chave só se configura no computador que roda o servidor' }); return; }
   if (req.method === 'GET' && req.url === '/saude') { send(res, 200, { ok: MOCK || !!KEY, modelo: MOCK ? 'teste (sem IA)' : MODEL, mock: MOCK, chave: !!KEY }); return; }
   // Quais modelos de texto a sua chave enxerga (só os nomes)
   if (req.method === 'GET' && req.url === '/modelos') {
@@ -205,5 +215,10 @@ http.createServer((req, res) => {
     });
     return;
   }
+  if (rede.tratar(req, res, send)) return; // o jogo (arquivos), as mesas e o tempo real
   send(res, 404, { erro: 'não encontrado' });
-}).listen(PORT, '127.0.0.1', () => console.log(`Narrador em http://127.0.0.1:${PORT}  ·  ${MOCK ? 'MODO TESTE (sem IA)' : KEY ? 'modelo ' + MODEL : 'SEM CHAVE: crie server/.env com GEMINI_API_KEY=...'}`));
+}).listen(PORT, LAN ? '0.0.0.0' : '127.0.0.1', () => {
+  console.log(`Mesa dos Mares em http://127.0.0.1:${PORT}  ·  narrador: ${MOCK ? 'MODO TESTE (sem IA)' : KEY ? 'modelo ' + MODEL : 'SEM CHAVE (informe no jogo, botão IA)'}`);
+  if (LAN) { const u = rede.urls(); console.log('Rede local ligada. Convide pelo celular (mesma rede Wi-Fi):\n  ' + (u.join('\n  ') || '(nenhum endereço de rede encontrado)')); }
+  else console.log('Só neste computador. Para convidar o celular pelo Wi-Fi, rode com:  node server/narrador.js --lan');
+});

@@ -5,7 +5,10 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#0e151d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>Mesa dos Mares</title>
 <link rel="stylesheet" href="css/mesa.css">
 </head>
@@ -28,16 +31,23 @@
       <div id="hotbar" class="plate" hidden></div>
       <div id="islandHelp" class="plate" hidden>1-9 técnicas · Arraste tokens · roda: zoom · <kbd>Espaço</kbd> ou botão do meio: mover o mapa · <kbd>F</kbd> próximo inimigo · <kbd>Enter</kbd> chat</div>
     </div>
+    <div id="tpad" hidden>
+      <div class="tp-l"><button data-hold="KeyA" aria-label="Virar à esquerda">◀</button><button data-hold="KeyD" aria-label="Virar à direita">▶</button></div>
+      <div class="tp-m"><button data-hit="KeyW" aria-label="Mais vela">▲ vela</button><button data-hit="KeyS" aria-label="Menos vela">▼ vela</button></div>
+      <div class="tp-r"><button data-hit="KeyQ" aria-label="Disparar canhões">Canhão</button><button data-hit="KeyE" aria-label="Disparo especial">Especial</button><button data-hit="KeyR" aria-label="Reparar">Reparar</button></div>
+    </div>
+    <button id="fabCall" class="only-mobile" hidden aria-label="Chamar o narrador">✨ Narrador <span class="pts" id="fabCount">0</span></button>
     <div id="diceStage"></div>
     <div id="toasts"></div>
   </div>
 
   <aside id="side">
     <div id="tabs">
-      <button data-t="chat" class="on">Chat<span class="badge" id="chatBadge" hidden></span></button>
-      <button data-t="ficha">Ficha</button>
-      <button data-t="tec">Técnicas</button>
-      <button data-t="mesa">Mesa</button>
+      <button data-t="cena" class="only-mobile" aria-label="Cena"><span class="ic">🗺</span>Cena</button>
+      <button data-t="chat" class="on"><span class="ic">💬</span>Chat<span class="badge" id="chatBadge" hidden></span></button>
+      <button data-t="ficha"><span class="ic">📜</span>Ficha</button>
+      <button data-t="tec"><span class="ic">⚔</span>Técnicas</button>
+      <button data-t="mesa"><span class="ic">👥</span>Mesa</button>
       <button class="tbtn" id="wideBtn" title="Mais espaço para a narração">Foco</button><button class="tbtn" id="themeBtn" title="Tema escuro ou claro">Tema</button><button class="tbtn" id="iaBtn" title="Chave da API e servidor do narrador de IA">IA</button>
     </div>
 
@@ -77,6 +87,7 @@
         </div>
       </div>
       <div id="chatBox">
+        <button class="btn wood only-mobile" id="fmtBtn" aria-label="Formatação">Aa</button>
         <textarea id="chatInput" rows="1" maxlength="600" placeholder="Fale como seu personagem…"></textarea>
         <button class="btn" id="chatSend">Enviar</button>
       </div>
@@ -222,10 +233,10 @@ function reset() {
 }
 function setScene(s) {
   scene = s;
-  document.body.classList.toggle('in-title', s === 'title' || s === 'home');
+  document.body.classList.toggle('in-title', s === 'title' || s === 'home' || s === 'mesas');
   document.body.classList.toggle('in-create', s === 'create' || s === 'roleta');
   const ov = $('overlay');
-  const shows = { title: [loginHTML, bindLogin], home: [homeHTML, bindHome], create: [createHTML, bindCreate], roleta: [roletaHTML, bindRoleta], pause: [pauseHTML, bindPause] };
+  const shows = { title: [loginHTML, bindLogin], mesas: [mesasHTML, bindMesas], home: [homeHTML, bindHome], create: [createHTML, bindCreate], roleta: [roletaHTML, bindRoleta], pause: [pauseHTML, bindPause] };
   if (shows[s]) { ov.innerHTML = shows[s][0](); ov.className = 'on'; shows[s][1](); }
   else { ov.className = ''; ov.innerHTML = ''; }
   if (s === 'figures') document.body.classList.add('in-title');
@@ -244,21 +255,70 @@ function loginHTML() {
   <div class="note" style="text-align:center">As contas ficam salvas neste navegador. O login de verdade e o banco de dados entram com o Supabase, no mesmo formato. Cada aba é um participante.</div></div>`;
 }
 function bindLogin() {
-  const go = err => { if (err) { $('lgErr').textContent = err; return; } setScene('home'); };
+  const go = async err => { if (err) { $('lgErr').textContent = err; return; } await depoisDoLogin(); };
   $('lgIn').onclick = () => go(Acc.login($('lgUser').value, $('lgPass').value));
   $('lgReg').onclick = () => go(Acc.register($('lgUser').value, $('lgPass').value));
   $('lgGuest').onclick = guestLogin;
   ['lgUser', 'lgPass'].forEach(id => $(id).onkeydown = e => { if (e.key === 'Enter') { if ($('lgUser').value) $('lgIn').click(); else guestLogin(); } });
 }
-function guestLogin() { const e = Acc.register('convidado', 'convidado'); if (e) Acc.login('convidado', 'convidado'); setScene('home'); }
+async function guestLogin() { const e = Acc.register('convidado', 'convidado'); if (e) Acc.login('convidado', 'convidado'); await depoisDoLogin(); }
+// Depois de entrar na conta: um convite pendente (link ?convite=CODIGO) abre a mesa; senão, a lista de mesas
+let convitePendente = (params.get('convite') || '').toUpperCase();
+async function depoisDoLogin() {
+  if (convitePendente) {
+    const m = Mesas.entrar(convitePendente); convitePendente = ''; history.replaceState(null, '', location.pathname);
+    if (typeof m === 'object') { await abrirMesa(m.id); toast('Você entrou na mesa ' + m.nome + '.'); setScene('home'); return; }
+    toast(m);
+  }
+  if (myMesa && Mesas.atual()) { setScene('home'); return; } // volta direto à última mesa
+  setScene('mesas');
+}
+
+// ---- Mesas: criar, entrar por convite e convidar ----
+function mesasHTML() {
+  const a = Acc.cur(), lista = Mesas.minhas();
+  const rede = Net.on ? (Net.lan ? 'Rede ligada: quem estiver no mesmo Wi-Fi abre <b>' + esc(Net.urls[0] || '') + '</b> e entra com o convite.' : 'Servidor ligado só neste computador. Para convidar o celular pelo Wi-Fi, reinicie com <code>node server/narrador.js --lan</code>.') : 'Modo arquivo: as mesas ficam só neste navegador. Para jogar com outros aparelhos, rode <code>node server/narrador.js --lan</code> e abra o endereço que ele mostrar.';
+  const cartao = m => `<div class="home-card"><div style="flex:1;min-width:0"><b>${esc(m.nome)}</b> ${m.owner === myAcc ? '<span class="tag marinha">sua mesa</span>' : ''}<div class="note">${m.membros.length} pessoa(s) · convite <b class="codigo">${m.codigo}</b></div></div><button class="btn" data-open="${m.id}">Abrir</button><button class="btn wood sm" data-conv="${m.id}">Convidar</button></div>`;
+  return `<div class="card"><h1>Olá, ${esc(a.user)}</h1><div class="tagline">Escolha uma mesa ou entre numa por convite</div>
+  <div class="home-list">${lista.map(cartao).join('') || '<div class="note" style="text-align:center">Você ainda não está em nenhuma mesa. Crie uma ou use um convite.</div>'}</div>
+  <div class="row"><input type="text" id="mNome" placeholder="Nome da nova mesa" style="flex:1" maxlength="40"><button class="btn" id="mNova">Criar mesa</button></div>
+  <div class="row"><input type="text" id="mCod" placeholder="Código do convite" style="flex:1;text-transform:uppercase" maxlength="12" autocapitalize="characters" autocomplete="off"><button class="btn wood" id="mEntrar">Entrar com convite</button></div>
+  <div class="note" id="mErr" style="color:var(--danger);min-height:18px"></div>
+  <div class="title-actions" style="max-width:none;flex-direction:row;flex-wrap:wrap;justify-content:center"><button class="btn wood" id="hIa">Narrador de IA</button><button class="btn wood" id="hOut">Sair da conta</button></div>
+  <div class="note" style="text-align:center;margin-top:6px">${rede}</div></div>`;
+}
+function bindMesas() {
+  const abrir = async id => { await abrirMesa(id); setScene('home'); };
+  document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => abrir(b.dataset.open));
+  document.querySelectorAll('[data-conv]').forEach(b => b.onclick = () => conviteModal(G.mesas[b.dataset.conv]));
+  $('mNova').onclick = () => { const m = Mesas.criar($('mNome').value); abrir(m.id).then(() => conviteModal(m)); };
+  $('mEntrar').onclick = () => { const m = Mesas.entrar($('mCod').value); if (typeof m === 'string') { $('mErr').textContent = m; return; } abrir(m.id); };
+  $('mCod').onkeydown = e => { if (e.key === 'Enter') $('mEntrar').click(); };
+  $('mNome').onkeydown = e => { if (e.key === 'Enter') $('mNova').click(); };
+  $('hIa').onclick = iaModal;
+  $('hOut').onclick = () => { Acc.logout(); myMesa = null; sessionStorage.removeItem('mdm-mesa'); setScene('title'); };
+}
+// O convite: um código curto e um link. Quem abre o link (ou digita o código) entra na mesa.
+function conviteModal(m) {
+  if (!m) return;
+  const ov = $('overlay'), link = Mesas.link(m), voltar = () => { if (scene === 'play') { ov.className = ''; ov.innerHTML = ''; } else setScene(scene); };
+  const dica = Net.on && Net.lan ? 'O link usa o endereço do seu Wi-Fi: o celular precisa estar na mesma rede.' : Net.on ? 'O servidor está só neste computador. Para o celular entrar, reinicie com <code>node server/narrador.js --lan</code> e gere o convite de novo.' : 'No modo arquivo, o link só funciona neste navegador. Rode <code>node server/narrador.js --lan</code> para convidar outros aparelhos.';
+  ov.innerHTML = `<div class="card small"><h1 style="font-size:30px">Convidar para ${esc(m.nome)}</h1><div class="tagline">Passe o código ou o link</div>
+  <div class="convite-cod">${m.codigo}</div>
+  <div class="field"><label>Link do convite</label><div class="row"><input type="text" id="cvLink" readonly value="${esc(link)}" style="flex:1"><button class="btn sm wood" id="cvCopia">Copiar</button></div><div class="note">${dica}</div></div>
+  <div class="actions"><button class="btn" id="cvOk">Fechar convite</button></div></div>`;
+  ov.className = 'on';
+  $('cvCopia').onclick = async () => { try { await navigator.clipboard.writeText(link); toast('Link copiado.'); } catch (e) { $('cvLink').select(); toast('Selecione e copie o link.'); } };
+  $('cvOk').onclick = voltar;
+}
 
 // ---- Conta: personagens, roleta, mestre ----
 function homeHTML() {
   const a = Acc.cur(), list = Acc.chars();
   const info = c => c.gm ? 'Mestre da mesa' : `${RACES[c.raca].nome} · ${CLASSES[c.classe].nome} · ${PROFS[c.prof].nome} · ${c.faccao === 'marinha' ? 'Marinha' : 'Pirata'} · nv ${c.lv} · ${SEAS[c.mar].nome}`;
-  return `<div class="card"><h1>Olá, ${esc(a.user)}</h1><div class="tagline">Seus personagens ficam salvos nesta conta</div>
+  return `<div class="card"><h1>Olá, ${esc(a.user)}</h1><div class="tagline">Mesa <b>${esc((Mesas.atual() || {}).nome || '')}</b> · convite <b class="codigo">${(Mesas.atual() || {}).codigo || ''}</b></div>
   <div class="home-list">${list.map(c => `<div class="home-card"><img class="pic" src="${portraitURL(c)}" alt=""><div style="flex:1"><b>${esc(c.nome)}</b> ${c.gm ? '' : '<span class="tag ' + c.faccao + '">' + titulo(c) + '</span>'}<div class="note">${esc(info(c))}</div></div><button class="btn" data-play="${c.id}">Jogar</button><button class="btn wood sm" data-del="${c.id}">Apagar</button></div>`).join('') || '<div class="note" style="text-align:center">Nenhum personagem ainda.</div>'}</div>
-  <div class="title-actions" style="max-width:none;flex-direction:row;flex-wrap:wrap;justify-content:center"><button class="btn" id="hNew">Novo personagem <small>(Enter)</small></button><button class="btn wood" id="hGM">Entrar como Mestre</button><button class="btn wood" id="hRol">Roleta de raças ${a.roleta ? '(já usada)' : ''}</button><button class="btn wood" id="hIa">Narrador de IA</button><button class="btn wood" id="hOut">Sair da conta</button></div>
+  <div class="title-actions" style="max-width:none;flex-direction:row;flex-wrap:wrap;justify-content:center"><button class="btn" id="hNew">Novo personagem <small>(Enter)</small></button><button class="btn wood" id="hGM">Entrar como Mestre</button><button class="btn wood" id="hRol">Roleta de raças ${a.roleta ? '(já usada)' : ''}</button><button class="btn wood" id="hConv">Convidar</button><button class="btn wood" id="hMesas">Trocar de mesa</button><button class="btn wood" id="hIa">Narrador de IA</button><button class="btn wood" id="hOut">Sair da conta</button></div>
   <div class="note" style="text-align:center;margin-top:8px">A tag Mestre deixa qualquer jogador conduzir a mesa. Com ninguém mestrando, o mestre automático narra e arma as lutas.</div></div>`;
 }
 function bindHome() {
@@ -266,7 +326,9 @@ function bindHome() {
   document.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { if (confirm('Apagar este personagem para sempre?')) { const id = b.dataset.del; Object.values(db.tokens).filter(t => t.owner === id).forEach(t => commit('tokens', t.id, null)); commit('chars', id, null); setScene('home'); } });
   $('hNew').onclick = startCreate; $('hRol').onclick = () => setScene('roleta');
   $('hIa').onclick = iaModal;
-  $('hOut').onclick = () => { Acc.logout(); setScene('title'); };
+  $('hConv').onclick = () => conviteModal(Mesas.atual());
+  $('hMesas').onclick = async () => { await abrirMesa(null); setScene('mesas'); };
+  $('hOut').onclick = () => { Acc.logout(); myMesa = null; sessionStorage.removeItem('mdm-mesa'); setScene('title'); };
   $('hGM').onclick = () => {
     let g = Acc.chars().find(c => c.gm);
     if (!g) { const id = uid(); g = { id, acc: myAcc, gm: true, nome: 'Mestre ' + Acc.cur().user, cor: 'roxo', fonte: 'pirata', view: ISLANDS[0].id, lv: 1, xp: 0, attrs: {} }; commit('chars', id, g); }
@@ -370,7 +432,7 @@ function submitCreate() {
 }
 function pauseHTML() {
   return `<div class="card small"><h1 style="font-size:34px">Pausa</h1><div class="tagline">A mesa continua para os outros</div>
-  <div class="title-actions"><button class="btn" id="pResume">Voltar à mesa <small>(Esc)</small></button><button class="btn wood" id="pSwitch">Trocar de personagem</button><button class="btn wood" id="pOut">Sair da conta</button><button class="btn red" id="pReset">Apagar toda a mesa</button></div>
+  <div class="title-actions"><button class="btn" id="pResume">Voltar à mesa <small>(Esc)</small></button><button class="btn wood" id="pConv">Convidar para a mesa</button><button class="btn wood" id="pSwitch">Trocar de personagem</button><button class="btn wood" id="pMesas">Trocar de mesa</button><button class="btn wood" id="pOut">Sair da conta</button><button class="btn red" id="pReset">Apagar esta mesa</button></div>
   <div class="title-actions" style="margin-top:0"><button class="btn wood" id="pIa">Chave e servidor do narrador de IA</button></div>
   <div class="note" style="text-align:center">M liga e desliga o som.</div></div>`;
 }
@@ -411,8 +473,13 @@ function bindPause() {
   $('pResume').onclick = () => setScene('play');
   $('pIa').onclick = iaModal;
   $('pSwitch').onclick = () => { sessionStorage.removeItem('mdm-me'); myId = null; setScene('home'); };
-  $('pOut').onclick = () => { Acc.logout(); setScene('title'); };
-  $('pReset').onclick = () => { if (confirm('Apagar contas, personagens, tokens, mensagens e navios de todas as abas?')) { resetDb(); location.reload(); } };
+  $('pConv').onclick = () => conviteModal(Mesas.atual());
+  $('pMesas').onclick = async () => { await abrirMesa(null); setScene('mesas'); };
+  $('pOut').onclick = () => { Acc.logout(); myMesa = null; sessionStorage.removeItem('mdm-mesa'); setScene('title'); };
+  $('pReset').onclick = () => {
+    const m = Mesas.atual(); if (!m) return; if (m.owner !== myAcc) { toast('Só quem criou a mesa pode apagá-la.'); return; }
+    if (confirm('Apagar a mesa "' + m.nome + '" com os personagens, tokens, mensagens e navios dela, para todos?')) { resetDb(); location.reload(); }
+  };
 }
 
 // ======================================================================================
@@ -420,6 +487,9 @@ function bindPause() {
 // ======================================================================================
 function setTab(t) {
   tab = t; document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  const eraCena = document.body.classList.contains('cena');
+  document.body.classList.toggle('cena', t === 'cena'); fit();
+  if (eraCena !== (t === 'cena') && scene === 'play' && stageMode() === 'island') { const v = currentView(); if (v) Island.fit(v); } // o palco mudou de tamanho: reenquadra o mapa
   ['chat', 'ficha', 'tec', 'mesa'].forEach(n => $('p-' + n).classList.toggle('on', n === t));
   if (t === 'ficha') sheetDirty = true; if (t === 'mesa') mesaDirty = true; if (t === 'tec') tecDirty = true;
   if (t === 'chat') { dirty.msgs = true; setTimeout(() => { const l = $('chatList'); l.scrollTop = l.scrollHeight; }, 0); }
@@ -699,6 +769,8 @@ function drawPrison(g, W, H, c) {
 // ======================================================================================
 const FIGS = [['Jogador pirata', 'pirata'], ['Jogador da Marinha', 'marinha'], ['Aldeão', 'aldeao'], ['Bandido', 'bandido'], ['Marinheiro', 'marujo'], ['Oficial da Marinha', 'oficial'], ['Cozinheiro', 'cozinha'], ['Pirata Rival', 'rival']];
 const scenes = {
+  boot: { update() {}, draw() { showCanvas('2d'); ctx.fillStyle = canvasBg(); ctx.fillRect(0, 0, W, H); text('Conectando à mesa…', W / 2, H / 2, 22, '#94a6b8'); } },
+  mesas: { update(dt) { if (seaOK) Sea.update(dt, 'title'); }, draw() { drawBackdrop(); } },
   figures: {
     update(dt) { state.t += dt; },
     draw() {
@@ -772,6 +844,7 @@ const gmPlacesKeys = () => (isGM() ? [...ISLANDS.map(i => i.id), ...Object.keys(
 // Mudanças que chegam de outras abas.
 let lastNavalTurn = '';
 listeners.push((table, row, remote) => {
+  if (table === 'mesas' && remote && scene === 'mesas' && !typing()) setScene('mesas'); // alguém entrou numa das suas mesas
   if (table === 'msgs' && remote && row) { Chat.onNew(row, true); }
   if (table === 'combat' && remote && row && row.on) { const t = db.tokens[row.order[row.turn]]; if (t && t.owner === myId) { toast('É a sua vez!'); tone(784, 0.15, 'triangle', 0.3); } }
   if (table === 'naval' && remote && row && row.on && row.mode === 'turnos') {
@@ -792,7 +865,26 @@ function tick() {
   while (acc >= STEP) { step(); acc -= STEP; }
   ALPHA = acc / STEP; drawFrame();
 }
-function drawFrame() { scenes[scene].draw(); }
+// ---- Celular: abas embaixo, aba Cena em tela cheia, direcional de toque na luta 3D ----
+const mqMobile = matchMedia('(max-width: 820px)');
+function mobileSync() { document.body.classList.toggle('mobile', mqMobile.matches); fit(); }
+mqMobile.addEventListener('change', mobileSync);
+document.querySelectorAll('#tpad [data-hold]').forEach(b => {
+  const c = b.dataset.hold, off = () => { down.delete(c); b.classList.remove('on'); };
+  b.addEventListener('pointerdown', e => { e.preventDefault(); b.setPointerCapture(e.pointerId); down.add(c); b.classList.add('on'); });
+  b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('lostpointercapture', off);
+});
+document.querySelectorAll('#tpad [data-hit]').forEach(b => b.addEventListener('pointerdown', e => { e.preventDefault(); hit.add(b.dataset.hit); b.classList.add('on'); setTimeout(() => b.classList.remove('on'), 120); }));
+$('fabCall').onclick = () => $('callMaster').click();
+$('fmtBtn').onclick = () => document.body.classList.toggle('fmt');
+let mobShown = '';
+function mobileUi() {
+  const m = document.body.classList.contains('mobile') && scene === 'play';
+  const pad = m && stageMode() === 'fight', fab = m && tab === 'cena';
+  const k = (pad ? 'p' : '') + (fab ? 'f' : ''); if (k !== mobShown) { mobShown = k; $('tpad').hidden = !pad; $('fabCall').hidden = !fab; }
+  if (fab) $('fabCount').textContent = $('callCount').textContent;
+}
+function drawFrame() { scenes[scene].draw(); mobileUi(); }
 function frame() { tick(); requestAnimationFrame(frame); }
 function timer() { if (document.visibilityState === 'visible' && clock.now() - last > 0.1) tick(); }
 
@@ -806,15 +898,24 @@ window.game = {
 };
 
 // ---- Partida ----
-loadDb();
-fit();
+const emRede = /^https?:$/.test(location.protocol); // aberto pelo servidor (computador ou celular) ou direto do arquivo?
+carregarLocalSync(); // começa com a cópia local; o servidor, se existir, a troca abaixo
+mobileSync();
 try { Sea.init($('sea')); } catch (e) { seaOK = false; console.warn('3D indisponível:', e && e.message); }
 Island.attach(canvas); Naval.attach(canvas);
 ['pointerdown', 'click'].forEach(ev => canvas.addEventListener(ev, e => { if (scene === 'play' && stageMode() === 'chart') { const s = db.ships[chartKey()]; if (s) Travel.click(e, canvas, s); } }));
 $('sea').addEventListener('click', e => { if (scene === 'play' && stageMode() === 'fight') Fight3D.click(e, $('sea')); });
 Chat.init(); bindPanels(); setTab('chat');
 reset();
-setScene(params.get('scene') || (Acc.cur() ? 'home' : 'title'));
+// A primeira tela depende da conta e da mesa em que a pessoa estava
+function iniciar() {
+  const p = params.get('scene'); if (p) { setScene(p); return; }
+  if (!Acc.cur()) { setScene('title'); return; }
+  if (convitePendente) { depoisDoLogin(); return; }
+  if (myMesa && !Mesas.atual()) { myMesa = null; sessionStorage.removeItem('mdm-mesa'); }
+  setScene(myMesa ? 'home' : 'mesas');
+}
+if (emRede) { scene = 'boot'; carregarTudo().then(iniciar).catch(() => { carregarLocalSync(); iniciar(); }); } else iniciar();
 if (params.get('scene') === 'figures') { $('overlay').className = ''; $('side').style.display = 'none'; }
 new ResizeObserver(() => fit()).observe(stageEl);
 last = clock.now();

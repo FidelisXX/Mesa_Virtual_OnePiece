@@ -4,10 +4,9 @@
 // Estado compartilhado: stand-in do Supabase. Cada aba é um participante.
 //  - durável: tabelas em localStorage, mudanças enviadas por BroadcastChannel (como postgres_changes)
 //  - efêmero: posições ao vivo e golpes da luta 3D por BroadcastChannel (como broadcast)
-// Trocar pelo Supabase real = reescrever commit(), loadDb() e o receptor do canal; o resto do jogo só fala com estas funções.
+// Trocar pelo Supabase real = reescrever Net, commit() e carregarTudo(); o resto do jogo só fala com estas funções.
 'use strict';
 
-const DB_KEY = 'mdm-db-v2';
 
 // ---- Os quatro mares e as ilhas (canon:false = ilha original desta mesa) ----
 const SEAS = {
@@ -105,70 +104,144 @@ function uid() { // ids de linha, não jogo
 function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h | 0; }
 let myId = sessionStorage.getItem('mdm-me') || null;
 let myAcc = sessionStorage.getItem('mdm-acc') || null;
+let myMesa = sessionStorage.getItem('mdm-mesa') || (function () { try { return localStorage.getItem('mdm-mesa-ultima'); } catch (e) { return null; } })() || null; // aba nova: volta à última mesa
 
-// ---- Banco ----
+// ---- Dois bancos: o GLOBAL (contas e a lista de mesas) e o da MESA aberta ----
+const GT = { accounts: 1, mesas: 1 };            // tabelas que moram no global
+let G = { accounts: {}, mesas: {} };
 let db = null;
+const GKEY = 'mdm-global-v1', dbKey = () => 'mdm-db-v3-' + myMesa;
 function emptyDb() {
   return {
-    accounts: {}, chars: {}, tokens: {}, msgs: [], combat: {}, naval: {}, ships: {}, islandCfg: {}, missions: {},
+    chars: {}, tokens: {}, msgs: [], combat: {}, naval: {}, ships: {}, islandCfg: {}, missions: {},
     world: { wind: Math.PI * 0.75, created: Date.now(), auto: true },
     cargos: { almirantes: [null, null, null], frota: null },
   };
 }
-function loadDb() {
-  try { db = JSON.parse(localStorage.getItem(DB_KEY)); } catch (e) { db = null; }
-  if (!db || !db.chars) db = emptyDb();
-  const e = emptyDb(); Object.keys(e).forEach(k => { if (db[k] === undefined) db[k] = e[k]; });
+function completar(d, base) { d = d && typeof d === 'object' ? d : {}; Object.keys(base).forEach(k => { if (d[k] === undefined) d[k] = base[k]; }); return d; }
+function lerLocal(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
+function carregarLocalSync() { G = completar(lerLocal(GKEY), { accounts: {}, mesas: {} }); db = myMesa ? completar(lerLocal(dbKey()), emptyDb()) : emptyDb(); }
+// Modo arquivo (sem servidor): tudo no navegador. Modo rede: o servidor é a fonte e o navegador guarda só uma cópia.
+async function carregarTudo() {
+  await Net.iniciar();
+  G = completar(Net.on ? await Net.estado('g').catch(() => null) : lerLocal(GKEY), { accounts: {}, mesas: {} });
+  await carregarMesa();
+}
+async function carregarMesa() {
+  if (!myMesa) db = emptyDb();
+  else db = completar(Net.on ? await Net.estado(myMesa).catch(() => null) : lerLocal(dbKey()), emptyDb());
+  if (Net.on) Net.assinar(myMesa ? ['g', myMesa] : ['g']);
+}
+async function abrirMesa(id) {
+  myMesa = id || null; myId = null; sessionStorage.removeItem('mdm-me');
+  if (myMesa) { sessionStorage.setItem('mdm-mesa', myMesa); try { localStorage.setItem('mdm-mesa-ultima', myMesa); } catch (e) { /* tudo bem */ } } else sessionStorage.removeItem('mdm-mesa');
+  await carregarMesa(); Object.keys(dirty).forEach(k => { dirty[k] = true; });
 }
 let saveTimer = 0;
 function saveDb() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
-    try { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+    try { localStorage.setItem(GKEY, JSON.stringify(G)); if (myMesa) localStorage.setItem(dbKey(), JSON.stringify(db)); }
     catch (e) { toast('Armazenamento cheio: imagens grandes demais?'); }
   }, 150);
 }
-function resetDb() { localStorage.removeItem(DB_KEY); sessionStorage.removeItem('mdm-me'); sessionStorage.removeItem('mdm-acc'); bc && bc.postMessage({ t: 'reset' }); }
+// Apaga a mesa aberta (o servidor esquece o estado dela quando a mesa some da lista)
+function resetDb() {
+  const id = myMesa; if (id) { commit('mesas', id, null); try { localStorage.removeItem('mdm-db-v3-' + id); } catch (e) { /* tudo bem */ } }
+  sessionStorage.removeItem('mdm-me'); sessionStorage.removeItem('mdm-mesa');
+}
 
-// ---- Canal entre abas ----
-const bc = ('BroadcastChannel' in window) ? new BroadcastChannel('mesa-dos-mares') : null;
-const dirty = { accounts: true, chars: true, tokens: true, msgs: true, combat: true, ships: true, world: true, naval: true, cargos: true, islandCfg: true, missions: true };
+// ---- Tempo real: entre abas do mesmo navegador (BroadcastChannel) ou entre aparelhos (servidor) ----
+const bc = ('BroadcastChannel' in window) ? new BroadcastChannel('mesa-dos-mares-v3') : null;
+const dirty = { accounts: true, mesas: true, chars: true, tokens: true, msgs: true, combat: true, ships: true, world: true, naval: true, cargos: true, islandCfg: true, missions: true };
 const listeners = []; // fn(table, row, remote) chamado em toda mudança (local ou remota)
 const bcHandlers = {}; // mensagens efêmeras de outros módulos: bcHandlers[tipo] = fn(msg)
 function emit(table, row, remote) { dirty[table] = true; listeners.forEach(f => f(table, row, remote)); }
 
-// commit: grava local (otimista), persiste e avisa as outras abas. key === null: a tabela inteira é a linha (cargos, world).
+const Net = (() => {
+  let on = false, cid = uid(), q = [], timer = 0, leitor = null, escopos = [], urls = [], lan = false, vezes = 0;
+  async function iniciar() {
+    if (!/^https?:$/.test(location.protocol)) return false;
+    try { const r = await fetch('/info', { signal: AbortSignal.timeout(2500), cache: 'no-store' }), j = await r.json(); if (!j || !j.rede) return false; on = true; urls = j.urls || []; lan = !!j.lan; return true; }
+    catch (e) { return false; }
+  }
+  async function estado(esc) { const r = await fetch('/estado?escopo=' + encodeURIComponent(esc), { cache: 'no-store' }); if (!r.ok) throw new Error('estado ' + r.status); return r.json(); }
+  function enviar(esc, m) { q.push({ esc, m }); if (!timer) timer = setTimeout(descarga, 35); }
+  async function descarga() {
+    timer = 0; const itens = q.splice(0), por = {};
+    itens.forEach(i => { (por[i.esc] = por[i.esc] || []).push(i.m); });
+    for (const [esc, msgs] of Object.entries(por)) {
+      try { await fetch('/rel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cid, escopo: esc, msgs }) }); }
+      catch (e) { /* sem rede por um instante: a próxima reconexão busca o estado de novo */ }
+    }
+  }
+  // O fluxo de eventos é lido com fetch (reconecta sozinho e, ao voltar, busca o estado de novo para não perder nada)
+  function assinar(lista) {
+    if (lista.join(',') === escopos.join(',') && leitor) return;
+    escopos = lista; if (leitor) leitor.abort(); vezes = 0; ler();
+  }
+  async function ler() {
+    const ctl = new AbortController(); leitor = ctl;
+    try {
+      const r = await fetch('/eventos?cid=' + cid + '&escopos=' + encodeURIComponent(escopos.join(',')), { signal: ctl.signal, cache: 'no-store' });
+      if (vezes++ > 0) await ressincronizar();
+      const rd = r.body.getReader(), dec = new TextDecoder(); let buf = '';
+      for (;;) {
+        const { value, done } = await rd.read(); if (done) break;
+        buf += dec.decode(value, { stream: true }); let i;
+        while ((i = buf.indexOf('\n\n')) >= 0) {
+          const bloco = buf.slice(0, i), l = bloco.split('\n').find(x => x.startsWith('data: ')); buf = buf.slice(i + 2);
+          if (l) { try { const p = JSON.parse(l.slice(6)); (p.msgs || []).forEach(m => onRemote(Object.assign({}, m, { escopo: p.escopo }))); } catch (e) { /* mensagem ruim: ignora */ } }
+        }
+      }
+    } catch (e) { /* caiu ou foi trocado */ }
+    if (leitor === ctl && !ctl.signal.aborted) setTimeout(() => { if (leitor === ctl) ler(); }, 2000);
+  }
+  async function ressincronizar() {
+    try { G = completar(await estado('g'), { accounts: {}, mesas: {} }); if (myMesa) db = completar(await estado(myMesa), emptyDb()); Object.keys(dirty).forEach(k => { dirty[k] = true; }); } catch (e) { /* tenta na próxima */ }
+  }
+  return { iniciar, estado, enviar, assinar, get on() { return on; }, get cid() { return cid; }, get urls() { return urls; }, get lan() { return lan; } };
+})();
+
+// commit: grava local (otimista), persiste e avisa os outros (abas ou aparelhos). key === null: a tabela inteira é a linha (cargos, world).
 function commit(table, key, row) {
   if (table === 'msgs') { db.msgs.push(row); trimMsgs(); }
-  else if (key === null) db[table] = row;
-  else if (row === null) delete db[table][key];
-  else db[table][key] = row;
+  else if (key === null) { if (GT[table]) G[table] = row; else db[table] = row; }
+  else if (row === null) delete (GT[table] ? G : db)[table][key];
+  else (GT[table] ? G : db)[table][key] = row;
   saveDb(); emit(table, row, false);
-  bc && bc.postMessage({ t: 'row', table, key, row });
+  enviar({ t: 'row', table, key, row });
+}
+// escopo: 'g' (contas e mesas) ou o id da mesa aberta
+function enviar(m) {
+  const escopo = m.t === 'row' && GT[m.table] ? 'g' : (myMesa || 'g');
+  if (Net.on) Net.enviar(escopo, m); else if (bc) bc.postMessage(Object.assign({ escopo }, m));
 }
 function trimMsgs() { const cap = tune.msgCap; if (db.msgs.length > cap) db.msgs.splice(0, db.msgs.length - cap); }
 function clearChannel(ch) {
   db.msgs = db.msgs.filter(m => m.ch !== ch); saveDb(); emit('msgs', null, false);
-  bc && bc.postMessage({ t: 'clear', ch });
+  enviar({ t: 'clear', ch });
 }
-function sendTokMove(id, x, y) { bc && bc.postMessage({ t: 'tmove', id, x, y }); }
-function broadcast(msg) { bc && bc.postMessage(msg); }
+function sendTokMove(id, x, y) { enviar({ t: 'tmove', id, x, y }); }
+function broadcast(msg) { enviar(msg); }
 
-if (bc) bc.onmessage = ev => {
-  const m = ev.data;
+function onRemote(m) {
+  const g = m.escopo === 'g';
+  if (!g && m.escopo !== myMesa) return; // é de outra mesa
   if (m.t === 'row') {
-    if (m.table === 'msgs') { if (!db.msgs.some(x => x.id === m.row.id)) { db.msgs.push(m.row); trimMsgs(); } }
-    else if (m.key === null) db[m.table] = m.row;
-    else if (m.row === null) delete db[m.table][m.key];
-    else db[m.table][m.key] = m.row;
+    const alvo = g ? G : db;
+    if (m.table === 'msgs') { if (!g && !db.msgs.some(x => x.id === m.row.id)) { db.msgs.push(m.row); trimMsgs(); } }
+    else if (m.key === null) alvo[m.table] = m.row;
+    else { alvo[m.table] = alvo[m.table] || {}; if (m.row === null) delete alvo[m.table][m.key]; else alvo[m.table][m.key] = m.row; }
     saveDb(); emit(m.table, m.row, true);
+    if (g && m.table === 'mesas' && m.row === null && m.key === myMesa) location.reload(); // a mesa aberta foi apagada
   } else if (m.t === 'tmove') {
     const tk = db.tokens[m.id]; if (tk) { tk.x = m.x; tk.y = m.y; dirty.tokens = true; }
   } else if (m.t === 'clear') {
     db.msgs = db.msgs.filter(x => x.ch !== m.ch); emit('msgs', null, true);
-  } else if (m.t === 'reset') { location.reload(); }
-  else if (bcHandlers[m.t]) bcHandlers[m.t](m);
-};
+  } else if (bcHandlers[m.t]) bcHandlers[m.t](m);
+}
+if (bc) bc.onmessage = ev => { if (!Net.on) onRemote(ev.data); };
 
 // ---- Quem sou, navios e canais ----
 const me = () => (myId && db.chars[myId]) || null;

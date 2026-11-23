@@ -40,9 +40,15 @@ const Island = (() => {
 
   function attach(canvas) {
     cv = canvas;
+    // Pinça com dois dedos: zoom e arrasto do mapa no celular
+    const pts = new Map(); let pinch = null;
+    const two = () => { const [a, b] = [...pts.values()]; return { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 }; };
     cv.addEventListener('pointerdown', e => {
       if (!isl || scene !== 'play' || stageMode() !== 'island') return;
       cv.setPointerCapture(e.pointerId);
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size === 2) { drag = null; pan = null; const c = cam(isl), s = two(); pinch = { d: s.d, z: c.z, mx: s.mx, my: s.my, cx: c.x, cy: c.y }; return; }
+      if (pts.size > 2) return;
       const w = toWorld(e), t = (e.button === 0 && !spaceDown) ? hitToken(w) : null;
       if (t) {
         sel = t.id; dirty.tokens = true; uiSelChanged();
@@ -53,6 +59,12 @@ const Island = (() => {
       }
     });
     cv.addEventListener('pointermove', e => {
+      if (pts.has(e.pointerId)) pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pinch && pts.size >= 2) {
+        const s = two(), c = cam(isl), r = cv.getBoundingClientRect();
+        const z = clamp(pinch.z * s.d / pinch.d, tune.zoomMin, tune.zoomMax), k = z / pinch.z, px = pinch.mx - r.left, py = pinch.my - r.top;
+        c.z = z; c.x = px - (px - pinch.cx) * k + (s.mx - pinch.mx); c.y = py - (py - pinch.cy) * k + (s.my - pinch.my); dirty.tokens = true; saveCam(isl); return;
+      }
       if (drag) {
         if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 4) return;
         if (!drag.moved && !drag.ok) { toast('Esse token não é seu.'); drag = null; return; }
@@ -65,7 +77,9 @@ const Island = (() => {
         const c = cam(isl); c.x = pan.cx + e.clientX - pan.sx; c.y = pan.cy + e.clientY - pan.sy; dirty.tokens = true; saveCam(isl);
       }
     });
-    const up = () => {
+    const up = e => {
+      if (e && e.pointerId != null) pts.delete(e.pointerId); if (pts.size < 2) pinch = null;
+      if (e && pts.size > 0 && !drag) return; // sobrou um dedo depois da pinça: não vira arrasto
       if (drag && drag.moved) {
         const t = db.tokens[drag.id];
         if (t) { t.x = Math.round(t.x); t.y = Math.round(t.y); commit('tokens', t.id, t); tone(220, 0.06, 'square', 0.12); }

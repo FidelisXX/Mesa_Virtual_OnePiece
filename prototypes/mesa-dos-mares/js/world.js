@@ -12,17 +12,17 @@ const Acc = (() => {
   const key = u => String(u || '').trim().toLowerCase();
   const hash = (u, p) => String(hashStr('mdm:' + key(u) + ':' + p));
   return {
-    cur: () => (myAcc && db.accounts[myAcc]) || null,
+    cur: () => (myAcc && G.accounts[myAcc]) || null,
     register(user, pass) {
       const k = key(user);
       if (k.length < 3) return 'O usuário precisa de ao menos 3 letras.';
       if (String(pass || '').length < 4) return 'A senha precisa de ao menos 4 caracteres.';
-      if (db.accounts[k]) return 'Esse usuário já existe.';
+      if (G.accounts[k]) return 'Esse usuário já existe.';
       commit('accounts', k, { key: k, user: String(user).trim(), pass: hash(user, pass), roleta: null, created: Date.now() });
       return this.login(user, pass);
     },
     login(user, pass) {
-      const a = db.accounts[key(user)];
+      const a = G.accounts[key(user)];
       if (!a || a.pass !== hash(user, pass)) return 'Usuário ou senha incorretos.';
       myAcc = a.key; sessionStorage.setItem('mdm-acc', myAcc); return null;
     },
@@ -35,6 +35,32 @@ const Acc = (() => {
       a.roleta = { res: r < ch ? 'ancestral' : r < ch * 2 ? 'lunariano' : 'nada', ts: Date.now() }; commit('accounts', a.key, a); return a.roleta.res;
     },
     unlocked: () => { const a = Acc.cur(); return a && a.roleta && a.roleta.res !== 'nada' ? [a.roleta.res] : []; },
+  };
+})();
+
+// ======================================================================================
+// Mesas e convites: cada mesa tem o seu estado, o seu Mestre e um código de convite
+// ======================================================================================
+const Mesas = (() => {
+  const ALFA = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // sem 0/O/1/I/L, para ninguém errar ao ditar
+  const novoCodigo = () => { for (let k = 0; k < 50; k++) { let c = ''; for (let i = 0; i < 6; i++) c += ALFA[Math.floor(rng() * ALFA.length)]; if (!Object.values(G.mesas).some(m => m.codigo === c)) return c; } return uid().slice(0, 6).toUpperCase(); };
+  return {
+    minhas: () => Object.values(G.mesas).filter(m => m.membros.includes(myAcc)).sort((a, b) => b.criada - a.criada),
+    atual: () => (myMesa && G.mesas[myMesa]) || null,
+    criar(nome) {
+      const m = { id: uid(), codigo: novoCodigo(), nome: String(nome || '').trim().slice(0, 40) || 'Nossa mesa', owner: myAcc, membros: [myAcc], criada: Date.now() };
+      commit('mesas', m.id, m); return m;
+    },
+    // entra por código (ou pelo código de um link); devolve a mesa ou um texto de erro
+    entrar(codigo) {
+      const cod = String(codigo || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, ''); if (cod.length !== 6) return 'O código de convite tem 6 letras e números.';
+      const m = Object.values(G.mesas).find(x => x.codigo === cod); if (!m) return 'Nenhuma mesa com esse convite. Confira o código ou peça outro.';
+      if (!m.membros.includes(myAcc)) { m.membros.push(myAcc); commit('mesas', m.id, m); }
+      return m;
+    },
+    sair(m) { if (m.owner === myAcc) return 'Quem criou a mesa não pode sair dela; apague a mesa se quiser acabar com ela.'; m.membros = m.membros.filter(x => x !== myAcc); commit('mesas', m.id, m); return null; },
+    // o endereço que o convidado abre: o do Wi-Fi (se o servidor estiver com --lan) ou o da própria página
+    link: m => (Net.urls[0] || (Net.on ? location.origin : '')) + '/?convite=' + m.codigo,
   };
 })();
 
@@ -230,7 +256,7 @@ const Events = (() => {
 // ======================================================================================
 const Ia = (() => {
   let on = false, modelo = '', mock = false, erro = 'ainda não verificado', last = 0;
-  const DEF = 'http://127.0.0.1:8787';
+  const DEF = /^https?:$/.test(location.protocol) ? location.origin : 'http://127.0.0.1:8787';
   const base = () => { try { return (localStorage.getItem('mdm-ia-url') || DEF).replace(/\/$/, ''); } catch (e) { return DEF; } };
   const setBase = u => { try { localStorage.setItem('mdm-ia-url', u || DEF); } catch (e) { /* tudo bem */ } last = 0; };
   async function check() {

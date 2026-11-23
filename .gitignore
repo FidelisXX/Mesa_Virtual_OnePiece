@@ -2,3 +2,6 @@
 .env
 **/.env
 node_modules/
+
+# estado das mesas (contas e conversas)
+**/server/mesas.json

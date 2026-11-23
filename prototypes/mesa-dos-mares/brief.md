@@ -20,12 +20,13 @@ After play: "Essa quantidade de possibilidade textual está mal oganizada para c
 After play: "Uma ideia para economizar token, o jogador pode escrever vários textos, imagina o caso de uma mesa ter mais de um jogador, e vai ter um botão que ele pode chamar o narrador, ai o narrador ler tudo que foi colocado e depois segue para a resposta" (o narrador não responde mais a cada mensagem: só quando chamado, lendo tudo de uma vez, o que também vale como uma chamada só à IA no futuro)
 After play: "A resposta foi bem ruim, então vamos logo fazer a integração com a API" (o narrador passa a poder ser o Gemini, por um servidor local que guarda a chave; sem o servidor, o narrador de tabela continua como reserva)
 After play: "Lembre de colocar um local onde eu possa informar a chave da api" (a chave é digitada no jogo, botão IA, e vai só para o servidor local, que a guarda na memória e no server/.env; o navegador não a guarda)
+After play: "Eu quero que também tenha uma versão mobile, onde o jogador que entrar pelo celular consiga mover o token, acessar o chat, tudo de uma forma muito boa, seguindo o modelo do Friend&Fable" · "As mesas podem ter um convite para que possam jogar juntos" (a mesa vira uma sala com código e link de convite, num servidor que repassa tudo em tempo real; o celular ganha abas embaixo, chat em primeiro plano e a cena em tela cheia)
 
 **Pitch:** Uma carreira de One Piece jogada por texto: crie um pirata ou marinheiro de uma raça rara, navegue sozinho entre as ilhas dos quatro mares, lute com ataques que você mesmo monta e suba do nível 1 ao 100.
 
 **Genre:** RPG de mesa por chat (VTT) com carreira e viagem
 
-**Controls:** Login e criação por cliques. Mar: clique numa ilha da carta náutica e em Viajar; o barco vai sozinho. Luta naval 3D: W/S velas, A/D leme, Q/E tiro de bombordo/boreste, R conserta. Ilha: arrastar tokens, roda = zoom, botão do meio/Espaço = mover câmera. Chat: Enter envia, `/r 1d20+3` rola.
+**Controls:** Celular: toque e arraste o token, pinça para o zoom, abas embaixo, botão Narrador na aba Cena; luta 3D com direcional na tela. Login e criação por cliques. Mar: clique numa ilha da carta náutica e em Viajar; o barco vai sozinho. Luta naval 3D: W/S velas, A/D leme, Q/E tiro de bombordo/boreste, R conserta. Ilha: arrastar tokens, roda = zoom, botão do meio/Espaço = mover câmera. Chat: Enter envia, `/r 1d20+3` rola.
 
 **Question:** Uma carreira com raça, nível 1–100, ataques criados e viagem automática continua sendo um jogo de chat gostoso, e a luta naval 3D no meio da viagem vale a pausa na narração?
 
@@ -67,6 +68,8 @@ Fácil, moderado ou difícil conforme o nível do grupo: o primeiro evento na vi
 - [x] Narração em primeiro plano, no estilo de um mestre de IA: os jogadores escrevem à vontade e o botão "Chamar o narrador" faz o mestre automático ler tudo o que a mesa escreveu de uma vez e responder a todos (um teste por jogador, com botão de rolar, e lutas armadas); ações rápidas sob o chat
 - [x] Narrador de IA (Gemini) por um servidor local (`server/narrador.js`) que guarda a chave fora do navegador (a chave é informada no jogo, botão IA, e o servidor só aceita pedidos do jogo local); uma chamada por vez que a mesa chama o narrador, mostrando os tokens gastos; se o modelo sumir (404) ou estiver lotado (503), o servidor troca sozinho por outro que a chave enxerga, começando pelos "lite"; sem o servidor, o narrador de tabela responde
 - [x] Aba Técnicas (criar, editar e usar), barra de atalhos no mapa e teclas 1 a 9; tema escuro e claro e modo Foco que dá mais espaço ao chat
+- [x] Mesas com convite (código de 6 letras e link): várias pessoas, em computador ou celular, jogam juntas, com chat, fichas e tokens em tempo real pelo servidor local (`--lan`)
+- [x] Versão para celular: abas embaixo (Cena, Chat, Ficha, Técnicas, Mesa), chat em primeiro plano, mapa em tela cheia com pinça e arrasto, direcional de toque na luta 3D e botão flutuante do narrador
 
 ## Your systems
 - conta e personagens salvos (local) · in the slice
@@ -90,7 +93,7 @@ Fácil, moderado ou difícil conforme o nível do grupo: o primeiro evento na vi
 - Voz como foco: o jogo é por chat ("poucas vezes por voz")
 
 ## Out of scope
-- Online: sessão com amigos em máquinas diferentes: needs a server, so not built; built instead: cada aba do navegador é um participante, sincronizado ao vivo nesta máquina
+- Online pela internet (fora da sua rede Wi-Fi): needs a host; built instead: mesas com convite pela rede local (`node server/narrador.js --lan`), no computador, celular ou outra aba
 - Supabase de verdade (login real e banco): needs a server; no lugar, conta local na mesma interface, pronta para trocar. A IA Gemini entra por um servidor local opcional que guarda a chave
 - Haki e a Grand Line: grow it
 - Trilha sonora do YouTube e bestiário: add it as a feature
