@@ -41,6 +41,7 @@
     <div id="toasts"></div>
   </div>
 
+  <div id="resizer" title="Arraste para mudar a largura do chat (duplo toque: tamanho padrão)"></div>
   <aside id="side">
     <div id="tabs">
       <button data-t="cena" class="only-mobile" aria-label="Cena"><span class="ic">🗺</span>Cena</button>
@@ -69,25 +70,8 @@
           <select id="susAlvo" hidden></select>
           <select id="comoNpc" hidden></select>
         </div>
-        <div class="row">
-          <button class="fb" id="fB" title="Negrito (Ctrl+B)"><b>B</b></button>
-          <button class="fb" id="fI" title="Itálico (Ctrl+I)"><i>I</i></button>
-          <button class="fb" id="fU" title="Sublinhado"><u>S</u></button>
-          <button class="fb" id="fS" title="Riscado"><s>R</s></button>
-          <button class="fb" id="fO" title="Fora do personagem inline">(( ))</button>
-          <button class="fb" id="fR" title="Rolagem no meio do texto: [[1d20+3]]">[d]</button>
-          <span class="sep"></span>
-          <span class="pop-wrap"><button class="fb" id="fColor" title="Cor do texto">Cor ▾</button><div id="swatches" class="pop" hidden></div></span>
-          <button class="fb" id="fHelp" title="Ajuda de formatação">?</button>
-        </div>
-        <div id="chatHelp" hidden>
-          <code>**negrito**</code> <code>*itálico*</code> <code>__sublinhado__</code> <code>~~riscado~~</code> <code>{vermelho|cor}</code> <code>{#ff8800|cor livre}</code> <code>((fora do personagem))</code> <code>@nome</code> <code>[[1d6+2]]</code><br>
-          <code>/r 1d20+FOR</code> rola · <code>/teste AGI 15</code> · <code>/me</code> ação · <code>/g</code> grito · <code>/s nome texto</code> sussurro · <code>/ooc</code> · Mestre: <code>/n</code> narração, <code>/limpar</code><br>
-          Em Ação, o que estiver entre "aspas" ganha destaque. Shift+Enter quebra linha.
-        </div>
       </div>
       <div id="chatBox">
-        <button class="btn wood only-mobile" id="fmtBtn" aria-label="Formatação">Aa</button>
         <textarea id="chatInput" rows="1" maxlength="600" placeholder="Fale como seu personagem…"></textarea>
         <button class="btn" id="chatSend">Enviar</button>
       </div>
@@ -563,7 +547,7 @@ function renderHotbar(show) {
 }
 
 // ---- Tema e ações rápidas do chat ----
-function applyTheme(t) { document.documentElement.dataset.theme = t; try { localStorage.setItem('mdm-theme', t); } catch (e) { /* tudo bem */ } dirty.msgs = true; sheetDirty = true; tecDirty = true; hotSig = ''; if (typeof Chat !== 'undefined') Chat.swatches(); }
+function applyTheme(t) { document.documentElement.dataset.theme = t; try { localStorage.setItem('mdm-theme', t); } catch (e) { /* tudo bem */ } dirty.msgs = true; sheetDirty = true; tecDirty = true; hotSig = ''; }
 const QUICK = [['Olhar ao redor', 'olha ao redor e investiga o lugar.'], ['Conversar', 'puxa conversa com alguém por perto.'], ['Esgueirar-se', 'se esgueira pelas sombras sem ser notado.'], ['Forçar', 'tenta arrombar o que estiver trancado.'], ['Procurar briga', 'procura briga com o primeiro valentão que encontrar.']];
 function renderChips() {
   const c = me(), el = $('actChips'), v = c && currentView(), show = !!(c && !c.gm && (isIsland(v) || isDeck(v)) && db.world.auto);
@@ -704,7 +688,7 @@ function bindPanels() {
   $('tkKind').innerHTML = Object.entries(NPC_KINDS).map(([k, n]) => `<option value="${k}">${n.nome} (nv ${n.lv})</option>`).join('');
   $('iaBtn').onclick = iaModal; $('callCfg').onclick = iaModal;
   $('themeBtn').onclick = () => applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
-  $('wideBtn').onclick = () => { const w = document.body.classList.toggle('wide'); try { localStorage.setItem('mdm-wide', w ? '1' : '0'); } catch (e) { /* tudo bem */ } };
+  $('wideBtn').onclick = () => { setSide(null); const w = document.body.classList.toggle('wide'); try { localStorage.setItem('mdm-wide', w ? '1' : '0'); } catch (e) { /* tudo bem */ } };
   $('btnCarta').onclick = () => { if (me().gm) { worldOpen = true; World.sel = null; worldSig = ''; } else { chartOpen = true; Travel.sel = null; } mesaDirty = true; };
   $('btnCentro').onclick = () => Island.fit(currentView());
   $('chatBgFile').onchange = e => { Chat.setBg(e.target.files[0]); e.target.value = ''; };
@@ -897,8 +881,22 @@ document.querySelectorAll('#tpad [data-hold]').forEach(b => {
   b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('lostpointercapture', off);
 });
 document.querySelectorAll('#tpad [data-hit]').forEach(b => b.addEventListener('pointerdown', e => { e.preventDefault(); hit.add(b.dataset.hit); b.classList.add('on'); setTimeout(() => b.classList.remove('on'), 120); }));
+// ---- Largura da lateral: arraste a alça; duplo clique volta ao padrão ----
+const rz = $('resizer'), appEl = $('app'), SIDE_MIN = 240;
+function setSide(px) { // px null = padrão
+  if (px == null) { appEl.style.gridTemplateColumns = ''; try { localStorage.removeItem('mdm-side'); } catch (e) { /* tudo bem */ } }
+  else { px = clamp(Math.round(px), SIDE_MIN, Math.round(innerWidth * 0.75)); appEl.style.gridTemplateColumns = 'minmax(0, 1fr) ' + px + 'px'; try { localStorage.setItem('mdm-side', String(px)); } catch (e) { /* tudo bem */ } }
+  placeRz(); fit();
+}
+function placeRz() { rz.style.left = $('side').getBoundingClientRect().left + 'px'; }
+rz.addEventListener('pointerdown', e => { rz.setPointerCapture(e.pointerId); rz.classList.add('drag'); e.preventDefault(); });
+rz.addEventListener('pointermove', e => { if (rz.classList.contains('drag')) setSide(innerWidth - e.clientX); });
+['pointerup', 'pointercancel'].forEach(ev => rz.addEventListener(ev, () => { rz.classList.remove('drag'); if (scene === 'play' && stageMode() === 'island') { const v = currentView(); if (v) Island.fit(v); } }));
+rz.addEventListener('dblclick', () => setSide(null));
+addEventListener('resize', placeRz); if (window.ResizeObserver) new ResizeObserver(placeRz).observe($('side'));
+try { const sv = +localStorage.getItem('mdm-side'); if (sv) setSide(sv); } catch (e) { /* tudo bem */ }
+placeRz();
 $('fabCall').onclick = () => $('callMaster').click();
-$('fmtBtn').onclick = () => document.body.classList.toggle('fmt');
 let mobShown = '';
 function mobileUi() {
   const m = document.body.classList.contains('mobile') && scene === 'play';

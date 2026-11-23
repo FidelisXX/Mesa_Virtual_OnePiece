@@ -258,20 +258,10 @@ const Chat = (() => {
     bar.querySelectorAll('button').forEach(b => b.onclick = () => { const s = ta.selectionStart; const before = ta.value.slice(0, s).replace(/@([\wÀ-ú]*)$/, '@' + b.dataset.n + ' '); ta.value = before + ta.value.slice(s); ta.focus(); bar.hidden = true; preview(); });
   }
 
-  function swatches() {
-    $('swatches').innerHTML = Object.keys(CORES).map(n => `<button class="sw" data-c="${n}" title="{${n}|texto}" style="background:${tc(n)}"></button>`).join('');
-    $('swatches').querySelectorAll('button').forEach(b => b.onclick = () => { wrap('{' + b.dataset.c + '|', '}'); $('swatches').hidden = true; });
-  }
   function init() {
     $('chatList').addEventListener('click', e => { const b = e.target.closest('[data-ask]'); if (b && me() && !me().gm) { if (b.dataset.who && b.dataset.who !== myId) { toast('Esse teste é de outro jogador.'); return; } b.disabled = true; teste(b.dataset.ask, +b.dataset.cd, 'normal', 'Teste pedido pelo mestre'); } });
     $('modos').innerHTML = MODOS.map(m => `<button data-k="${m.k}" title="${esc(m.dica)}" class="${m.gm ? 'gm-only' : ''}">${m.nome}</button>`).join('');
     $('modos').querySelectorAll('button').forEach(b => b.onclick = () => setModo(b.dataset.k));
-    swatches();
-    $('fB').onclick = () => wrap('**', '**'); $('fI').onclick = () => wrap('*', '*'); $('fU').onclick = () => wrap('__', '__'); $('fS').onclick = () => wrap('~~', '~~');
-    $('fO').onclick = () => wrap('((', '))'); $('fR').onclick = () => wrap('[[', ']]');
-    $('fColor').onclick = e => { e.stopPropagation(); $('swatches').hidden = !$('swatches').hidden; };
-    document.addEventListener('click', e => { if (!e.target.closest('.pop-wrap')) $('swatches').hidden = true; });
-    $('fHelp').onclick = () => { $('chatHelp').hidden = !$('chatHelp').hidden; };
     const ta = $('chatInput');
     ta.addEventListener('keydown', e => {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
@@ -285,7 +275,7 @@ const Chat = (() => {
     $('susAlvo').onchange = preview;
   }
 
-  return { init, swatches, render, head, setBg, clearBg, send, sysMsg, post, postRoll, teste, rollFormula, setModo, onNew, unread, format, get modo() { return modo; }, portraitFor, tokenPortrait };
+  return { init, render, head, setBg, clearBg, send, sysMsg, post, postRoll, teste, rollFormula, setModo, onNew, unread, format, get modo() { return modo; }, portraitFor, tokenPortrait };
 })();
 const sysMsg = (ch, txt) => Chat.sysMsg(ch, txt);
 
