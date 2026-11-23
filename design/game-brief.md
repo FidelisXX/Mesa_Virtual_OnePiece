@@ -19,6 +19,7 @@ After play: "Eu não achei onde criar tecnicas, o design também não me agrada 
 After play: "Essa quantidade de possibilidade textual está mal oganizada para colocar negrito e tal, ajusta isso, outra coisa. Quando escrevo no chat e respondo, o narrador não funciona, a não ser que seja pelos balões de sugestão, isso é porque ainda não está com a chave da API?" (a barra do chat fica compacta, com cor num menu, e o mestre automático passa a responder também à fala; a IA de verdade continua para depois)
 After play: "Uma ideia para economizar token, o jogador pode escrever vários textos, imagina o caso de uma mesa ter mais de um jogador, e vai ter um botão que ele pode chamar o narrador, ai o narrador ler tudo que foi colocado e depois segue para a resposta" (o narrador não responde mais a cada mensagem: só quando chamado, lendo tudo de uma vez, o que também vale como uma chamada só à IA no futuro)
 After play: "A resposta foi bem ruim, então vamos logo fazer a integração com a API" (o narrador passa a poder ser o Gemini, por um servidor local que guarda a chave; sem o servidor, o narrador de tabela continua como reserva)
+After play: "Lembre de colocar um local onde eu possa informar a chave da api" (a chave é digitada no jogo, botão IA, e vai só para o servidor local, que a guarda na memória e no server/.env; o navegador não a guarda)
 
 **Pitch:** Uma carreira de One Piece jogada por texto: crie um pirata ou marinheiro de uma raça rara, navegue sozinho entre as ilhas dos quatro mares, lute com ataques que você mesmo monta e suba do nível 1 ao 100.
 
@@ -64,7 +65,7 @@ Fácil, moderado ou difícil conforme o nível do grupo: o primeiro evento na vi
 - [x] Comércio em toda ilha (comida, reparo, curativo, canhões, velas), treino AFK, missões da Marinha e saque
 - [x] Mestre humano (tag mestre) e mestre automático por tabela, no formato que a API do Gemini usaria depois; fundo de imagem no chat; gerador de ilha do mestre
 - [x] Narração em primeiro plano, no estilo de um mestre de IA: os jogadores escrevem à vontade e o botão "Chamar o narrador" faz o mestre automático ler tudo o que a mesa escreveu de uma vez e responder a todos (um teste por jogador, com botão de rolar, e lutas armadas); ações rápidas sob o chat
-- [x] Narrador de IA (Gemini) por um servidor local (`server/narrador.js`) que guarda a chave fora do navegador; uma chamada por vez que a mesa chama o narrador, mostrando os tokens gastos; sem o servidor, o narrador de tabela responde
+- [x] Narrador de IA (Gemini) por um servidor local (`server/narrador.js`) que guarda a chave fora do navegador (a chave é informada no jogo, botão IA, e o servidor só aceita pedidos do jogo local); uma chamada por vez que a mesa chama o narrador, mostrando os tokens gastos; sem o servidor, o narrador de tabela responde
 - [x] Aba Técnicas (criar, editar e usar), barra de atalhos no mapa e teclas 1 a 9; tema escuro e claro e modo Foco que dá mais espaço ao chat
 
 ## Your systems

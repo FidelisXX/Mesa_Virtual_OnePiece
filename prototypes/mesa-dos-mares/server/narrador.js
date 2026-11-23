@@ -20,7 +20,16 @@ try {
     const m = l.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/); if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
   });
 } catch (e) { /* sem .env: usa o ambiente */ }
-const KEY = process.env.GEMINI_API_KEY || '', MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash', PORT = +process.env.PORT || 8787, MOCK = process.env.MOCK === '1';
+let KEY = process.env.GEMINI_API_KEY || '', MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const PORT = +process.env.PORT || 8787, MOCK = process.env.MOCK === '1', ENV_FILE = path.join(__dirname, '.env');
+// Guarda (ou troca) uma linha CHAVE=valor no .env, mantendo o resto do arquivo
+function gravarEnv(pares) {
+  let linhas = []; try { linhas = fs.readFileSync(ENV_FILE, 'utf8').split(/\r?\n/); } catch (e) { /* ainda não existe */ }
+  Object.entries(pares).forEach(([k, v]) => { const i = linhas.findIndex(l => l.trim().startsWith(k + '=')); const l = k + '=' + v; if (i >= 0) linhas[i] = l; else linhas.push(l); });
+  fs.writeFileSync(ENV_FILE, linhas.filter((l, i, a) => l !== '' || i < a.length - 1).join('\n').replace(/\n*$/, '\n'));
+}
+// Só o jogo aberto do arquivo (origem "null") ou de localhost pode falar com o servidor: um site qualquer, não
+const origemOk = req => { const o = req.headers.origin; return !o || o === 'null' || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o); };
 const TIMEOUT_MS = 25000, MAX_BODY = 40000;
 const ATTRS = ['FOR', 'AGI', 'VIG', 'TEC', 'ESP', 'CAR'], TIPOS = ['aldeao', 'bandido', 'marujo', 'oficial', 'rival', 'cozinha'];
 
@@ -97,7 +106,27 @@ const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods
 const send = (res, code, obj) => { res.writeHead(code, Object.assign({ 'Content-Type': 'application/json; charset=utf-8' }, CORS)); res.end(JSON.stringify(obj)); };
 http.createServer((req, res) => {
   if (req.method === 'OPTIONS') { res.writeHead(204, CORS); res.end(); return; }
+  if (!origemOk(req)) { send(res, 403, { erro: 'origem não permitida' }); return; }
   if (req.method === 'GET' && req.url === '/saude') { send(res, 200, { ok: MOCK || !!KEY, modelo: MOCK ? 'teste (sem IA)' : MODEL, mock: MOCK, chave: !!KEY }); return; }
+  // Receber a chave pelo jogo: fica na memória do servidor e, se pedido, no server/.env (fora do git). Nunca volta para o navegador.
+  if (req.method === 'POST' && req.url === '/chave') {
+    let body = '';
+    req.on('data', c => { body += c; if (body.length > 2000) req.destroy(); });
+    req.on('end', () => {
+      try {
+        const j = JSON.parse(body || '{}'), chave = String(j.chave || '').trim(), modelo = String(j.modelo || '').trim();
+        if (chave && !/^[A-Za-z0-9_\-]{20,200}$/.test(chave)) { send(res, 400, { erro: 'essa chave não parece válida (20 a 200 letras, números, "-" e "_", sem espaços)' }); return; }
+        if (modelo && !/^[A-Za-z0-9._\-]{3,80}$/.test(modelo)) { send(res, 400, { erro: 'nome de modelo inválido' }); return; }
+        if (j.remover) { KEY = ''; if (j.salvar) gravarEnv({ GEMINI_API_KEY: '' }); send(res, 200, { ok: false, chave: false, modelo: MODEL }); return; }
+        if (!chave && !modelo) { send(res, 400, { erro: 'informe a chave ou o modelo' }); return; }
+        if (chave) KEY = chave; if (modelo) MODEL = modelo;
+        if (j.salvar) { const p = {}; if (chave) p.GEMINI_API_KEY = chave; if (modelo) p.GEMINI_MODEL = modelo; gravarEnv(p); }
+        console.log(new Date().toLocaleTimeString('pt-BR'), 'chave atualizada pelo jogo' + (j.salvar ? ' (salva em server/.env)' : ' (só na memória)') + '; modelo ' + MODEL);
+        send(res, 200, { ok: MOCK || !!KEY, chave: !!KEY, modelo: MODEL, salvo: !!j.salvar });
+      } catch (e) { send(res, 400, { erro: 'pedido inválido' }); }
+    });
+    return;
+  }
   if (req.method === 'POST' && req.url === '/narrar') {
     let body = ''; let big = false;
     req.on('data', c => { body += c; if (body.length > MAX_BODY) { big = true; req.destroy(); } });

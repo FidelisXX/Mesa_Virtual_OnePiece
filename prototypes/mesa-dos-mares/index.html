@@ -38,7 +38,7 @@
       <button data-t="ficha">Ficha</button>
       <button data-t="tec">Técnicas</button>
       <button data-t="mesa">Mesa</button>
-      <button class="tbtn" id="wideBtn" title="Mais espaço para a narração">Foco</button><button class="tbtn" id="themeBtn" title="Tema escuro ou claro">Tema</button>
+      <button class="tbtn" id="wideBtn" title="Mais espaço para a narração">Foco</button><button class="tbtn" id="themeBtn" title="Tema escuro ou claro">Tema</button><button class="tbtn" id="iaBtn" title="Chave da API e servidor do narrador de IA">IA</button>
     </div>
 
     <section class="panel on" id="p-chat">
@@ -51,7 +51,7 @@
       <div id="chatList"></div>
       <div id="chatPreview" hidden></div>
       <div id="mentionBar" hidden></div>
-      <div id="callBar"><button class="btn" id="callMaster"><span id="callLbl">Chamar o narrador</span> <span class="pts" id="callCount">0</span></button><span class="note" id="callNote">Escreva à vontade, junto com a sua mesa. O narrador lê tudo de uma vez e responde.</span></div>
+      <div id="callBar"><button class="btn" id="callMaster"><span id="callLbl">Chamar o narrador</span> <span class="pts" id="callCount">0</span></button><button class="btn sm wood" id="callCfg" title="Chave da API do narrador de IA">Chave da IA</button><span class="note" id="callNote">Escreva à vontade, junto com a sua mesa. O narrador lê tudo de uma vez e responde.</span></div>
       <div id="actChips"></div>
       <div id="chatTools">
         <div class="row">
@@ -258,13 +258,14 @@ function homeHTML() {
   const info = c => c.gm ? 'Mestre da mesa' : `${RACES[c.raca].nome} · ${CLASSES[c.classe].nome} · ${PROFS[c.prof].nome} · ${c.faccao === 'marinha' ? 'Marinha' : 'Pirata'} · nv ${c.lv} · ${SEAS[c.mar].nome}`;
   return `<div class="card"><h1>Olá, ${esc(a.user)}</h1><div class="tagline">Seus personagens ficam salvos nesta conta</div>
   <div class="home-list">${list.map(c => `<div class="home-card"><img class="pic" src="${portraitURL(c)}" alt=""><div style="flex:1"><b>${esc(c.nome)}</b> ${c.gm ? '' : '<span class="tag ' + c.faccao + '">' + titulo(c) + '</span>'}<div class="note">${esc(info(c))}</div></div><button class="btn" data-play="${c.id}">Jogar</button><button class="btn wood sm" data-del="${c.id}">Apagar</button></div>`).join('') || '<div class="note" style="text-align:center">Nenhum personagem ainda.</div>'}</div>
-  <div class="title-actions" style="max-width:none;flex-direction:row;flex-wrap:wrap;justify-content:center"><button class="btn" id="hNew">Novo personagem <small>(Enter)</small></button><button class="btn wood" id="hGM">Entrar como Mestre</button><button class="btn wood" id="hRol">Roleta de raças ${a.roleta ? '(já usada)' : ''}</button><button class="btn wood" id="hOut">Sair da conta</button></div>
+  <div class="title-actions" style="max-width:none;flex-direction:row;flex-wrap:wrap;justify-content:center"><button class="btn" id="hNew">Novo personagem <small>(Enter)</small></button><button class="btn wood" id="hGM">Entrar como Mestre</button><button class="btn wood" id="hRol">Roleta de raças ${a.roleta ? '(já usada)' : ''}</button><button class="btn wood" id="hIa">Narrador de IA</button><button class="btn wood" id="hOut">Sair da conta</button></div>
   <div class="note" style="text-align:center;margin-top:8px">A tag Mestre deixa qualquer jogador conduzir a mesa. Com ninguém mestrando, o mestre automático narra e arma as lutas.</div></div>`;
 }
 function bindHome() {
   document.querySelectorAll('[data-play]').forEach(b => b.onclick = () => enterPlay(b.dataset.play));
   document.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { if (confirm('Apagar este personagem para sempre?')) { const id = b.dataset.del; Object.values(db.tokens).filter(t => t.owner === id).forEach(t => commit('tokens', t.id, null)); commit('chars', id, null); setScene('home'); } });
   $('hNew').onclick = startCreate; $('hRol').onclick = () => setScene('roleta');
+  $('hIa').onclick = iaModal;
   $('hOut').onclick = () => { Acc.logout(); setScene('title'); };
   $('hGM').onclick = () => {
     let g = Acc.chars().find(c => c.gm);
@@ -370,12 +371,39 @@ function submitCreate() {
 function pauseHTML() {
   return `<div class="card small"><h1 style="font-size:34px">Pausa</h1><div class="tagline">A mesa continua para os outros</div>
   <div class="title-actions"><button class="btn" id="pResume">Voltar à mesa <small>(Esc)</small></button><button class="btn wood" id="pSwitch">Trocar de personagem</button><button class="btn wood" id="pOut">Sair da conta</button><button class="btn red" id="pReset">Apagar toda a mesa</button></div>
-  <div class="field" style="margin-top:12px"><label>Servidor do narrador de IA</label><div class="row"><input type="text" id="iaUrl" style="flex:1" value="${esc(Ia.base())}"><button class="btn sm wood" id="iaTest">Testar</button></div><div class="note" id="iaState">${Ia.on ? 'Conectado: ' + esc(Ia.modelo) : esc(Ia.erro)}</div></div>
+  <div class="title-actions" style="margin-top:0"><button class="btn wood" id="pIa">Chave e servidor do narrador de IA</button></div>
   <div class="note" style="text-align:center">M liga e desliga o som.</div></div>`;
+}
+// ---- Onde se informa a chave da API do narrador de IA ----
+function iaModal() {
+  const ov = $('overlay'), voltar = () => { if (scene === 'play') { ov.className = ''; ov.innerHTML = ''; } else setScene(scene); };
+  const estado = () => (Ia.on ? 'Conectado' + (Ia.mock ? ' (modo teste, sem IA)' : '') + ': ' + esc(Ia.modelo) : esc(Ia.erro));
+  ov.innerHTML = `<div class="card small"><h1 style="font-size:30px">Narrador de IA</h1><div class="tagline">Gemini, pelo servidor local</div>
+  <div class="note" id="iaState" style="margin-bottom:8px"><b>${estado()}</b></div>
+  <div class="field"><label>Chave da API do Gemini</label><input type="password" id="iaKey" autocomplete="off" placeholder="cole a chave aqui"><div class="note">A chave vai só para o servidor da sua máquina; o jogo não a guarda. Crie uma em <b>aistudio.google.com/apikey</b>.</div></div>
+  <div class="field"><label>Modelo <small>(opcional)</small></label><input type="text" id="iaModel" placeholder="gemini-2.5-flash"></div>
+  <div class="field"><label><input type="checkbox" id="iaSave" checked> Guardar no computador (arquivo <code>server/.env</code>, fora do git)</label></div>
+  <div class="field"><label>Endereço do servidor</label><input type="text" id="iaUrl" value="${esc(Ia.base())}"><div class="note">Se estiver desligado, abra um terminal na pasta do jogo e rode <code>node server/narrador.js</code>.</div></div>
+  <div class="actions"><button class="btn wood" id="iaClose">Fechar</button><button class="btn red" id="iaDel">Remover chave</button><button class="btn" id="iaGo">Guardar e testar</button></div></div>`;
+  ov.className = 'on';
+  const msg = (t, erro) => { $('iaState').innerHTML = '<b' + (erro ? ' style="color:var(--danger)"' : '') + '>' + t + '</b>'; };
+  const enviar = async corpo => {
+    Ia.setBase($('iaUrl').value.trim()); msg('Falando com o servidor…');
+    try { await Ia.salvar(Object.assign({ salvar: $('iaSave').checked }, corpo)); await Ia.check(); $('iaKey').value = ''; msg(estado()); }
+    catch (e) { await Ia.check(); msg(/Failed|fetch|aborted|timeout/i.test(e.message) ? 'Servidor fora do ar. Rode node server/narrador.js e tente de novo.' : esc(e.message), true); }
+  };
+  $('iaGo').onclick = async () => {
+    const chave = $('iaKey').value.trim(), modelo = $('iaModel').value.trim();
+    if (!chave && !modelo) { Ia.setBase($('iaUrl').value.trim()); msg('Testando…'); await Ia.check(); msg(estado(), !Ia.on); return; }
+    await enviar({ chave, modelo });
+  };
+  $('iaDel').onclick = () => enviar({ remover: true });
+  $('iaClose').onclick = voltar;
+  Ia.check().then(() => { if ($('iaState')) msg(estado(), !Ia.on); });
 }
 function bindPause() {
   $('pResume').onclick = () => setScene('play');
-  $('iaTest').onclick = async () => { Ia.setBase($('iaUrl').value.trim()); $('iaState').textContent = 'Testando…'; await Ia.check(); $('iaState').textContent = Ia.on ? 'Conectado: ' + Ia.modelo : Ia.erro; };
+  $('pIa').onclick = iaModal;
   $('pSwitch').onclick = () => { sessionStorage.removeItem('mdm-me'); myId = null; setScene('home'); };
   $('pOut').onclick = () => { Acc.logout(); setScene('title'); };
   $('pReset').onclick = () => { if (confirm('Apagar contas, personagens, tokens, mensagens e navios de todas as abas?')) { resetDb(); location.reload(); } };
@@ -595,6 +623,7 @@ function bindPanels() {
     $('tkNome').value = ''; pendingTokImg = null; $('tkPrev').hidden = true; $('tkFile').value = ''; tone(520, 0.08, 'triangle', 0.2);
   };
   $('tkKind').innerHTML = Object.entries(NPC_KINDS).map(([k, n]) => `<option value="${k}">${n.nome} (nv ${n.lv})</option>`).join('');
+  $('iaBtn').onclick = iaModal; $('callCfg').onclick = iaModal;
   $('themeBtn').onclick = () => applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
   $('wideBtn').onclick = () => { const w = document.body.classList.toggle('wide'); try { localStorage.setItem('mdm-wide', w ? '1' : '0'); } catch (e) { /* tudo bem */ } };
   $('btnCarta').onclick = () => { chartOpen = true; Travel.sel = null; mesaDirty = true; };

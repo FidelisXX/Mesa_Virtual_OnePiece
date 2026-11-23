@@ -243,7 +243,12 @@ const Ia = (() => {
     const r = await fetch(base() + '/narrar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ctx), signal: AbortSignal.timeout(32000) });
     const j = await r.json(); if (!r.ok) throw new Error(j.erro || 'HTTP ' + r.status); return j;
   }
-  return { check, narrar, base, setBase, get on() { return on; }, get modelo() { return modelo; }, get mock() { return mock; }, get erro() { return erro; }, get last() { return last; } };
+  // A chave vai do jogo só para o servidor local (que a guarda na memória e, se pedido, em server/.env); ela nunca é guardada no navegador
+  async function salvar(corpo) {
+    const r = await fetch(base() + '/chave', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo), signal: AbortSignal.timeout(6000) });
+    const j = await r.json(); if (!r.ok) throw new Error(j.erro || 'HTTP ' + r.status); return j;
+  }
+  return { check, narrar, salvar, base, setBase, get on() { return on; }, get modelo() { return modelo; }, get mock() { return mock; }, get erro() { return erro; }, get last() { return last; } };
 })();
 
 // ======================================================================================
