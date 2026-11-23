@@ -51,7 +51,7 @@
       <div id="chatList"></div>
       <div id="chatPreview" hidden></div>
       <div id="mentionBar" hidden></div>
-      <div id="callBar"><button class="btn" id="callMaster">Chamar o narrador <span class="pts" id="callCount">0</span></button><span class="note">Escreva à vontade, junto com a sua mesa. O narrador lê tudo de uma vez e responde.</span></div>
+      <div id="callBar"><button class="btn" id="callMaster"><span id="callLbl">Chamar o narrador</span> <span class="pts" id="callCount">0</span></button><span class="note" id="callNote">Escreva à vontade, junto com a sua mesa. O narrador lê tudo de uma vez e responde.</span></div>
       <div id="actChips"></div>
       <div id="chatTools">
         <div class="row">
@@ -370,10 +370,12 @@ function submitCreate() {
 function pauseHTML() {
   return `<div class="card small"><h1 style="font-size:34px">Pausa</h1><div class="tagline">A mesa continua para os outros</div>
   <div class="title-actions"><button class="btn" id="pResume">Voltar à mesa <small>(Esc)</small></button><button class="btn wood" id="pSwitch">Trocar de personagem</button><button class="btn wood" id="pOut">Sair da conta</button><button class="btn red" id="pReset">Apagar toda a mesa</button></div>
+  <div class="field" style="margin-top:12px"><label>Servidor do narrador de IA</label><div class="row"><input type="text" id="iaUrl" style="flex:1" value="${esc(Ia.base())}"><button class="btn sm wood" id="iaTest">Testar</button></div><div class="note" id="iaState">${Ia.on ? 'Conectado: ' + esc(Ia.modelo) : esc(Ia.erro)}</div></div>
   <div class="note" style="text-align:center">M liga e desliga o som.</div></div>`;
 }
 function bindPause() {
   $('pResume').onclick = () => setScene('play');
+  $('iaTest').onclick = async () => { Ia.setBase($('iaUrl').value.trim()); $('iaState').textContent = 'Testando…'; await Ia.check(); $('iaState').textContent = Ia.on ? 'Conectado: ' + Ia.modelo : Ia.erro; };
   $('pSwitch').onclick = () => { sessionStorage.removeItem('mdm-me'); myId = null; setScene('home'); };
   $('pOut').onclick = () => { Acc.logout(); setScene('title'); };
   $('pReset').onclick = () => { if (confirm('Apagar contas, personagens, tokens, mensagens e navios de todas as abas?')) { resetDb(); location.reload(); } };
@@ -458,7 +460,11 @@ function applyTheme(t) { document.documentElement.dataset.theme = t; try { local
 const QUICK = [['Olhar ao redor', 'olha ao redor e investiga o lugar.'], ['Conversar', 'puxa conversa com alguém por perto.'], ['Esgueirar-se', 'se esgueira pelas sombras sem ser notado.'], ['Forçar', 'tenta arrombar o que estiver trancado.'], ['Procurar briga', 'procura briga com o primeiro valentão que encontrar.']];
 function renderChips() {
   const c = me(), el = $('actChips'), v = c && currentView(), show = !!(c && !c.gm && (isIsland(v) || isDeck(v)) && db.world.auto);
-  $('callBar').hidden = !show; if (show) $('callCount').textContent = Master.pendingCount(v);
+  $('callBar').hidden = !show;
+  if (show) {
+    $('callCount').textContent = Master.pendingCount(v); $('callMaster').disabled = Master.thinking; $('callLbl').textContent = Master.thinking ? 'Narrador pensando…' : 'Chamar o narrador';
+    $('callNote').textContent = Ia.on ? 'Narrador de IA ligado (' + Ia.modelo + '). Escreva à vontade: ele lê tudo de uma vez.' : 'Narrador de tabela (' + Ia.erro + '). Escreva à vontade: ele lê tudo de uma vez.';
+  }
   el.hidden = !show; if (!show) { el.innerHTML = ''; el.dataset.on = ''; return; } if (el.dataset.on === '1') return; el.dataset.on = '1';
   el.innerHTML = '<span class="lbl">Ações:</span>' + QUICK.map(([n, t], i) => '<button data-q="' + i + '">' + n + '</button>').join('');
   el.querySelectorAll('[data-q]').forEach(b => b.onclick = () => { $('chatInput').value = '/me ' + QUICK[+b.dataset.q][1]; Chat.send(); });
@@ -684,6 +690,7 @@ const scenes = {
       if (pressed('Enter')) { setTab('chat'); $('chatInput').focus(); }
       state.t += dt; const mode = stageMode(); state.view = currentView(); state.mode = mode;
       Travel.tick(dt); runTimers(dt);
+      if (Date.now() - Ia.last > 15000) Ia.check();
       if (seaOK && mode === 'fight') { Sea.update(dt, 'fight'); Fight3D.update(dt); }
       if (mode === 'naval') Naval.update(dt);
       if (mode === 'island' && !c.gm) Island.ensureMyToken(state.view);

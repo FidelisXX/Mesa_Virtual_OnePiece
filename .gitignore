@@ -1,0 +1,4 @@
+# chaves e segredos nunca vão para o git
+.env
+**/.env
+node_modules/

@@ -226,9 +226,31 @@ const Events = (() => {
 })();
 
 // ======================================================================================
+// Narrador de IA: fala com o servidor local (server/narrador.js), que guarda a chave do Gemini
+// ======================================================================================
+const Ia = (() => {
+  let on = false, modelo = '', mock = false, erro = 'ainda não verificado', last = 0;
+  const DEF = 'http://127.0.0.1:8787';
+  const base = () => { try { return (localStorage.getItem('mdm-ia-url') || DEF).replace(/\/$/, ''); } catch (e) { return DEF; } };
+  const setBase = u => { try { localStorage.setItem('mdm-ia-url', u || DEF); } catch (e) { /* tudo bem */ } last = 0; };
+  async function check() {
+    last = Date.now();
+    try { const r = await fetch(base() + '/saude', { signal: AbortSignal.timeout(2500) }), j = await r.json(); on = !!j.ok; modelo = j.modelo || ''; mock = !!j.mock; erro = j.ok ? '' : 'o servidor está no ar, mas sem a chave do Gemini'; }
+    catch (e) { on = false; erro = 'servidor do narrador fora do ar'; }
+    return on;
+  }
+  async function narrar(ctx) {
+    const r = await fetch(base() + '/narrar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ctx), signal: AbortSignal.timeout(32000) });
+    const j = await r.json(); if (!r.ok) throw new Error(j.erro || 'HTTP ' + r.status); return j;
+  }
+  return { check, narrar, base, setBase, get on() { return on; }, get modelo() { return modelo; }, get mock() { return mock; }, get erro() { return erro; }, get last() { return last; } };
+})();
+
+// ======================================================================================
 // Mestre automático: a mesma interface que o Gemini usaria (contexto entra, texto e luta saem)
 // ======================================================================================
 const Master = (() => {
+  let thinking = false;
   const pick = arr => arr[Math.floor(rng() * arr.length)];
   const TXT = {
     chegada: {
@@ -264,7 +286,7 @@ const Master = (() => {
     if (baseIsl && pirata) enc = enc.map(e => ({ ...e, kind: e.kind === 'bandido' ? 'marujo' : e.kind }));
     return { texto: text('luta', d, tema), dificuldade: d, encontro: enc };
   }
-  function say(ch, txt, ask, asks) { commit('msgs', null, { id: uid(), ts: Date.now(), ch, uid: 'mestre', nome: 'Mestre automático', tipo: 'narra', txt, ask: ask || undefined, asks: asks && asks.length ? asks : undefined }); }
+  function say(ch, txt, ask, asks, extra) { commit('msgs', null, Object.assign({ id: uid(), ts: Date.now(), ch, uid: 'mestre', nome: extra && extra.ia ? 'Narrador IA' : 'Mestre automático', tipo: 'narra', txt, ask: ask || undefined, asks: asks && asks.length ? asks : undefined }, extra || {})); }
   // O mestre automático responde ao que o jogador faz (na interface que a IA também teria): texto entra, narração e pedido de teste saem
   const DET = {
     vila: ['Há pegadas frescas na terra perto do cais.', 'Uma criança observa você de longe e some atrás de um barril.', 'Redes de pesca remendadas à pressa, como se alguém tivesse fugido.'],
@@ -287,8 +309,36 @@ const Master = (() => {
   // O que os jogadores escreveram desde a última fala do narrador neste lugar
   function lastNarr(ch) { for (let i = db.msgs.length - 1; i >= 0; i--) { const m = db.msgs[i]; if (m.ch === ch && m.uid === 'mestre') return m.ts; } return 0; }
   function pending(ch) { const t0 = lastNarr(ch); return db.msgs.filter(m => m.ch === ch && m.ts > t0 && (m.tipo === 'fala' || m.tipo === 'acao') && db.chars[m.uid] && !db.chars[m.uid].gm); }
-  // Uma chamada lê tudo de uma vez e responde a todos (a interface é a mesma de uma chamada ao Gemini: mensagens entram, narração e testes saem)
+  const limpaTxt = t => String(t || '').replace(/\{[#a-z0-9]+\|/gi, '').replace(/\(\(|\)\)/g, '').replace(/[*_~{}|]/g, '').trim().slice(0, 500);
+  // O que a IA recebe: o lugar, quem está na cena, a conversa anterior e só o que é novo
+  function montarCtx(ch, msgs) {
+    const isl = ISLAND[ch], aqui = whoIn(ch).filter(x => !x.gm), sh = isDeck(ch) ? db.ships[ch.slice(6)] : null, t0 = msgs[0].ts;
+    const lvs = aqui.map(x => x.lv), nivelMedio = lvs.length ? Math.round(lvs.reduce((a, b) => a + b, 0) / lvs.length) : 1;
+    return {
+      lugar: isl ? { nome: isl.nome, mar: SEAS[isl.mar].nome, tema: isl.tema, descricao: isl.intro } : { nome: 'Convés do navio', mar: sh ? SEAS[sh.mar].nome : '', tema: 'navio no mar', descricao: sh && sh.travel ? 'Viajando para ' + ISLAND[sh.travel.to].nome : '' },
+      nivelMedio, jogadores: aqui.map(c => ({ nome: c.nome, raca: RACES[c.raca].nome, classe: CLASSES[c.classe].nome, profissao: PROFS[c.prof].nome, lado: c.faccao, nivel: c.lv, vida: c.hp + '/' + c.hpMax })),
+      historico: db.msgs.filter(m => m.ch === ch && m.ts < t0 && (m.tipo === 'fala' || m.tipo === 'acao' || m.tipo === 'narra')).slice(-10).map(m => ({ quem: m.uid === 'mestre' ? 'Narrador' : m.nome, texto: limpaTxt(m.txt) })),
+      novas: msgs.map(m => ({ quem: m.nome, tipo: m.tipo, texto: limpaTxt(m.txt) })),
+    };
+  }
+  function aplicarIa(ch, r) {
+    const aqui = whoIn(ch).filter(x => !x.gm), porNome = n => aqui.find(x => norm(x.nome) === norm(n)) || aqui.find(x => norm(x.nome).split(' ')[0] === norm(n).split(' ')[0]);
+    const asks = (r.testes || []).map(t => { const p = porNome(t.jogador); return p ? { attr: t.atributo, cd: t.cd, who: p.id, nome: p.nome, motivo: t.motivo } : null; }).filter(Boolean);
+    say(ch, r.narracao, null, asks, { ia: true, uso: r.uso || 0 });
+    if (r.luta && isIsland(ch)) {
+      later(1.2, () => { r.luta.inimigos.forEach(e => Combat.spawnNpc(ch, e.tipo, e.nivel)); later(1.4, () => { if (!(db.combat[ch] && db.combat[ch].on)) Combat.start(ch); }); });
+    }
+  }
+  // Chamar o narrador: com o servidor de IA no ar, uma chamada lê tudo e responde; senão, a tabela responde
   function call(c, ch) {
+    if (!db.world.auto || !c || c.gm || !(isIsland(ch) || isDeck(ch)) || thinking) return;
+    const msgs = pending(ch); if (!msgs.length) { toast('Nada novo para o narrador ler. Escreva o que seu personagem faz ou diz e chame de novo.'); return; }
+    if (!Ia.on) { callTabela(c, ch); return; }
+    thinking = true;
+    Ia.narrar(montarCtx(ch, msgs)).then(r => aplicarIa(ch, r)).catch(e => { toast('A IA falhou (' + e.message + '). O narrador de tabela responde.'); Ia.check(); callTabela(c, ch); }).finally(() => { thinking = false; });
+  }
+  // A tabela: a reserva de quando a IA não está no ar. Lê tudo de uma vez e responde a todos.
+  function callTabela(c, ch) {
     if (!db.world.auto || !c || c.gm || !(isIsland(ch) || isDeck(ch))) return;
     const msgs = pending(ch); if (!msgs.length) { toast('Nada novo para o narrador ler. Escreva o que seu personagem faz ou diz e chame de novo.'); return; }
     const porJogador = new Map(); msgs.forEach(m => { const a = porJogador.get(m.uid) || []; a.push(m); porJogador.set(m.uid, a); });
@@ -326,7 +376,7 @@ const Master = (() => {
       later(1.6, () => { if (!(db.combat[islId] && db.combat[islId].on) && whoIn(islId).some(x => !x.gm)) Combat.start(islId); });
     });
   }
-  return { ask, say, call, pendingCount, arrival, text, cls, difficulty };
+  return { ask, say, call, pendingCount, arrival, text, cls, difficulty, get thinking() { return thinking; } };
 })();
 
 // ======================================================================================
