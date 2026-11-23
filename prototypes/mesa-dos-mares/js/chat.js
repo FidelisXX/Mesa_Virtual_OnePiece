@@ -87,7 +87,7 @@ const Chat = (() => {
   function msgHTML(m, prev) {
     const fonte = (FONTES[m.fonte] || FONTES.pirata).css, cor = tc(m.cor);
     if (m.tipo === 'sistema') return `<div class="m sys">${format(m.txt, m)}</div>`;
-    if (m.tipo === 'narra') return `<div class="m narra"><div class="narra-by">${esc(m.nome)} · ${hora(m.ts)}</div><div class="narra-txt">${format(m.txt, m)}</div>${m.ask ? `<div class="narra-ask">O mestre pede um teste: <button class="btn sm" data-ask="${m.ask.attr}" data-cd="${m.ask.cd}">Rolar ${m.ask.attr} (CD ${m.ask.cd})</button></div>` : ''}</div>`;
+    if (m.tipo === 'narra') return `<div class="m narra"><div class="narra-by">${esc(m.nome)} · ${hora(m.ts)}</div><div class="narra-txt">${format(m.txt, m)}</div>${(m.asks || []).length ? `<div class="narra-ask">Testes pedidos: ${m.asks.map(a => `<button class="btn sm" data-ask="${a.attr}" data-cd="${a.cd}" data-who="${a.who}">${esc(a.nome)}: rolar ${a.attr} (CD ${a.cd})</button>`).join('')}</div>` : ''}${m.ask ? `<div class="narra-ask">O mestre pede um teste: <button class="btn sm" data-ask="${m.ask.attr}" data-cd="${m.ask.cd}">Rolar ${m.ask.attr} (CD ${m.ask.cd})</button></div>` : ''}</div>`;
     if (m.tipo === 'ooc') return `<div class="m ooc"><b>${esc(m.nome)}</b> (( ${format(m.txt, m)} )) <span class="hr">${hora(m.ts)}</span></div>`;
     if (m.tipo === 'acao') return `<div class="m acao" style="font-family:${fonte}"><span class="who" style="color:${cor}">${esc(m.nome)}</span> ${format(m.txt, m)}</div>`;
     if (m.tipo === 'sussurro') {
@@ -205,7 +205,6 @@ const Chat = (() => {
     txt = txt.replace(/\[\[(.+?)\]\]/g, (all, f) => { const r = parseRolagem(f, me()); if (r.erro) return all; inl.push(r); return '\u0001' + (inl.length - 1) + '\u0001'; });
     const sp = speaker();
     post({ tipo, txt, alvo, inl: inl.length ? inl : undefined, nome: sp.nome, npc: sp.npc, cor: sp.cor, fonte: sp.fonte, fac: sp.fac });
-    if (tipo === 'acao' && me() && !me().gm && typeof Master !== 'undefined') Master.react(me(), txt, currentView());
     ta.value = ''; preview(); autosize();
     if (tipo !== 'fala' && tipo !== 'grito' && modo !== 'fala' && !cmd) { /* mantém o modo escolhido */ }
   }
@@ -261,15 +260,17 @@ const Chat = (() => {
 
   function swatches() {
     $('swatches').innerHTML = Object.keys(CORES).map(n => `<button class="sw" data-c="${n}" title="{${n}|texto}" style="background:${tc(n)}"></button>`).join('');
-    $('swatches').querySelectorAll('button').forEach(b => b.onclick = () => wrap('{' + b.dataset.c + '|', '}'));
+    $('swatches').querySelectorAll('button').forEach(b => b.onclick = () => { wrap('{' + b.dataset.c + '|', '}'); $('swatches').hidden = true; });
   }
   function init() {
-    $('chatList').addEventListener('click', e => { const b = e.target.closest('[data-ask]'); if (b && me() && !me().gm) { b.disabled = true; teste(b.dataset.ask, +b.dataset.cd, 'normal', 'Teste pedido pelo mestre'); } });
+    $('chatList').addEventListener('click', e => { const b = e.target.closest('[data-ask]'); if (b && me() && !me().gm) { if (b.dataset.who && b.dataset.who !== myId) { toast('Esse teste é de outro jogador.'); return; } b.disabled = true; teste(b.dataset.ask, +b.dataset.cd, 'normal', 'Teste pedido pelo mestre'); } });
     $('modos').innerHTML = MODOS.map(m => `<button data-k="${m.k}" title="${esc(m.dica)}" class="${m.gm ? 'gm-only' : ''}">${m.nome}</button>`).join('');
     $('modos').querySelectorAll('button').forEach(b => b.onclick = () => setModo(b.dataset.k));
     swatches();
     $('fB').onclick = () => wrap('**', '**'); $('fI').onclick = () => wrap('*', '*'); $('fU').onclick = () => wrap('__', '__'); $('fS').onclick = () => wrap('~~', '~~');
     $('fO').onclick = () => wrap('((', '))'); $('fR').onclick = () => wrap('[[', ']]');
+    $('fColor').onclick = e => { e.stopPropagation(); $('swatches').hidden = !$('swatches').hidden; };
+    document.addEventListener('click', e => { if (!e.target.closest('.pop-wrap')) $('swatches').hidden = true; });
     $('fHelp').onclick = () => { $('chatHelp').hidden = !$('chatHelp').hidden; };
     const ta = $('chatInput');
     ta.addEventListener('keydown', e => {

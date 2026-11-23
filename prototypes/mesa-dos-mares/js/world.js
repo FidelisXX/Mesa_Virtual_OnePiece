@@ -264,7 +264,7 @@ const Master = (() => {
     if (baseIsl && pirata) enc = enc.map(e => ({ ...e, kind: e.kind === 'bandido' ? 'marujo' : e.kind }));
     return { texto: text('luta', d, tema), dificuldade: d, encontro: enc };
   }
-  function say(ch, txt, ask) { commit('msgs', null, { id: uid(), ts: Date.now(), ch, uid: 'mestre', nome: 'Mestre automático', tipo: 'narra', txt, ask: ask || undefined }); }
+  function say(ch, txt, ask, asks) { commit('msgs', null, { id: uid(), ts: Date.now(), ch, uid: 'mestre', nome: 'Mestre automático', tipo: 'narra', txt, ask: ask || undefined, asks: asks && asks.length ? asks : undefined }); }
   // O mestre automático responde ao que o jogador faz (na interface que a IA também teria): texto entra, narração e pedido de teste saem
   const DET = {
     vila: ['Há pegadas frescas na terra perto do cais.', 'Uma criança observa você de longe e some atrás de um barril.', 'Redes de pesca remendadas à pressa, como se alguém tivesse fugido.'],
@@ -275,7 +275,7 @@ const Master = (() => {
   const INTENTS = [
     { k: 'luta', re: /(atac|luto|lutar|enfrent|procuro briga|procura briga|desafio|puxo a|puxa a)/i },
     { k: 'olhar', re: /(olh|procur|investig|examin|vasculh|observ|inspeciona|escuta)/i, attr: 'ESP', t: ['Você examina tudo com calma.', 'Seus olhos percorrem o lugar atrás de qualquer detalhe fora do lugar.'] },
-    { k: 'conversar', re: /(fal[ao]|convers|pergunt|negoci|convenc|persuad|cumprimenta|chama|puxa conversa)/i, attr: 'CAR', t: ['Você se aproxima e puxa assunto.', 'Alguém por perto parece disposto a ouvir, mas ainda desconfia.'] },
+    { k: 'conversar', re: /(fal[ao]|convers|pergunt|negoci|convenc|persuad|cumprimenta|chama|puxa conversa|\bol[aá]\b|\boi\b|bom dia|boa tarde|boa noite|\be a[ií]\b|quem )/i, attr: 'CAR', t: ['Você se aproxima e puxa assunto.', 'Alguém por perto parece disposto a ouvir, mas ainda desconfia.'] },
     { k: 'furtivo', re: /(esgueir|escond|furtiv|sorrate|rouba|fuj|corr[eo]|escal)/i, attr: 'AGI', t: ['Você escolhe o caminho mais discreto, longe das luzes.', 'Cada passo é medido, e a sombra ajuda.'] },
     { k: 'forca', re: /(empurr|quebr|arromb|levant|carreg|forç|derrub|trancad)/i, attr: 'FOR', t: ['Você apoia o corpo e testa a resistência do que está na frente.', 'A madeira range sob o seu peso, e algo cede aos poucos.'] },
     { k: 'tecnica', re: /(conserta|monta|improvis|desarm|decifr|navega|constr)/i, attr: 'TEC', t: ['Suas mãos trabalham com cuidado, peça por peça.', 'Você estuda o mecanismo antes de mexer em qualquer coisa.'] },
@@ -283,24 +283,38 @@ const Master = (() => {
     { k: 'loja', re: /(compr|vend|loja|mercad)/i },
   ];
   const pick2 = a => a[Math.floor(rng() * a.length)];
-  function react(c, txt, ch) {
+  const FALA = ['Algumas cabeças se viram na sua direção. A conversa em volta diminui um instante e logo volta, mais baixa.', 'Quem estava por perto pesa as palavras antes de responder. Ninguém parece ter pressa.', 'A sua voz atravessa o lugar. Alguém sorri de canto, alguém finge não ter ouvido.', 'Uma resposta vem de trás de você, curta e sem muita simpatia.'];
+  // O que os jogadores escreveram desde a última fala do narrador neste lugar
+  function lastNarr(ch) { for (let i = db.msgs.length - 1; i >= 0; i--) { const m = db.msgs[i]; if (m.ch === ch && m.uid === 'mestre') return m.ts; } return 0; }
+  function pending(ch) { const t0 = lastNarr(ch); return db.msgs.filter(m => m.ch === ch && m.ts > t0 && (m.tipo === 'fala' || m.tipo === 'acao') && db.chars[m.uid] && !db.chars[m.uid].gm); }
+  // Uma chamada lê tudo de uma vez e responde a todos (a interface é a mesma de uma chamada ao Gemini: mensagens entram, narração e testes saem)
+  function call(c, ch) {
     if (!db.world.auto || !c || c.gm || !(isIsland(ch) || isDeck(ch))) return;
-    const clean = String(txt || '').replace(/[*_~{}|[]()]/g, ''), it = INTENTS.find(x => x.re.test(clean)), isl = ISLAND[ch], tema = isl ? isl.tema : 'vila';
-    later(1.0, () => {
-      if (!it) { say(ch, pick2(['O mundo responde em silêncio. Nada muda por enquanto, mas você sente que está sendo observado.', 'O vento muda de direção. Se quiser algo concreto, diga o que o seu personagem faz.']) + ' (Dica: tente olhar, conversar, esgueirar-se, forçar algo ou procurar briga.)'); return; }
-      if (it.k === 'luta') {
-        if (!isl) { say(ch, 'No convés não há com quem lutar... até as velas inimigas aparecerem.'); return; }
-        const r = ask({ ilha: isl, nivelMedio: Math.max(1, c.lv), faccao: c.faccao });
-        say(ch, r.texto + ' (' + { facil: 'luta fácil', moderada: 'luta moderada', dificil: 'luta difícil' }[r.dificuldade] + ')');
-        r.encontro.forEach(e => Combat.spawnNpc(ch, e.kind, e.lv));
-        later(1.4, () => { if (!(db.combat[ch] && db.combat[ch].on)) Combat.start(ch); }); return;
+    const msgs = pending(ch); if (!msgs.length) { toast('Nada novo para o narrador ler. Escreva o que seu personagem faz ou diz e chame de novo.'); return; }
+    const porJogador = new Map(); msgs.forEach(m => { const a = porJogador.get(m.uid) || []; a.push(m); porJogador.set(m.uid, a); });
+    const isl = ISLAND[ch], tema = isl ? isl.tema : 'vila', partes = [], asks = []; let luta = null;
+    porJogador.forEach((lista, id) => {
+      const ch2 = db.chars[id], cd = tune.cdMedia + Math.floor(ch2.lv / 10), its = [];
+      lista.forEach(m => { const t = String(m.txt || '').replace(/[*_~{}|\[\]()]/g, ''), x = INTENTS.find(i => i.re.test(t)); if (x && !its.includes(x)) its.push(x); });
+      if (!its.length) { partes.push('**' + ch2.nome + '**: ' + pick2(FALA)); asks.push({ attr: 'CAR', cd, who: id, nome: ch2.nome }); return; }
+      its.slice(0, 2).forEach(it => {
+        if (it.k === 'luta') { luta = luta || ch2; partes.push('**' + ch2.nome + '** parte para cima de alguém, e o clima da cena muda de uma vez.'); return; }
+        if (it.k === 'descanso') { partes.push('**' + ch2.nome + '** aproveita um instante de descanso.'); return; }
+        if (it.k === 'loja') { partes.push('**' + ch2.nome + '** olha as barracas. O comércio está aberto (aba Mesa).'); return; }
+        partes.push('**' + ch2.nome + '**: ' + pick2(it.t) + (it.k === 'olhar' ? ' ' + pick2(DET[tema] || DET.vila) : ''));
+        asks.push({ attr: it.attr, cd, who: id, nome: ch2.nome });
+      });
+    });
+    const abre = porJogador.size > 1 ? 'O narrador lê o que cada um fez e a cena se mexe ao mesmo tempo.' : 'O narrador lê o que você fez.';
+    later(0.8, () => {
+      say(ch, abre + '\n\n' + partes.join('\n\n'), null, asks);
+      if (luta && isl) {
+        const r = ask({ ilha: isl, nivelMedio: Math.max(1, luta.lv), faccao: luta.faccao });
+        later(1.2, () => { say(ch, r.texto + ' (' + { facil: 'luta fácil', moderada: 'luta moderada', dificil: 'luta difícil' }[r.dificuldade] + ')'); r.encontro.forEach(e => Combat.spawnNpc(ch, e.kind, e.lv)); later(1.4, () => { if (!(db.combat[ch] && db.combat[ch].on)) Combat.start(ch); }); });
       }
-      if (it.k === 'descanso') { say(ch, 'Você descansa um instante. A Energia volta aos poucos durante a luta e com um prato quente no comércio (aba Mesa).'); return; }
-      if (it.k === 'loja') { say(ch, 'O comércio da ilha está aberto. Abra a aba Mesa e vá em Comércio para comprar comida, reparo, curativo, canhões e velas.'); return; }
-      const det = it.k === 'olhar' ? ' ' + pick2(DET[tema] || DET.vila) : '';
-      say(ch, pick2(it.t) + det, { attr: it.attr, cd: tune.cdMedia + Math.floor(c.lv / 10) });
     });
   }
+  const pendingCount = ch => pending(ch).length;
   function arrival(islId, s) {
     if (!db.world.auto) return; const isl = ISLAND[islId], c = cls(s);
     say(islId, '**' + isl.nome + '.** ' + text('chegada', null, isl.tema));
@@ -312,7 +326,7 @@ const Master = (() => {
       later(1.6, () => { if (!(db.combat[islId] && db.combat[islId].on) && whoIn(islId).some(x => !x.gm)) Combat.start(islId); });
     });
   }
-  return { ask, say, react, arrival, text, cls, difficulty };
+  return { ask, say, call, pendingCount, arrival, text, cls, difficulty };
 })();
 
 // ======================================================================================

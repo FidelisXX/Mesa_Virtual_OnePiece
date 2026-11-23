@@ -51,6 +51,7 @@
       <div id="chatList"></div>
       <div id="chatPreview" hidden></div>
       <div id="mentionBar" hidden></div>
+      <div id="callBar"><button class="btn" id="callMaster">Chamar o narrador <span class="pts" id="callCount">0</span></button><span class="note">Escreva à vontade, junto com a sua mesa. O narrador lê tudo de uma vez e responde.</span></div>
       <div id="actChips"></div>
       <div id="chatTools">
         <div class="row">
@@ -66,7 +67,7 @@
           <button class="fb" id="fO" title="Fora do personagem inline">(( ))</button>
           <button class="fb" id="fR" title="Rolagem no meio do texto: [[1d20+3]]">[d]</button>
           <span class="sep"></span>
-          <span id="swatches" class="row" style="margin:0"></span>
+          <span class="pop-wrap"><button class="fb" id="fColor" title="Cor do texto">Cor ▾</button><div id="swatches" class="pop" hidden></div></span>
           <button class="fb" id="fHelp" title="Ajuda de formatação">?</button>
         </div>
         <div id="chatHelp" hidden>
@@ -457,9 +458,11 @@ function applyTheme(t) { document.documentElement.dataset.theme = t; try { local
 const QUICK = [['Olhar ao redor', 'olha ao redor e investiga o lugar.'], ['Conversar', 'puxa conversa com alguém por perto.'], ['Esgueirar-se', 'se esgueira pelas sombras sem ser notado.'], ['Forçar', 'tenta arrombar o que estiver trancado.'], ['Procurar briga', 'procura briga com o primeiro valentão que encontrar.']];
 function renderChips() {
   const c = me(), el = $('actChips'), v = c && currentView(), show = !!(c && !c.gm && (isIsland(v) || isDeck(v)) && db.world.auto);
+  $('callBar').hidden = !show; if (show) $('callCount').textContent = Master.pendingCount(v);
   el.hidden = !show; if (!show) { el.innerHTML = ''; el.dataset.on = ''; return; } if (el.dataset.on === '1') return; el.dataset.on = '1';
-  el.innerHTML = '<span class="lbl">O que você faz?</span>' + QUICK.map(([n, t], i) => '<button data-q="' + i + '">' + n + '</button>').join('');
+  el.innerHTML = '<span class="lbl">Ações:</span>' + QUICK.map(([n, t], i) => '<button data-q="' + i + '">' + n + '</button>').join('');
   el.querySelectorAll('[data-q]').forEach(b => b.onclick = () => { $('chatInput').value = '/me ' + QUICK[+b.dataset.q][1]; Chat.send(); });
+  $('callMaster').onclick = () => Master.call(me(), currentView());
 }
 
 // ---- Criador de ataques: dano inicial + efeitos comprados com Energia ----
