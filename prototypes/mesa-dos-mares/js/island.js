@@ -123,8 +123,7 @@ const Island = (() => {
     if (isl !== id) { isl = id; sel = null; uiSelChanged(); }
     const c = cam(id); if (c.fit || !c.z) fitCam(id, W, H);
     // mesa de madeira escura em volta do mapa
-    g.fillStyle = '#2a1d14'; g.fillRect(0, 0, W, H);
-    g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 2; for (let y = 0; y < H; y += 26) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y + 8); g.stroke(); }
+    g.fillStyle = canvasBg(); g.fillRect(0, 0, W, H);
     const m = islandMap(IS(id), tune.cellPx), cell = tune.cellPx, L = m.L;
     g.save(); g.translate(c.x, c.y); g.scale(c.z, c.z);
     g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 30; g.drawImage(m.canvas, 0, 0); g.shadowBlur = 0;

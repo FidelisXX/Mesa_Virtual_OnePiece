@@ -398,3 +398,6 @@ function processBg(file, max, cb) {
   };
   fr.readAsDataURL(file);
 }
+
+// fundo do palco atrás dos mapas, conforme o tema
+const canvasBg = () => (document.documentElement.dataset.theme === 'light' ? '#dfe6ee' : '#0a1016');

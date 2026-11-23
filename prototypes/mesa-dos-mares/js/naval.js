@@ -335,7 +335,7 @@ const Naval = (() => {
     const top = 92, bottom = 168, cell = Math.max(16, Math.floor(Math.min((W - 24) / c.cols, (H - top - bottom) / c.rows)));
     const ox = Math.round((W - cell * c.cols) / 2), oy = Math.round(top + (H - top - bottom - cell * c.rows) / 2);
     lay = { cell, ox, oy };
-    g.fillStyle = '#2a1d14'; g.fillRect(0, 0, W, H);
+    g.fillStyle = canvasBg(); g.fillRect(0, 0, W, H);
     g.save(); g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 24; g.drawImage(chart(c.cols, c.rows, cell), ox, oy); g.restore();
     const now = here(c), mine = myTurn();
     // arcos de tiro e alcance do navio da vez (quando é minha vez)

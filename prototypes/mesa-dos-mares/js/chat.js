@@ -5,6 +5,19 @@
 'use strict';
 
 const CORES = { vermelho: '#b52a1f', azul: '#1f5fbf', verde: '#2a7d39', dourado: '#9a6f08', roxo: '#7d3c98', laranja: '#c0500a', rosa: '#b8175a', mar: '#0f7f8c', cinza: '#5d5d5d', nanquim: '#2b2118' };
+// Cores de personagem: as do tema claro e versões mais vivas para o escuro
+const CORES_D = { vermelho: '#ff7a70', azul: '#6ea8ff', verde: '#5fd08a', dourado: '#f0c24b', roxo: '#c08bf0', laranja: '#ff9b54', rosa: '#ff7fb0', mar: '#46d1c4', cinza: '#b4bfca', nanquim: '#e8eef4' };
+const isDark = () => document.documentElement.dataset.theme !== 'light';
+function mixHex(h, to, k) { // clareia uma cor hex (#rgb ou #rrggbb) para ler no tema escuro
+  const p = x => { x = x.replace('#', ''); if (x.length === 3) x = x.split('').map(c => c + c).join(''); return [0, 2, 4].map(i => parseInt(x.slice(i, i + 2), 16)); };
+  const a = p(h), b = p(to); return '#' + a.map((v, i) => Math.round(v + (b[i] - v) * k).toString(16).padStart(2, '0')).join('');
+}
+// a cor de um nome (ou hex) no tema atual
+function tc(k) {
+  if (CORES[k]) return isDark() ? CORES_D[k] : CORES[k];
+  if (/^#[0-9a-fA-F]{3,6}$/.test(k || '')) return isDark() ? mixHex(k, '#ffffff', 0.5) : k;
+  return isDark() ? '#e8eef4' : '#15212c';
+}
 const FONTES = {
   pirata:  { nome: 'Pirata (serifa)',    css: 'Georgia, "Times New Roman", serif' },
   classica:{ nome: 'Clássica',           css: '"Palatino Linotype", "Book Antiqua", Palatino, serif' },
@@ -32,7 +45,7 @@ const Chat = (() => {
   // ---- Texto rico: escapa primeiro, depois aplica a marcação ----
   function format(txt, m) {
     let h = esc(txt);
-    h = h.replace(/\{(#[0-9a-fA-F]{3,6}|[a-z]+)\|([^{}]*)\}/g, (all, c, s) => { const col = c[0] === '#' ? c : CORES[c]; return col ? `<span style="color:${col}">${s}</span>` : all; });
+    h = h.replace(/\{(#[0-9a-fA-F]{3,6}|[a-z]+)\|([^{}]*)\}/g, (all, c, s) => { const col = c[0] === '#' ? tc(c) : (CORES[c] ? tc(c) : null); return col ? `<span style="color:${col}">${s}</span>` : all; });
     h = h.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|[^*])\*(?!\s)(.+?)\*/g, '$1<i>$2</i>');
     h = h.replace(/__(.+?)__/g, '<u>$1</u>').replace(/~~(.+?)~~/g, '<s>$1</s>');
     h = h.replace(/\(\((.+?)\)\)/g, '<span class="ooc-in">(($1))</span>');
@@ -72,9 +85,9 @@ const Chat = (() => {
   function hora(ts) { const d = new Date(ts); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
 
   function msgHTML(m, prev) {
-    const fonte = (FONTES[m.fonte] || FONTES.pirata).css, cor = m.cor || '#2b2118';
+    const fonte = (FONTES[m.fonte] || FONTES.pirata).css, cor = tc(m.cor);
     if (m.tipo === 'sistema') return `<div class="m sys">${format(m.txt, m)}</div>`;
-    if (m.tipo === 'narra') return `<div class="m narra"><div class="narra-by">${esc(m.nome)} · ${hora(m.ts)}</div><div class="narra-txt">${format(m.txt, m)}</div></div>`;
+    if (m.tipo === 'narra') return `<div class="m narra"><div class="narra-by">${esc(m.nome)} · ${hora(m.ts)}</div><div class="narra-txt">${format(m.txt, m)}</div>${m.ask ? `<div class="narra-ask">O mestre pede um teste: <button class="btn sm" data-ask="${m.ask.attr}" data-cd="${m.ask.cd}">Rolar ${m.ask.attr} (CD ${m.ask.cd})</button></div>` : ''}</div>`;
     if (m.tipo === 'ooc') return `<div class="m ooc"><b>${esc(m.nome)}</b> (( ${format(m.txt, m)} )) <span class="hr">${hora(m.ts)}</span></div>`;
     if (m.tipo === 'acao') return `<div class="m acao" style="font-family:${fonte}"><span class="who" style="color:${cor}">${esc(m.nome)}</span> ${format(m.txt, m)}</div>`;
     if (m.tipo === 'sussurro') {
@@ -123,7 +136,7 @@ const Chat = (() => {
   // fundo de imagem do chat (só para quem escolheu, por canal)
   function applyBg(ch) {
     const l = $('chatList'); let u = null; try { u = localStorage.getItem('mdm-bg-' + ch); } catch (e) { u = null; }
-    if (u) { l.style.backgroundImage = 'linear-gradient(rgba(243,230,196,.8), rgba(243,230,196,.8)), url(' + u + ')'; l.style.backgroundSize = 'cover'; l.style.backgroundPosition = 'center'; }
+    if (u) { l.style.backgroundImage = 'linear-gradient(' + (isDark() ? 'rgba(14,21,29,.84), rgba(14,21,29,.84)' : 'rgba(237,241,246,.84), rgba(237,241,246,.84)') + '), url(' + u + ')'; l.style.backgroundSize = 'cover'; l.style.backgroundPosition = 'center'; }
     else l.style.backgroundImage = '';
     const b = $('chatBgClear'); if (b) b.hidden = !u;
   }
@@ -192,6 +205,7 @@ const Chat = (() => {
     txt = txt.replace(/\[\[(.+?)\]\]/g, (all, f) => { const r = parseRolagem(f, me()); if (r.erro) return all; inl.push(r); return '\u0001' + (inl.length - 1) + '\u0001'; });
     const sp = speaker();
     post({ tipo, txt, alvo, inl: inl.length ? inl : undefined, nome: sp.nome, npc: sp.npc, cor: sp.cor, fonte: sp.fonte, fac: sp.fac });
+    if (tipo === 'acao' && me() && !me().gm && typeof Master !== 'undefined') Master.react(me(), txt, currentView());
     ta.value = ''; preview(); autosize();
     if (tipo !== 'fala' && tipo !== 'grito' && modo !== 'fala' && !cmd) { /* mantém o modo escolhido */ }
   }
@@ -245,11 +259,15 @@ const Chat = (() => {
     bar.querySelectorAll('button').forEach(b => b.onclick = () => { const s = ta.selectionStart; const before = ta.value.slice(0, s).replace(/@([\wÀ-ú]*)$/, '@' + b.dataset.n + ' '); ta.value = before + ta.value.slice(s); ta.focus(); bar.hidden = true; preview(); });
   }
 
+  function swatches() {
+    $('swatches').innerHTML = Object.keys(CORES).map(n => `<button class="sw" data-c="${n}" title="{${n}|texto}" style="background:${tc(n)}"></button>`).join('');
+    $('swatches').querySelectorAll('button').forEach(b => b.onclick = () => wrap('{' + b.dataset.c + '|', '}'));
+  }
   function init() {
+    $('chatList').addEventListener('click', e => { const b = e.target.closest('[data-ask]'); if (b && me() && !me().gm) { b.disabled = true; teste(b.dataset.ask, +b.dataset.cd, 'normal', 'Teste pedido pelo mestre'); } });
     $('modos').innerHTML = MODOS.map(m => `<button data-k="${m.k}" title="${esc(m.dica)}" class="${m.gm ? 'gm-only' : ''}">${m.nome}</button>`).join('');
     $('modos').querySelectorAll('button').forEach(b => b.onclick = () => setModo(b.dataset.k));
-    $('swatches').innerHTML = Object.entries(CORES).map(([n, c]) => `<button class="sw" data-c="${n}" title="{${n}|texto}" style="background:${c}"></button>`).join('');
-    $('swatches').querySelectorAll('button').forEach(b => b.onclick = () => wrap('{' + b.dataset.c + '|', '}'));
+    swatches();
     $('fB').onclick = () => wrap('**', '**'); $('fI').onclick = () => wrap('*', '*'); $('fU').onclick = () => wrap('__', '__'); $('fS').onclick = () => wrap('~~', '~~');
     $('fO').onclick = () => wrap('((', '))'); $('fR').onclick = () => wrap('[[', ']]');
     $('fHelp').onclick = () => { $('chatHelp').hidden = !$('chatHelp').hidden; };
@@ -266,7 +284,7 @@ const Chat = (() => {
     $('susAlvo').onchange = preview;
   }
 
-  return { init, render, head, setBg, clearBg, send, sysMsg, post, postRoll, teste, rollFormula, setModo, onNew, unread, format, get modo() { return modo; }, portraitFor, tokenPortrait };
+  return { init, swatches, render, head, setBg, clearBg, send, sysMsg, post, postRoll, teste, rollFormula, setModo, onNew, unread, format, get modo() { return modo; }, portraitFor, tokenPortrait };
 })();
 const sysMsg = (ch, txt) => Chat.sysMsg(ch, txt);
 

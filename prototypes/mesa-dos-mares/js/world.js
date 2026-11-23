@@ -139,7 +139,7 @@ const Travel = (() => {
   function draw(g, W, H, key) {
     const s = db.ships[key]; if (!s) return;
     const top = 64, bottom = 84, pad = 24; layout = { x: pad, y: top, w: W - pad * 2, h: H - top - bottom };
-    g.fillStyle = '#2a1d14'; g.fillRect(0, 0, W, H);
+    g.fillStyle = canvasBg(); g.fillRect(0, 0, W, H);
     g.save(); g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 20; g.drawImage(chart(s.mar, layout.w, layout.h), layout.x, layout.y); g.restore();
     const P = (cx, cy) => [layout.x + cx * layout.w, layout.y + cy * layout.h];
     // rota
@@ -264,7 +264,43 @@ const Master = (() => {
     if (baseIsl && pirata) enc = enc.map(e => ({ ...e, kind: e.kind === 'bandido' ? 'marujo' : e.kind }));
     return { texto: text('luta', d, tema), dificuldade: d, encontro: enc };
   }
-  function say(ch, txt) { commit('msgs', null, { id: uid(), ts: Date.now(), ch, uid: 'mestre', nome: 'Mestre automático', tipo: 'narra', txt }); }
+  function say(ch, txt, ask) { commit('msgs', null, { id: uid(), ts: Date.now(), ch, uid: 'mestre', nome: 'Mestre automático', tipo: 'narra', txt, ask: ask || undefined }); }
+  // O mestre automático responde ao que o jogador faz (na interface que a IA também teria): texto entra, narração e pedido de teste saem
+  const DET = {
+    vila: ['Há pegadas frescas na terra perto do cais.', 'Uma criança observa você de longe e some atrás de um barril.', 'Redes de pesca remendadas à pressa, como se alguém tivesse fugido.'],
+    cidade: ['Um homem de capa evita o seu olhar e muda de calçada.', 'Cartazes de procurado cobrem uma parede inteira, alguns rasgados.', 'O barulho do mercado esconde uma conversa baixa atrás de uma barraca.'],
+    base: ['As sentinelas trocam de posto com precisão de relógio.', 'Há uma janela aberta no segundo andar do quartel, sem ninguém à vista.', 'O estandarte azul bate forte no vento; ninguém aqui está distraído.'],
+    navio: ['O cheiro de molho vem da cozinha, e dali ouvem-se gritos de pedidos.', 'Um garçom desvia de três cozinheiros e entrega um prato sem derramar nada.', 'Perto do convés há uma mesa vazia, reservada com um bilhete misterioso.'],
+  };
+  const INTENTS = [
+    { k: 'luta', re: /(atac|luto|lutar|enfrent|procuro briga|procura briga|desafio|puxo a|puxa a)/i },
+    { k: 'olhar', re: /(olh|procur|investig|examin|vasculh|observ|inspeciona|escuta)/i, attr: 'ESP', t: ['Você examina tudo com calma.', 'Seus olhos percorrem o lugar atrás de qualquer detalhe fora do lugar.'] },
+    { k: 'conversar', re: /(fal[ao]|convers|pergunt|negoci|convenc|persuad|cumprimenta|chama|puxa conversa)/i, attr: 'CAR', t: ['Você se aproxima e puxa assunto.', 'Alguém por perto parece disposto a ouvir, mas ainda desconfia.'] },
+    { k: 'furtivo', re: /(esgueir|escond|furtiv|sorrate|rouba|fuj|corr[eo]|escal)/i, attr: 'AGI', t: ['Você escolhe o caminho mais discreto, longe das luzes.', 'Cada passo é medido, e a sombra ajuda.'] },
+    { k: 'forca', re: /(empurr|quebr|arromb|levant|carreg|forç|derrub|trancad)/i, attr: 'FOR', t: ['Você apoia o corpo e testa a resistência do que está na frente.', 'A madeira range sob o seu peso, e algo cede aos poucos.'] },
+    { k: 'tecnica', re: /(conserta|monta|improvis|desarm|decifr|navega|constr)/i, attr: 'TEC', t: ['Suas mãos trabalham com cuidado, peça por peça.', 'Você estuda o mecanismo antes de mexer em qualquer coisa.'] },
+    { k: 'descanso', re: /(descans|durm|relax)/i },
+    { k: 'loja', re: /(compr|vend|loja|mercad)/i },
+  ];
+  const pick2 = a => a[Math.floor(rng() * a.length)];
+  function react(c, txt, ch) {
+    if (!db.world.auto || !c || c.gm || !(isIsland(ch) || isDeck(ch))) return;
+    const clean = String(txt || '').replace(/[*_~{}|[]()]/g, ''), it = INTENTS.find(x => x.re.test(clean)), isl = ISLAND[ch], tema = isl ? isl.tema : 'vila';
+    later(1.0, () => {
+      if (!it) { say(ch, pick2(['O mundo responde em silêncio. Nada muda por enquanto, mas você sente que está sendo observado.', 'O vento muda de direção. Se quiser algo concreto, diga o que o seu personagem faz.']) + ' (Dica: tente olhar, conversar, esgueirar-se, forçar algo ou procurar briga.)'); return; }
+      if (it.k === 'luta') {
+        if (!isl) { say(ch, 'No convés não há com quem lutar... até as velas inimigas aparecerem.'); return; }
+        const r = ask({ ilha: isl, nivelMedio: Math.max(1, c.lv), faccao: c.faccao });
+        say(ch, r.texto + ' (' + { facil: 'luta fácil', moderada: 'luta moderada', dificil: 'luta difícil' }[r.dificuldade] + ')');
+        r.encontro.forEach(e => Combat.spawnNpc(ch, e.kind, e.lv));
+        later(1.4, () => { if (!(db.combat[ch] && db.combat[ch].on)) Combat.start(ch); }); return;
+      }
+      if (it.k === 'descanso') { say(ch, 'Você descansa um instante. A Energia volta aos poucos durante a luta e com um prato quente no comércio (aba Mesa).'); return; }
+      if (it.k === 'loja') { say(ch, 'O comércio da ilha está aberto. Abra a aba Mesa e vá em Comércio para comprar comida, reparo, curativo, canhões e velas.'); return; }
+      const det = it.k === 'olhar' ? ' ' + pick2(DET[tema] || DET.vila) : '';
+      say(ch, pick2(it.t) + det, { attr: it.attr, cd: tune.cdMedia + Math.floor(c.lv / 10) });
+    });
+  }
   function arrival(islId, s) {
     if (!db.world.auto) return; const isl = ISLAND[islId], c = cls(s);
     say(islId, '**' + isl.nome + '.** ' + text('chegada', null, isl.tema));
@@ -276,7 +312,7 @@ const Master = (() => {
       later(1.6, () => { if (!(db.combat[islId] && db.combat[islId].on) && whoIn(islId).some(x => !x.gm)) Combat.start(islId); });
     });
   }
-  return { ask, say, arrival, text, cls, difficulty };
+  return { ask, say, react, arrival, text, cls, difficulty };
 })();
 
 // ======================================================================================

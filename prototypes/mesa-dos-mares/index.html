@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="css/mesa.css">
 </head>
 <body class="in-title">
+<script>try { var t = localStorage.getItem('mdm-theme'); document.documentElement.dataset.theme = t || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'); if (localStorage.getItem('mdm-wide') === '1') document.body.classList.add('wide'); } catch (e) { document.documentElement.dataset.theme = 'dark'; }</script>
 <div id="app">
   <div id="stage">
     <canvas id="sea"></canvas>
@@ -24,7 +25,8 @@
         <button class="btn wood" id="btnCentro">Centralizar mapa</button>
         <div class="plate" id="turnPlate" hidden></div>
       </div>
-      <div id="islandHelp" class="plate" hidden>Arraste tokens · roda: zoom · <kbd>Espaço</kbd> ou botão do meio: mover o mapa · <kbd>F</kbd> próximo inimigo · <kbd>Enter</kbd> chat</div>
+      <div id="hotbar" class="plate" hidden></div>
+      <div id="islandHelp" class="plate" hidden>1-9 técnicas · Arraste tokens · roda: zoom · <kbd>Espaço</kbd> ou botão do meio: mover o mapa · <kbd>F</kbd> próximo inimigo · <kbd>Enter</kbd> chat</div>
     </div>
     <div id="diceStage"></div>
     <div id="toasts"></div>
@@ -34,7 +36,9 @@
     <div id="tabs">
       <button data-t="chat" class="on">Chat<span class="badge" id="chatBadge" hidden></span></button>
       <button data-t="ficha">Ficha</button>
+      <button data-t="tec">Técnicas</button>
       <button data-t="mesa">Mesa</button>
+      <button class="tbtn" id="wideBtn" title="Mais espaço para a narração">Foco</button><button class="tbtn" id="themeBtn" title="Tema escuro ou claro">Tema</button>
     </div>
 
     <section class="panel on" id="p-chat">
@@ -47,6 +51,7 @@
       <div id="chatList"></div>
       <div id="chatPreview" hidden></div>
       <div id="mentionBar" hidden></div>
+      <div id="actChips"></div>
       <div id="chatTools">
         <div class="row">
           <span id="modos" class="row" style="margin:0"></span>
@@ -77,6 +82,8 @@
     </section>
 
     <section class="panel" id="p-ficha"><div class="scroll" id="sheet"></div></section>
+
+    <section class="panel" id="p-tec"><div class="scroll" id="tecs"></div></section>
 
     <section class="panel" id="p-mesa">
       <div class="scroll">
@@ -332,7 +339,7 @@ function bindCreate() {
     q('crPts').textContent = (tune.attrPoints - spent()) + ' pontos restantes';
     const tmp = { attrs: s.attrs, raca: s.raca, classe: s.classe, lv: 1, st: 1 };
     q('crDerived').innerHTML = `Vida <b>${hpMaxOf(tmp)}</b> · Energia <b>${stMaxOf(tmp)}</b> · Defesa <b>${defOf(tmp)}</b> · Ataque com <b>${CLASSES[s.classe].atk}</b>, dano 1d${CLASSES[s.classe].dado}`;
-    q('crSample').innerHTML = `<span class="who" style="color:${CORES[s.cor]};font-family:${FONTES[s.fonte].css}">${esc(s.nome || 'Marujo')}</span> <span style="font-family:${FONTES[s.fonte].css}">— Vamos zarpar antes que a <b>Marinha</b> chegue!</span>`;
+    q('crSample').innerHTML = `<span class="who" style="color:${tc(s.cor)};font-family:${FONTES[s.fonte].css}">${esc(s.nome || 'Marujo')}</span> <span style="font-family:${FONTES[s.fonte].css}">— Vamos zarpar antes que a <b>Marinha</b> chegue!</span>`;
   };
   refresh();
   q('crNome').oninput = e => { s.nome = e.target.value; refresh(); };
@@ -376,12 +383,12 @@ function bindPause() {
 // ======================================================================================
 function setTab(t) {
   tab = t; document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
-  ['chat', 'ficha', 'mesa'].forEach(n => $('p-' + n).classList.toggle('on', n === t));
-  if (t === 'ficha') sheetDirty = true; if (t === 'mesa') mesaDirty = true;
+  ['chat', 'ficha', 'tec', 'mesa'].forEach(n => $('p-' + n).classList.toggle('on', n === t));
+  if (t === 'ficha') sheetDirty = true; if (t === 'mesa') mesaDirty = true; if (t === 'tec') tecDirty = true;
   if (t === 'chat') { dirty.msgs = true; setTimeout(() => { const l = $('chatList'); l.scrollTop = l.scrollHeight; }, 0); }
 }
 const bar = (cls, v, m, label) => `<div class="bar ${cls}"><i style="width:${clamp(m ? v / m * 100 : 0, 0, 100)}%"></i><span>${label || v + ' / ' + m}</span></div>`;
-let testMode = 'normal', testCd = 0;
+let testMode = 'normal', testCd = 0, tecDirty = true;
 function fxTxt(c, fx) { return fx.length ? [...new Set(fx)].map(k => FX[k].nome + (countFx(fx, k) > 1 ? ' ×' + countFx(fx, k) : '')).join(', ') : 'sem efeitos'; }
 function renderSheet() {
   const c = me(), el = $('sheet'); if (!c) { el.innerHTML = ''; return; }
@@ -404,21 +411,16 @@ function renderSheet() {
       <select id="shCd"><option value="0">Sem CD</option><option value="${tune.cdFacil}">Fácil (${tune.cdFacil})</option><option value="${tune.cdMedia}">Média (${tune.cdMedia})</option><option value="${tune.cdDificil}">Difícil (${tune.cdDificil})</option></select></div>
     <div class="attr-grid">${ATTRS.map(a => `<div class="attr" title="${a.nome}"><span class="k">${a.k}</span><span class="v">${attr(c, a.k)}</span>${c.pts ? `<button class="btn sm wood" data-up="${a.k}">+</button>` : ''}<button class="btn sm" data-test="${a.k}">Testar</button></div>`).join('')}</div>
     ${careerBonus(c) ? `<div class="note">Bônus da carreira: <b>+${careerBonus(c)}</b> em todos os atributos (${c.faccao === 'marinha' ? 'patente' : 'recompensa'}).</div>` : ''}
-    <h3>Ataques <small>(custo máximo ${atkCap(c)})</small></h3>
-    <div class="atk-list"><div class="atk"><div class="atk-h"><b>${BASIC.nome}</b><span>custo 0</span></div><div class="note">${atkDice(c, [])}+${attr(c, cl.atk)} · alcance ${atkReach(c, [])}</div><button class="btn sm red" data-use="basico">Usar</button></div>
-    ${(c.ataques || []).map(a => `<div class="atk"><div class="atk-h"><b>${esc(a.nome)}</b><span>custo ${a.custo}</span></div><div class="note">${atkDice(c, a.fx)}+${attr(c, cl.atk) + ((race.dmg) || 0)} · alcance ${atkReach(c, a.fx)} · ${fxTxt(c, a.fx)}</div><button class="btn sm red" data-use="${a.id}" ${c.st < a.custo ? 'disabled' : ''}>Usar</button><button class="btn sm wood" data-edit="${a.id}">Editar</button></div>`).join('')}</div>
-    <div class="row"><button class="btn sm" id="shNewAtk" ${(c.ataques || []).length >= tune.atkMax ? 'disabled' : ''}>Criar ataque</button><span class="note">Selecione um alvo no mapa e use.</span></div>
+    <h3>Técnicas</h3><div class="row"><span class="note">Você tem <b>${(c.ataques || []).length + 1}</b> técnica(s).</span><button class="btn sm" id="shGoTec">Abrir e criar técnicas</button></div>
     <h3>Treino</h3>${c.treino ? `<div class="note">Treinando há ${Math.round(Train.hours(c) * 60 / tune.trainSpeed)} min. Rende <b>${Train.pending(c)} XP</b> até agora${c.faccao === 'marinha' ? ' (treino guiado: +' + Math.round((tune.navyTrainMul - 1) * 100) + '%)' : ''}.</div><button class="btn sm" id="shTrainStop">Parar e coletar</button>` : `<div class="note">O personagem treina sozinho e rende ${Math.round(Train.rate(c))} XP por hora${c.faccao === 'marinha' ? ' (com o bônus da Marinha)' : ''}, até ${tune.trainCapH} horas, mesmo com o jogo fechado.</div><button class="btn sm" id="shTrain" ${c.prisao ? 'disabled' : ''}>Começar a treinar</button>`}
     <h3>Estilo no chat</h3>
     <div class="row"><select id="shCor">${Object.keys(CORES).map(n => `<option value="${n}" ${c.cor === n ? 'selected' : ''}>${n}</option>`).join('')}</select><select id="shFonte">${Object.entries(FONTES).map(([k, f]) => `<option value="${k}" ${c.fonte === k ? 'selected' : ''}>${f.nome}</option>`).join('')}</select></div>
-    <div class="sample"><span class="who" style="color:${CORES[c.cor] || c.cor};font-family:${FONTES[c.fonte].css}">${esc(c.nome)}</span> <span style="font-family:${FONTES[c.fonte].css}">— assim as suas falas aparecem.</span></div>`;
+    <div class="sample"><span class="who" style="color:${tc(c.cor)};font-family:${FONTES[c.fonte].css}">${esc(c.nome)}</span> <span style="font-family:${FONTES[c.fonte].css}">— assim as suas falas aparecem.</span></div>`;
   $('shModo').value = testMode; $('shCd').value = String(testCd);
   $('shModo').onchange = e => { testMode = e.target.value; }; $('shCd').onchange = e => { testCd = +e.target.value; };
   el.querySelectorAll('[data-test]').forEach(b => b.onclick = () => Chat.teste(b.dataset.test, testCd, testMode));
   el.querySelectorAll('[data-up]').forEach(b => b.onclick = () => { if (c.pts > 0) { c.attrs[b.dataset.up]++; c.pts--; refreshChar(c, false); sheetDirty = true; } });
-  el.querySelectorAll('[data-use]').forEach(b => b.onclick = () => Combat.useAttack(b.dataset.use === 'basico' ? BASIC : c.ataques.find(a => a.id === b.dataset.use), testMode));
-  el.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => atkEditor(c.ataques.find(a => a.id === b.dataset.edit)));
-  $('shNewAtk').onclick = () => atkEditor(null);
+  $('shGoTec').onclick = () => setTab('tec');
   if ($('shTrain')) $('shTrain').onclick = () => { Train.start(c); sheetDirty = true; };
   if ($('shTrainStop')) $('shTrainStop').onclick = () => { Train.stop(c); sheetDirty = true; };
   $('shFile').onchange = e => processUpload(e.target.files[0], tune.tokenImgSize, url => { c.img = url; commit('chars', c.id, c); syncPc(c); sheetDirty = true; });
@@ -426,19 +428,53 @@ function renderSheet() {
   $('shFonte').onchange = e => { c.fonte = e.target.value; commit('chars', c.id, c); sheetDirty = true; };
 }
 
+// ---- Aba Técnicas: lista, uso e criação ----
+function renderTecs() {
+  const c = me(), el = $('tecs'); if (!c) { el.innerHTML = ''; return; }
+  if (c.gm) { el.innerHTML = '<div class="note">O Mestre não usa técnicas. Os NPCs lutam com a força do nível deles.</div>'; return; }
+  const cl = CLASSES[c.classe], race = RACES[c.raca], list = [BASIC, ...(c.ataques || [])];
+  el.innerHTML = `<button class="btn tec-cta" id="tecNew" ${(c.ataques || []).length >= tune.atkMax ? 'disabled' : ''}>+ Criar técnica</button>
+  <div class="note">Uma técnica é o seu golpe: dano inicial <b>${atkDice(c, [])}+${attr(c, cl.atk)}</b> mais efeitos que você compra com Energia. Custo máximo por técnica: <b>${atkCap(c)}</b> (sobe com o nível). Energia agora: <b>${c.st}/${c.stMax}</b>. Limite: ${tune.atkMax} técnicas.</div>
+  <h3>Suas técnicas</h3><div class="tec-list">${list.map((a, i) => `<div class="tec"><div class="tec-h"><b>${esc(a.nome)}</b><span>custo ${a.custo}</span></div><div class="note">${atkDice(c, a.fx)}+${attr(c, cl.atk) + (race.dmg || 0)} · alcance ${atkReach(c, a.fx)} · tecla ${i + 1}</div><div>${a.fx.length ? [...new Set(a.fx)].map(k => '<span class="chip-fx">' + FX[k].nome + (countFx(a.fx, k) > 1 ? ' ×' + countFx(a.fx, k) : '') + '</span>').join('') : '<span class="chip-fx">sem efeitos</span>'}</div><button class="btn sm red" data-use="${a.id}" ${c.st < a.custo ? 'disabled' : ''}>Usar</button>${a.id === 'basico' ? '' : '<button class="btn sm wood" data-edit="' + a.id + '">Editar</button>'}</div>`).join('')}</div>
+  <div class="tec-help"><b>Como usar:</b> selecione um alvo no mapa (clique, ou tecle <kbd>F</kbd> para o inimigo mais próximo), chegue perto o bastante e use a técnica pelo botão, pela barra de atalhos ou pelas teclas <kbd>1</kbd> a <kbd>9</kbd>.<br><b>Efeitos:</b> ${Object.values(FX).map(f => f.nome).join(', ')}.</div>`;
+  $('tecNew').onclick = () => atkEditor(null);
+  el.querySelectorAll('[data-use]').forEach(b => b.onclick = () => Combat.useAttack(b.dataset.use === 'basico' ? BASIC : c.ataques.find(a => a.id === b.dataset.use), testMode));
+  el.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => atkEditor(c.ataques.find(a => a.id === b.dataset.edit)));
+}
+function useTec(i) { const c = me(); if (!c || c.gm) return; const a = i === 0 ? BASIC : (c.ataques || [])[i - 1]; if (a) Combat.useAttack(a, testMode); }
+// barra de atalhos no mapa da ilha
+let hotSig = '';
+function renderHotbar(show) {
+  const hb = $('hotbar'), c = me(); hb.hidden = !show; if (!show) { hotSig = ''; return; }
+  const sig = JSON.stringify([(c.ataques || []).map(a => [a.id, a.nome, a.custo]), c.st, c.lv]); if (sig === hotSig) return; hotSig = sig;
+  const list = [BASIC, ...(c.ataques || [])];
+  hb.innerHTML = list.map((a, i) => `<button class="hot" data-i="${i}" ${c.st < a.custo ? 'disabled' : ''}><span class="k">${i + 1}</span><b>${esc(a.nome)}</b><small>custo ${a.custo} · alcance ${atkReach(c, a.fx)}</small></button>`).join('') + '<button class="hot new" id="hotNew">+ Nova técnica</button>';
+  hb.querySelectorAll('[data-i]').forEach(b => b.onclick = () => useTec(+b.dataset.i)); $('hotNew').onclick = () => atkEditor(null);
+}
+
+// ---- Tema e ações rápidas do chat ----
+function applyTheme(t) { document.documentElement.dataset.theme = t; try { localStorage.setItem('mdm-theme', t); } catch (e) { /* tudo bem */ } dirty.msgs = true; sheetDirty = true; tecDirty = true; hotSig = ''; if (typeof Chat !== 'undefined') Chat.swatches(); }
+const QUICK = [['Olhar ao redor', 'olha ao redor e investiga o lugar.'], ['Conversar', 'puxa conversa com alguém por perto.'], ['Esgueirar-se', 'se esgueira pelas sombras sem ser notado.'], ['Forçar', 'tenta arrombar o que estiver trancado.'], ['Procurar briga', 'procura briga com o primeiro valentão que encontrar.']];
+function renderChips() {
+  const c = me(), el = $('actChips'), v = c && currentView(), show = !!(c && !c.gm && (isIsland(v) || isDeck(v)) && db.world.auto);
+  el.hidden = !show; if (!show) { el.innerHTML = ''; el.dataset.on = ''; return; } if (el.dataset.on === '1') return; el.dataset.on = '1';
+  el.innerHTML = '<span class="lbl">O que você faz?</span>' + QUICK.map(([n, t], i) => '<button data-q="' + i + '">' + n + '</button>').join('');
+  el.querySelectorAll('[data-q]').forEach(b => b.onclick = () => { $('chatInput').value = '/me ' + QUICK[+b.dataset.q][1]; Chat.send(); });
+}
+
 // ---- Criador de ataques: dano inicial + efeitos comprados com Energia ----
 function atkEditor(old) {
   const c = me(), st = { nome: old ? old.nome : '', fx: old ? old.fx.slice() : [] }, ov = $('overlay');
   const draw = () => {
     const custo = atkCost(c, st.fx), cap = atkCap(c), ok = custo <= cap && st.nome.trim();
-    ov.innerHTML = `<div class="card small"><h1 style="font-size:32px">${old ? 'Editar' : 'Criar'} ataque</h1><div class="tagline">Dano inicial ${atkDice(c, [])} + ${attr(c, CLASSES[c.classe].atk)}. Cada efeito custa Energia.</div>
-    <div class="field"><label>Nome do ataque</label><input type="text" id="akNome" maxlength="28" value="${esc(st.nome)}" placeholder="Ex.: Furacão de Lâminas"></div>
+    ov.innerHTML = `<div class="card small"><h1 style="font-size:32px">${old ? 'Editar' : 'Criar'} técnica</h1><div class="tagline">Dano inicial ${atkDice(c, [])} + ${attr(c, CLASSES[c.classe].atk)}. Cada efeito custa Energia.</div>
+    <div class="field"><label>Nome da técnica</label><input type="text" id="akNome" maxlength="28" value="${esc(st.nome)}" placeholder="Ex.: Furacão de Lâminas"></div>
     ${Object.entries(FX).map(([k, f]) => { const n = countFx(st.fx, k); return `<div class="fx"><div style="flex:1"><b>${f.nome}</b> <span class="note">custo ${fxCost(c, k)} · ${f.desc}</span></div><button class="btn sm wood" data-fx="${k}" data-d="-1">−</button><span class="val">${n}</span><button class="btn sm wood" data-fx="${k}" data-d="1" ${n >= f.max ? 'disabled' : ''}>+</button></div>`; }).join('')}
     <div class="note" style="margin-top:8px">Dano: <b>${atkDice(c, st.fx)}+${attr(c, CLASSES[c.classe].atk) + ((RACES[c.raca].dmg) || 0)}</b> · alcance <b>${atkReach(c, st.fx)}</b> · custo total <b style="color:${custo > cap ? 'var(--no)' : 'inherit'}">${custo} / ${cap}</b> de Energia por uso${RACES[c.raca].electro ? ' (Electro: atordoar mais barato)' : ''}.</div>
     <div class="actions"><button class="btn wood" id="akCancel">Cancelar</button>${old ? '<button class="btn red" id="akDel">Apagar</button>' : ''}<button class="btn" id="akSave" ${ok ? '' : 'disabled'}>Guardar</button></div></div>`;
     ov.querySelectorAll('[data-fx]').forEach(b => b.onclick = () => { const k = b.dataset.fx, d = +b.dataset.d; if (d > 0 && countFx(st.fx, k) < FX[k].max) st.fx.push(k); if (d < 0) { const i = st.fx.indexOf(k); if (i >= 0) st.fx.splice(i, 1); } draw(); });
     $('akNome').oninput = e => { st.nome = e.target.value; $('akSave').disabled = !(atkCost(c, st.fx) <= atkCap(c) && st.nome.trim()); };
-    $('akCancel').onclick = close; $('akSave').onclick = () => { const a = { id: old ? old.id : 'a' + uid(), nome: st.nome.trim(), fx: st.fx, custo: atkCost(c, st.fx) }; c.ataques = c.ataques || []; if (old) c.ataques[c.ataques.findIndex(x => x.id === old.id)] = a; else c.ataques.push(a); commit('chars', c.id, c); sheetDirty = true; close(); toast('Ataque guardado: ' + a.nome); };
+    $('akCancel').onclick = close; $('akSave').onclick = () => { const a = { id: old ? old.id : 'a' + uid(), nome: st.nome.trim(), fx: st.fx, custo: atkCost(c, st.fx) }; c.ataques = c.ataques || []; if (old) c.ataques[c.ataques.findIndex(x => x.id === old.id)] = a; else c.ataques.push(a); commit('chars', c.id, c); sheetDirty = true; close(); toast('Técnica guardada: ' + a.nome); };
     if ($('akDel')) $('akDel').onclick = () => { c.ataques = c.ataques.filter(x => x.id !== old.id); commit('chars', c.id, c); sheetDirty = true; close(); };
   };
   const close = () => { ov.className = ''; ov.innerHTML = ''; };
@@ -550,6 +586,8 @@ function bindPanels() {
     $('tkNome').value = ''; pendingTokImg = null; $('tkPrev').hidden = true; $('tkFile').value = ''; tone(520, 0.08, 'triangle', 0.2);
   };
   $('tkKind').innerHTML = Object.entries(NPC_KINDS).map(([k, n]) => `<option value="${k}">${n.nome} (nv ${n.lv})</option>`).join('');
+  $('themeBtn').onclick = () => applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
+  $('wideBtn').onclick = () => { const w = document.body.classList.toggle('wide'); try { localStorage.setItem('mdm-wide', w ? '1' : '0'); } catch (e) { /* tudo bem */ } };
   $('btnCarta').onclick = () => { chartOpen = true; Travel.sel = null; mesaDirty = true; };
   $('btnCentro').onclick = () => Island.fit(currentView());
   $('chatBgFile').onchange = e => { Chat.setBg(e.target.files[0]); e.target.value = ''; };
@@ -563,7 +601,7 @@ let chartSig = '';
 function updateHud() {
   const c = me(), mode = scene === 'play' && c ? stageMode() : 'none', v = c && currentView();
   Naval.hud($('navalHud')); Fight3D.hud($('fightHud'));
-  const isl = mode === 'island'; $('islandHud').hidden = !isl; $('islandHelp').hidden = !isl;
+  const isl = mode === 'island'; $('islandHud').hidden = !isl; $('islandHelp').hidden = !isl; renderHotbar(isl && !c.gm); renderChips();
   if (isl) {
     $('islName').innerHTML = `<b>${esc(chanName(v))}</b>`; $('btnCarta').hidden = !!c.gm;
     const cb = db.combat[v], tp = $('turnPlate');
@@ -647,6 +685,7 @@ const scenes = {
       if (mode === 'naval') Naval.update(dt);
       if (mode === 'island' && !c.gm) Island.ensureMyToken(state.view);
       if (mode === 'island' && pressed('KeyF')) focusFoe();
+      if (mode === 'island' && !c.gm) for (let i = 1; i <= 9; i++) if (pressed('Digit' + i)) useTec(i - 1);
       // pena cumprida?
       Object.values(db.chars).forEach(x => { if (x.prisao && Date.now() >= x.prisao.ate && (x.id === myId || isGM())) { releasePrison(x); sheetDirty = true; mesaDirty = true; } });
       Dice.update(dt); throttled(dt);
@@ -676,6 +715,7 @@ function throttled(dt) {
     panelClock = 0;
     if (dirty.chars || dirty.ships || dirty.tokens) { Chat.head(); document.body.classList.toggle('gm', isGM()); }
     if (tab === 'ficha' && (sheetDirty || dirty.chars) && !typing()) { renderSheet(); sheetDirty = false; }
+    if (tab === 'tec' && (tecDirty || dirty.chars) && !typing()) { renderTecs(); tecDirty = false; }
     if (tab === 'mesa' && (mesaDirty || dirty.tokens || dirty.combat || dirty.ships || dirty.chars || dirty.world || dirty.naval || dirty.cargos || dirty.missions) && !typing()) { renderMesa(); mesaDirty = false; }
     const un = Object.keys(db.chars).length ? gmPlacesKeys().filter(p => p !== currentView()).reduce((a, p) => a + Chat.unread(p), 0) : 0;
     const bd = $('chatBadge'); bd.hidden = !(tab !== 'chat' && un); bd.textContent = un;
