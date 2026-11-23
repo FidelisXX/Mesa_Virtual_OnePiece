@@ -16,3 +16,10 @@
   tool: "esbuild 0.28.2, one plain script for play from a file"
   date: 2026-11-16
   ships: true
+- path: vendor/supabase.js
+  origin: licensed
+  source: {vendor: Supabase, product: "@supabase/supabase-js (UMD)", version: "2.45.4", url: "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"}
+  licence: {id: MIT}
+  tool: "curl, da jsDelivr"
+  date: 2026-11-23
+  ships: true

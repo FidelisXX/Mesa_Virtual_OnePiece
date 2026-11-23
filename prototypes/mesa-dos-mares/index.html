@@ -106,7 +106,10 @@
 
 <script src="config.js"></script>
 <script src="vendor/three.js"></script>
+<script src="vendor/supabase.js"></script>
+<script src="supabase-config.js" onerror="void 0"></script>
 <script src="js/db.js"></script>
+<script src="js/supabase.js"></script>
 <script src="js/art.js"></script>
 <script src="js/rules.js"></script>
 <script src="js/combat.js"></script>
@@ -250,8 +253,14 @@ function bindLogin() {
 async function guestLogin() { const e = Acc.register('convidado', 'convidado'); if (e) Acc.login('convidado', 'convidado'); await depoisDoLogin(); }
 // Depois de entrar na conta: um convite pendente (link ?convite=CODIGO) abre a mesa; senão, a lista de mesas
 let convitePendente = (params.get('convite') || '').toUpperCase();
+// Com o Supabase, a mesa só aparece para quem já é membro: o convite pede ao banco que a traga
+async function puxarConvite(cod) {
+  if (!Net.sb) return;
+  try { const m = await Net.entrarCodigo(String(cod || '')); if (m && m.id) { G.mesas[m.id] = m; saveDb(); } } catch (e) { toast('Não consegui entrar pelo convite: ' + (e && e.message || 'erro')); }
+}
 async function depoisDoLogin() {
   if (convitePendente) {
+    await puxarConvite(convitePendente);
     const m = Mesas.entrar(convitePendente); convitePendente = ''; history.replaceState(null, '', location.pathname);
     if (typeof m === 'object') { await abrirMesa(m.id); toast('Você entrou na mesa ' + m.nome + '.'); setScene('home'); return; }
     toast(m);
@@ -278,7 +287,7 @@ function bindMesas() {
   document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => abrir(b.dataset.open));
   document.querySelectorAll('[data-conv]').forEach(b => b.onclick = () => conviteModal(G.mesas[b.dataset.conv]));
   $('mNova').onclick = () => { const m = Mesas.criar($('mNome').value); abrir(m.id).then(() => conviteModal(m)); };
-  $('mEntrar').onclick = () => { const m = Mesas.entrar($('mCod').value); if (typeof m === 'string') { $('mErr').textContent = m; return; } abrir(m.id); };
+  $('mEntrar').onclick = async () => { await puxarConvite($('mCod').value); const m = Mesas.entrar($('mCod').value); if (typeof m === 'string') { $('mErr').textContent = m; return; } abrir(m.id); };
   $('mCod').onkeydown = e => { if (e.key === 'Enter') $('mEntrar').click(); };
   $('mNome').onkeydown = e => { if (e.key === 'Enter') $('mNova').click(); };
   $('hIa').onclick = iaModal;

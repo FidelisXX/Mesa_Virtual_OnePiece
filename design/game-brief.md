@@ -95,7 +95,7 @@ Fácil, moderado ou difícil conforme o nível do grupo: o primeiro evento na vi
 
 ## Out of scope
 - Online pela internet (fora da sua rede Wi-Fi): needs a host; built instead: mesas com convite pela rede local (`node server/narrador.js --lan`), no computador, celular ou outra aba
-- Supabase de verdade (login real e banco): needs a server; no lugar, conta local na mesma interface, pronta para trocar. A IA Gemini entra por um servidor local opcional que guarda a chave
+- Login real (Supabase Auth): as contas ainda são locais; o banco e o tempo real do Supabase já têm o código pronto (supabase/schema.sql, js/supabase.js), falta um projeto para testar. A IA Gemini entra por um servidor local opcional que guarda a chave
 - Haki e a Grand Line: grow it
 - Trilha sonora do YouTube e bestiário: add it as a feature
 - Sigilo real de rolagens secretas: needs a server

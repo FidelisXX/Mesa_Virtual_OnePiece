@@ -159,14 +159,15 @@ const bcHandlers = {}; // mensagens efêmeras de outros módulos: bcHandlers[tip
 function emit(table, row, remote) { dirty[table] = true; listeners.forEach(f => f(table, row, remote)); }
 
 const Net = (() => {
-  let on = false, cid = uid(), q = [], timer = 0, leitor = null, escopos = [], urls = [], lan = false, vezes = 0;
+  let on = false, cid = uid(), q = [], timer = 0, leitor = null, escopos = [], urls = [], lan = false, vezes = 0, sb = false;
   async function iniciar() {
+    if (typeof SB !== 'undefined' && await SB.iniciar(cid)) { on = true; sb = true; return true; }   // Supabase, se houver supabase-config.js
     if (!/^https?:$/.test(location.protocol)) return false;
     try { const r = await fetch('/info', { signal: AbortSignal.timeout(2500), cache: 'no-store' }), j = await r.json(); if (!j || !j.rede) return false; on = true; urls = j.urls || []; lan = !!j.lan; return true; }
     catch (e) { return false; }
   }
-  async function estado(esc) { const r = await fetch('/estado?escopo=' + encodeURIComponent(esc), { cache: 'no-store' }); if (!r.ok) throw new Error('estado ' + r.status); return r.json(); }
-  function enviar(esc, m) { q.push({ esc, m }); if (!timer) timer = setTimeout(descarga, 35); }
+  async function estado(esc) { if (sb) return SB.estado(esc); const r = await fetch('/estado?escopo=' + encodeURIComponent(esc), { cache: 'no-store' }); if (!r.ok) throw new Error('estado ' + r.status); return r.json(); }
+  function enviar(esc, m) { if (sb) { SB.enviar(esc, m); return; } q.push({ esc, m }); if (!timer) timer = setTimeout(descarga, 35); }
   async function descarga() {
     timer = 0; const itens = q.splice(0), por = {};
     itens.forEach(i => { (por[i.esc] = por[i.esc] || []).push(i.m); });
@@ -177,6 +178,7 @@ const Net = (() => {
   }
   // O fluxo de eventos é lido com fetch (reconecta sozinho e, ao voltar, busca o estado de novo para não perder nada)
   function assinar(lista) {
+    if (sb) { escopos = lista; SB.assinar(lista, onRemote); return; }
     if (lista.join(',') === escopos.join(',') && leitor) return;
     escopos = lista; if (leitor) leitor.abort(); vezes = 0; ler();
   }
@@ -200,7 +202,7 @@ const Net = (() => {
   async function ressincronizar() {
     try { G = completar(await estado('g'), { accounts: {}, mesas: {} }); if (myMesa) db = completar(await estado(myMesa), emptyDb()); Object.keys(dirty).forEach(k => { dirty[k] = true; }); } catch (e) { /* tenta na próxima */ }
   }
-  return { iniciar, estado, enviar, assinar, get on() { return on; }, get cid() { return cid; }, get urls() { return urls; }, get lan() { return lan; } };
+  return { iniciar, estado, enviar, assinar, get sb() { return sb; }, entrarCodigo: c => SB.entrarCodigo(c), get on() { return on; }, get cid() { return cid; }, get urls() { return urls; }, get lan() { return lan; } };
 })();
 
 // commit: grava local (otimista), persiste e avisa os outros (abas ou aparelhos). key === null: a tabela inteira é a linha (cargos, world).

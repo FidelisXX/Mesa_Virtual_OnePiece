@@ -60,7 +60,7 @@ const Mesas = (() => {
     },
     sair(m) { if (m.owner === myAcc) return 'Quem criou a mesa não pode sair dela; apague a mesa se quiser acabar com ela.'; m.membros = m.membros.filter(x => x !== myAcc); commit('mesas', m.id, m); return null; },
     // o endereço que o convidado abre: o do Wi-Fi (se o servidor estiver com --lan) ou o da própria página
-    link: m => (Net.urls[0] || (Net.on ? location.origin : '')) + '/?convite=' + m.codigo,
+    link: m => ((Net.sb && SB.siteUrl) || Net.urls[0] || (Net.on ? location.origin : '')) + '/?convite=' + m.codigo,
   };
 })();
 

@@ -5,3 +5,6 @@ node_modules/
 
 # estado das mesas (contas e conversas)
 **/server/mesas.json
+
+# chaves do projeto Supabase (a anon key e publica, mas o endereco e seu)
+**/supabase-config.js
