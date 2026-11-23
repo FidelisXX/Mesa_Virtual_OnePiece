@@ -240,7 +240,7 @@ const Ia = (() => {
     return on;
   }
   async function narrar(ctx) {
-    const r = await fetch(base() + '/narrar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ctx), signal: AbortSignal.timeout(32000) });
+    const r = await fetch(base() + '/narrar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ctx), signal: AbortSignal.timeout(90000) });
     const j = await r.json(); if (!r.ok) throw new Error(j.erro || 'HTTP ' + r.status); return j;
   }
   // A chave vai do jogo só para o servidor local (que a guarda na memória e, se pedido, em server/.env); ela nunca é guardada no navegador
@@ -248,7 +248,12 @@ const Ia = (() => {
     const r = await fetch(base() + '/chave', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo), signal: AbortSignal.timeout(6000) });
     const j = await r.json(); if (!r.ok) throw new Error(j.erro || 'HTTP ' + r.status); return j;
   }
-  return { check, narrar, salvar, base, setBase, get on() { return on; }, get modelo() { return modelo; }, get mock() { return mock; }, get erro() { return erro; }, get last() { return last; } };
+  // Uma chamada mínima ao Gemini, para ver se a chave, o modelo e a rede funcionam de verdade
+  async function testar() {
+    const r = await fetch(base() + '/teste', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', signal: AbortSignal.timeout(30000) });
+    return r.json();
+  }
+  return { check, narrar, salvar, testar, base, setBase, get on() { return on; }, get modelo() { return modelo; }, get mock() { return mock; }, get erro() { return erro; }, get last() { return last; } };
 })();
 
 // ======================================================================================

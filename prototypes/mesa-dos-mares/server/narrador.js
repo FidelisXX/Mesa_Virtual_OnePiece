@@ -20,7 +20,7 @@ try {
     const m = l.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/); if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
   });
 } catch (e) { /* sem .env: usa o ambiente */ }
-let KEY = process.env.GEMINI_API_KEY || '', MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+let KEY = process.env.GEMINI_API_KEY || '', MODEL = process.env.GEMINI_MODEL || 'gemini-flash-lite-latest';
 const PORT = +process.env.PORT || 8787, MOCK = process.env.MOCK === '1', ENV_FILE = path.join(__dirname, '.env');
 // Guarda (ou troca) uma linha CHAVE=valor no .env, mantendo o resto do arquivo
 function gravarEnv(pares) {
@@ -30,7 +30,7 @@ function gravarEnv(pares) {
 }
 // Só o jogo aberto do arquivo (origem "null") ou de localhost pode falar com o servidor: um site qualquer, não
 const origemOk = req => { const o = req.headers.origin; return !o || o === 'null' || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o); };
-const TIMEOUT_MS = 25000, MAX_BODY = 40000;
+const TIMEOUT_MS = 22000, MAX_BODY = 40000;
 const ATTRS = ['FOR', 'AGI', 'VIG', 'TEC', 'ESP', 'CAR'], TIPOS = ['aldeao', 'bandido', 'marujo', 'oficial', 'rival', 'cozinha'];
 
 const SISTEMA = [
@@ -75,31 +75,70 @@ function extrairJson(txt) {
   throw new Error('a IA não devolveu JSON');
 }
 
+// Lista os modelos da chave e escolhe o "flash" de texto mais novo (sem lite, imagem, voz, tempo real ou experimental)
+async function descobrirModelo(signal) {
+  try {
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { signal, headers: { 'x-goog-api-key': KEY } });
+    const j = await r.json(); if (!r.ok) return null;
+    const ok = (j.models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent')).map(m => String(m.name || '').replace(/^models\//, ''))
+      .filter(n => /flash/i.test(n) && !/(image|tts|live|audio|embed|exp|robotics|computer|learn|omni)/i.test(n));
+    const ver = n => (n.match(/(\d+(?:\.\d+)?)/) || [0, 0])[1] * 1;
+    // estável antes de prévia; os "lite" primeiro (têm capacidade própria e respondem mesmo quando os flash estão lotados); depois a versão mais alta
+    ok.sort((a, b) => (/preview/i.test(a) - /preview/i.test(b)) || (/lite/i.test(b) - /lite/i.test(a)) || ver(b) - ver(a));
+    return ok;
+  } catch (e) { return []; }
+}
+
 async function narrar(ctx) {
   if (MOCK) { // resposta de teste, sem chave e sem custo
     const nomes = [...new Set((ctx.novas || []).map(n => n.quem))];
     return { narracao: '[teste sem IA] O mestre lê ' + nomes.join(' e ') + ' e a cena responde: o vento muda, e alguém por perto repara em vocês.', testes: nomes.slice(0, 2).map(n => ({ jogador: n, atributo: 'CAR', cd: 15, motivo: 'o clima da cena pede' })), luta: null, uso: 0 };
   }
   if (!KEY) throw new Error('GEMINI_API_KEY não configurada (crie server/.env)');
-  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), TIMEOUT_MS);
-  try {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`, {
-      method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': KEY },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SISTEMA }] },
-        contents: [{ role: 'user', parts: [{ text: montarPedido(ctx) }] }],
-        generationConfig: { responseMimeType: 'application/json', temperature: 0.9, maxOutputTokens: 900 },
-      }),
-    });
-    const data = await r.json();
-    if (!r.ok) throw new Error('Gemini ' + r.status + ': ' + lim(data && data.error && data.error.message, 200));
-    const txt = (((data.candidates || [])[0] || {}).content || {}).parts;
-    const texto = Array.isArray(txt) ? txt.map(p => p.text || '').join('') : '';
-    if (!texto) throw new Error('resposta vazia' + (data.promptFeedback ? ' (bloqueada pelo filtro)' : ''));
-    const out = limpar(extrairJson(texto)); out.uso = (data.usageMetadata && data.usageMetadata.totalTokenCount) || 0;
-    if (!out.narracao) throw new Error('narração vazia');
-    return out;
-  } finally { clearTimeout(timer); }
+  // Narrar é uma tarefa curta: pouco "pensamento" interno deixa a resposta rápida e dentro do limite de tokens.
+  // O campo muda de nome entre as famílias (2.x: thinkingBudget; 3.x: thinkingLevel); se a API recusar, repete sem ele.
+  const corpoPara = (modelo, pensar) => JSON.stringify({
+    systemInstruction: { parts: [{ text: SISTEMA }] },
+    contents: [{ role: 'user', parts: [{ text: montarPedido(ctx) }] }],
+    generationConfig: Object.assign({ responseMimeType: 'application/json', temperature: 0.9, maxOutputTokens: 1400 },
+      pensar ? { thinkingConfig: /(^|-)3\./.test(modelo) ? { thinkingLevel: 'low' } : { thinkingBudget: 0 } } : {}),
+  });
+  // Uma tentativa com um modelo, com o seu próprio limite de tempo (a API às vezes demora quando está cheia)
+  const enviar = async (modelo, pensar) => {
+    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), TIMEOUT_MS);
+    try {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelo)}:generateContent`, { method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': KEY }, body: corpoPara(modelo, pensar) });
+      return { r, data: await r.json() };
+    } catch (e) { return { r: { ok: false, status: 504 }, data: { error: { message: 'tempo esgotado (' + Math.round(TIMEOUT_MS / 1000) + ' s)' } } }; }
+    finally { clearTimeout(timer); }
+  };
+  const tentar = async modelo => {
+    let x = await enviar(modelo, true);
+    if (x.r.status === 400) { console.log('o modelo', modelo, 'recusou o pedido (' + lim(x.data && x.data.error && x.data.error.message, 90) + '); repetindo sem o ajuste de pensamento'); x = await enviar(modelo, false); }
+    return x;
+  };
+  const motivo = x => lim(x.data && x.data.error && x.data.error.message, 200);
+  let usado = MODEL, res = await tentar(MODEL);
+  // Modelo aposentado (404), API cheia (503), limite (429) ou lenta (504): tenta o mesmo e depois os outros "flash" que a sua chave enxerga
+  if (!res.r.ok && [404, 429, 503, 504].includes(res.r.status)) {
+    const era404 = res.r.status === 404;
+    console.log('Gemini', res.r.status, 'com', MODEL, '-', motivo(res));
+    if (!era404) { await new Promise(ok => setTimeout(ok, 1500)); res = await tentar(MODEL); }
+    if (!res.r.ok && [404, 429, 503, 504].includes(res.r.status)) {
+      const outros = (await descobrirModelo(AbortSignal.timeout(8000))).filter(n => n !== MODEL).slice(0, 3);
+      for (const n of outros) {
+        console.log('tentando o modelo', n); res = await tentar(n); usado = n;
+        if (res.r.ok) { if (era404) { console.log('o modelo', MODEL, 'não existe mais; passando a usar', n); MODEL = n; } break; }
+      }
+    }
+  }
+  if (!res.r.ok) throw new Error('Gemini ' + res.r.status + ': ' + motivo(res));
+  const data = res.data, txt = (((data.candidates || [])[0] || {}).content || {}).parts;
+  const texto = Array.isArray(txt) ? txt.map(p => p.text || '').join('') : '';
+  if (!texto) throw new Error('resposta vazia' + (data.promptFeedback ? ' (bloqueada pelo filtro)' : ''));
+  const out = limpar(extrairJson(texto)); out.uso = (data.usageMetadata && data.usageMetadata.totalTokenCount) || 0; out.modelo = usado;
+  if (!out.narracao) throw new Error('narração vazia');
+  return out;
 }
 
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' };
@@ -108,6 +147,32 @@ http.createServer((req, res) => {
   if (req.method === 'OPTIONS') { res.writeHead(204, CORS); res.end(); return; }
   if (!origemOk(req)) { send(res, 403, { erro: 'origem não permitida' }); return; }
   if (req.method === 'GET' && req.url === '/saude') { send(res, 200, { ok: MOCK || !!KEY, modelo: MOCK ? 'teste (sem IA)' : MODEL, mock: MOCK, chave: !!KEY }); return; }
+  // Quais modelos de texto a sua chave enxerga (só os nomes)
+  if (req.method === 'GET' && req.url === '/modelos') {
+    (async () => {
+      try {
+        if (!KEY) { send(res, 200, { modelos: [], erro: 'sem chave' }); return; }
+        const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': KEY }, signal: AbortSignal.timeout(10000) }), j = await r.json();
+        send(res, 200, { modelos: (j.models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent')).map(m => String(m.name).replace(/^models\//, '')), erro: r.ok ? null : lim(j.error && j.error.message, 160) });
+      } catch (e) { send(res, 200, { modelos: [], erro: e.message }); }
+    })();
+    return;
+  }
+  // Diagnóstico: uma chamada mínima ao modelo atual, para ver se a chave, o modelo e a rede funcionam, e quanto demora
+  if (req.method === 'POST' && req.url === '/teste') {
+    (async () => {
+      const t0 = Date.now(), ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 20000);
+      try {
+        if (MOCK) { send(res, 200, { modelo: 'teste', status: 200, ms: 0, texto: 'ok (modo teste)' }); return; }
+        if (!KEY) { send(res, 200, { modelo: MODEL, status: 0, ms: 0, erro: 'sem chave' }); return; }
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`, { method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': KEY }, body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'Responda apenas com a palavra: ok' }] }], generationConfig: { maxOutputTokens: 40 } }) });
+        const d = await r.json(), p = (((d.candidates || [])[0] || {}).content || {}).parts;
+        send(res, 200, { modelo: MODEL, status: r.status, ms: Date.now() - t0, texto: Array.isArray(p) ? lim(p.map(x => x.text || '').join(''), 60) : '', erro: r.ok ? null : lim(d.error && d.error.message, 200) });
+      } catch (e) { send(res, 200, { modelo: MODEL, status: 0, ms: Date.now() - t0, erro: e.name === 'AbortError' ? 'sem resposta do Gemini em 20 s' : e.message }); }
+      finally { clearTimeout(timer); }
+    })();
+    return;
+  }
   // Receber a chave pelo jogo: fica na memória do servidor e, se pedido, no server/.env (fora do git). Nunca volta para o navegador.
   if (req.method === 'POST' && req.url === '/chave') {
     let body = '';

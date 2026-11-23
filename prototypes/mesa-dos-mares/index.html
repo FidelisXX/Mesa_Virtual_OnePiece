@@ -381,20 +381,26 @@ function iaModal() {
   ov.innerHTML = `<div class="card small"><h1 style="font-size:30px">Narrador de IA</h1><div class="tagline">Gemini, pelo servidor local</div>
   <div class="note" id="iaState" style="margin-bottom:8px"><b>${estado()}</b></div>
   <div class="field"><label>Chave da API do Gemini</label><input type="password" id="iaKey" autocomplete="off" placeholder="cole a chave aqui"><div class="note">A chave vai só para o servidor da sua máquina; o jogo não a guarda. Crie uma em <b>aistudio.google.com/apikey</b>.</div></div>
-  <div class="field"><label>Modelo <small>(opcional)</small></label><input type="text" id="iaModel" placeholder="gemini-2.5-flash"></div>
+  <div class="field"><label>Modelo <small>(opcional)</small></label><input type="text" id="iaModel" placeholder="deixe vazio (usa gemini-flash-lite-latest e troca sozinho se falhar)"></div>
   <div class="field"><label><input type="checkbox" id="iaSave" checked> Guardar no computador (arquivo <code>server/.env</code>, fora do git)</label></div>
   <div class="field"><label>Endereço do servidor</label><input type="text" id="iaUrl" value="${esc(Ia.base())}"><div class="note">Se estiver desligado, abra um terminal na pasta do jogo e rode <code>node server/narrador.js</code>.</div></div>
   <div class="actions"><button class="btn wood" id="iaClose">Fechar</button><button class="btn red" id="iaDel">Remover chave</button><button class="btn" id="iaGo">Guardar e testar</button></div></div>`;
   ov.className = 'on';
   const msg = (t, erro) => { $('iaState').innerHTML = '<b' + (erro ? ' style="color:var(--danger)"' : '') + '>' + t + '</b>'; };
+  // Faz uma chamada mínima de verdade e mostra o resultado (modelo, tempo ou o motivo do erro)
+  const provar = async () => {
+    msg('Chamando o Gemini…');
+    try { const t = await Ia.testar(); if (t.status === 200) msg('Funcionando: ' + esc(t.modelo) + ' respondeu em ' + (t.ms / 1000).toFixed(1) + ' s.'); else msg('O Gemini não respondeu bem (' + esc(t.modelo) + '): ' + esc(t.erro || 'erro ' + t.status) + (t.status === 503 ? ' Isso costuma ser alta demanda do modelo; o narrador tenta outros sozinho.' : ''), true); }
+    catch (e) { msg('Não consegui testar: ' + esc(e.message), true); }
+  };
   const enviar = async corpo => {
     Ia.setBase($('iaUrl').value.trim()); msg('Falando com o servidor…');
-    try { await Ia.salvar(Object.assign({ salvar: $('iaSave').checked }, corpo)); await Ia.check(); $('iaKey').value = ''; msg(estado()); }
+    try { await Ia.salvar(Object.assign({ salvar: $('iaSave').checked }, corpo)); await Ia.check(); $('iaKey').value = ''; if (corpo.remover) { msg(estado()); return; } await provar(); }
     catch (e) { await Ia.check(); msg(/Failed|fetch|aborted|timeout/i.test(e.message) ? 'Servidor fora do ar. Rode node server/narrador.js e tente de novo.' : esc(e.message), true); }
   };
   $('iaGo').onclick = async () => {
     const chave = $('iaKey').value.trim(), modelo = $('iaModel').value.trim();
-    if (!chave && !modelo) { Ia.setBase($('iaUrl').value.trim()); msg('Testando…'); await Ia.check(); msg(estado(), !Ia.on); return; }
+    if (!chave && !modelo) { Ia.setBase($('iaUrl').value.trim()); msg('Testando…'); await Ia.check(); if (Ia.on) await provar(); else msg(estado(), true); return; }
     await enviar({ chave, modelo });
   };
   $('iaDel').onclick = () => enviar({ remover: true });
