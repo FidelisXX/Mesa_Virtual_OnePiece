@@ -127,6 +127,7 @@
 <script src="js/rules.js"></script>
 <script src="js/combat.js"></script>
 <script src="js/world.js"></script>
+<script src="js/mundo.js"></script>
 <script src="js/sea.js"></script>
 <script src="js/island.js"></script>
 <script src="js/naval.js"></script>
@@ -208,10 +209,11 @@ const timers = [];
 function later(sec, fn) { timers.push({ t: sec, fn }); }
 function runTimers(dt) { for (let i = timers.length - 1; i >= 0; i--) { const x = timers[i]; x.t -= dt; if (x.t <= 0) { timers.splice(i, 1); try { x.fn(); } catch (e) { console.error('later:', e && e.stack || e); } } } }
 const currentView = () => chanOf(me());
-let chartOpen = false, mesaDirty = true, sheetDirty = true, tab = 'chat';
+let chartOpen = false, worldOpen = false, mesaDirty = true, sheetDirty = true, tab = 'chat';
 // O que o palco mostra: a prisão, o mapa da ilha, a carta náutica, a luta 3D ou a luta por turnos
 function stageMode() {
   const c = me(), v = currentView(); if (!c || !v) return 'none';
+  if (c.gm && worldOpen) return 'world';
   if (isPrison(v)) return 'prison';
   if (isIsland(v)) return chartOpen && !c.gm ? 'chart' : 'island';
   if (Fight3D.visible()) return 'fight';
@@ -337,7 +339,8 @@ function bindHome() {
 }
 function enterPlay(id) {
   myId = id; sessionStorage.setItem('mdm-me', id); reset(); chartOpen = false;
-  const c = me(); if (c && c.treino) { const n = Train.pending(c); if (n > 0) setTimeout(() => toast('Seu treino rendeu ' + n + ' XP. Colete na aba Mesa.'), 600); }
+  const c = me(); worldOpen = !!(c && c.gm); // o narrador começa vendo o mundo
+  if (c && c.treino) { const n = Train.pending(c); if (n > 0) setTimeout(() => toast('Seu treino rendeu ' + n + ' XP. Colete na aba Mesa.'), 600); }
   setScene('play');
 }
 
@@ -683,7 +686,7 @@ function cargosHTML(c) {
   return h + '<div class="note">Para desafiar um almirante, esteja numa ilha com base da Marinha, com patente de Vice-Almirante e a reputação exigida. O desafio é uma luta contra o ocupante do cargo.</div>';
 }
 function gmGo(p) {
-  const c = me(); if (p.startsWith('g:')) return; c.view = p; chartOpen = false; Island.sel = null; dirty.msgs = true; mesaDirty = true; setTimeout(() => { const l = $('chatList'); l.scrollTop = l.scrollHeight; }, 0);
+  const c = me(); if (p.startsWith('g:')) return; c.view = p; chartOpen = false; worldOpen = false; Island.sel = null; dirty.msgs = true; mesaDirty = true; setTimeout(() => { const l = $('chatList'); l.scrollTop = l.scrollHeight; }, 0);
 }
 
 // ---- Novo token e painéis ----
@@ -702,7 +705,7 @@ function bindPanels() {
   $('iaBtn').onclick = iaModal; $('callCfg').onclick = iaModal;
   $('themeBtn').onclick = () => applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
   $('wideBtn').onclick = () => { const w = document.body.classList.toggle('wide'); try { localStorage.setItem('mdm-wide', w ? '1' : '0'); } catch (e) { /* tudo bem */ } };
-  $('btnCarta').onclick = () => { chartOpen = true; Travel.sel = null; mesaDirty = true; };
+  $('btnCarta').onclick = () => { if (me().gm) { worldOpen = true; World.sel = null; worldSig = ''; } else { chartOpen = true; Travel.sel = null; } mesaDirty = true; };
   $('btnCentro').onclick = () => Island.fit(currentView());
   $('chatBgFile').onchange = e => { Chat.setBg(e.target.files[0]); e.target.value = ''; };
   $('chatBgClear').onclick = () => Chat.clearBg();
@@ -711,17 +714,35 @@ function bindPanels() {
 // ======================================================================================
 // HUD
 // ======================================================================================
-let chartSig = '';
+let chartSig = '', worldSig = '';
+// O Mundo do narrador: quem está onde, e o botão para levar um jogador a uma ilha
+function renderWorldHud(ch) {
+  const sel = World.sel && ISLAND[World.sel], jog = Object.values(db.chars).filter(x => !x.gm);
+  const sig = JSON.stringify([sel && sel.id, jog.map(x => [x.id, x.nome, chanOf(x)]), World.pick]); if (sig === worldSig) return; worldSig = sig;
+  if (!World.pick || !db.chars[World.pick]) World.pick = jog[0] ? jog[0].id : null;
+  let h = '<div class="nv-top plate"><b>Mundo</b> · ' + (jog.length ? jog.length + ' jogador(es) nos quatro mares' : 'ninguém criou personagem ainda') + '</div>';
+  if (sel) {
+    const aqui = jog.filter(x => chanOf(x) === sel.id);
+    h += '<div class="nv-actions plate"><div class="nv-lbl"><b>' + esc(sel.nome) + '</b> · ' + SEAS[sel.mar].nome + ' · ' + (aqui.length ? aqui.map(x => esc(x.nome)).join(', ') : 'ninguém aqui') + '</div><div class="row">' +
+      (jog.length ? '<select id="wPick">' + jog.map(x => '<option value="' + x.id + '"' + (x.id === World.pick ? ' selected' : '') + '>' + esc(x.nome) + ' (' + esc(chanName(chanOf(x))) + ')</option>').join('') + '</select><button class="btn" id="wPut">Levar para cá</button>' : '') +
+      '<button class="btn wood" id="wOpen">Abrir a ilha</button></div></div>';
+  } else h += '<div class="nv-actions plate"><div class="nv-lbl">Toque numa ilha para ver quem está nela, abrir o mapa ou levar um jogador.</div></div>';
+  ch.innerHTML = h;
+  if ($('wPick')) $('wPick').onchange = e => { World.pick = e.target.value; };
+  if ($('wPut')) $('wPut').onclick = () => { World.inserir($('wPick').value, sel.id); worldSig = ''; };
+  if ($('wOpen')) $('wOpen').onclick = () => { gmGo(sel.id); };
+}
 function updateHud() {
   const c = me(), mode = scene === 'play' && c ? stageMode() : 'none', v = c && currentView();
   Naval.hud($('navalHud')); Fight3D.hud($('fightHud'));
   const isl = mode === 'island'; $('islandHud').hidden = !isl; $('islandHelp').hidden = !isl; renderHotbar(isl && !c.gm); renderChips();
   if (isl) {
-    $('islName').innerHTML = `<b>${esc(chanName(v))}</b>`; $('btnCarta').hidden = !!c.gm;
+    $('islName').innerHTML = `<b>${esc(chanName(v))}</b>`; $('btnCarta').textContent = c.gm ? 'Mundo' : 'Carta náutica';
     const cb = db.combat[v], tp = $('turnPlate');
     if (cb && cb.on) { const t = db.tokens[cb.order[cb.turn]]; tp.hidden = false; tp.innerHTML = `Rodada ${cb.round} · vez de <b>${t ? esc(t.nome) : '?'}</b>`; } else tp.hidden = true;
   }
-  const ch = $('chartHud'); ch.hidden = mode !== 'chart';
+  const ch = $('chartHud'); ch.hidden = mode !== 'chart' && mode !== 'world';
+  if (mode === 'world') { renderWorldHud(ch); return; }
   if (mode === 'chart') {
     const s = db.ships[chartKey()]; if (!s) return;
     const sel = Travel.sel && ISLAND[Travel.sel], t = s.travel;
@@ -813,6 +834,7 @@ const scenes = {
       else if (mode === 'island') { showCanvas('2d'); try { Island.draw(ctx, W, H, currentView()); } catch (e) { console.error('Island.draw:', e && e.stack || e); } }
       else if (mode === 'naval') { showCanvas('2d'); Naval.draw(ctx, W, H); }
       else if (mode === 'fight' && seaOK) { showCanvas('sea'); Sea.render('fight', W, H, Fight3D.focus()); }
+      else if (mode === 'world') { showCanvas('2d'); World.draw(ctx, W, H); }
       else if (mode === 'chart') { showCanvas('2d'); Travel.draw(ctx, W, H, chartKey()); }
     },
   },
@@ -903,6 +925,7 @@ carregarLocalSync(); // começa com a cópia local; o servidor, se existir, a tr
 mobileSync();
 try { Sea.init($('sea')); } catch (e) { seaOK = false; console.warn('3D indisponível:', e && e.message); }
 Island.attach(canvas); Naval.attach(canvas);
+canvas.addEventListener('click', e => { if (scene === 'play' && stageMode() === 'world') World.click(e, canvas); });
 ['pointerdown', 'click'].forEach(ev => canvas.addEventListener(ev, e => { if (scene === 'play' && stageMode() === 'chart') { const s = db.ships[chartKey()]; if (s) Travel.click(e, canvas, s); } }));
 $('sea').addEventListener('click', e => { if (scene === 'play' && stageMode() === 'fight') Fight3D.click(e, $('sea')); });
 Chat.init(); bindPanels(); setTab('chat');

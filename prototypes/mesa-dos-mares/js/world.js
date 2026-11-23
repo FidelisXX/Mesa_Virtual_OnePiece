@@ -192,7 +192,7 @@ const Travel = (() => {
     const hit = islandsOf(s.mar).find(i => Math.hypot(x - (layout.x + i.cx * layout.w), y - (layout.y + i.cy * layout.h)) < 40);
     if (hit && !s.travel) { sel = hit.id === s.at ? null : hit.id; mesaDirty = true; tone(400, 0.05, 'triangle', 0.1); }
   }
-  return { dist, duration, foodNeed, progress, eta, start, arrive, pause, resume, tick, draw, click, boatPos, get sel() { return sel; }, set sel(v) { sel = v; } };
+  return { dist, duration, foodNeed, progress, eta, start, arrive, pause, resume, tick, draw, click, boatPos, chart, islet, get sel() { return sel; }, set sel(v) { sel = v; } };
 })();
 
 // ======================================================================================
