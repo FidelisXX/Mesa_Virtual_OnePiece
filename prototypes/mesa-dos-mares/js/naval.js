@@ -1,6 +1,6 @@
 // PROTOTYPE - NOT FOR PRODUCTION
-// Question: O ciclo navegar → atracar → jogar pelo chat da ilha → zarpar funciona como mesa de RPG, e o chat é gostoso de usar para interpretar?
-// Date: 2026-11-17
+// Question: Uma carreira com raça, nível 1–100, ataques criados e viagem automática continua sendo um jogo de chat gostoso, e a luta naval 3D no meio da viagem vale a pausa na narração?
+// Date: 2026-11-23
 // Batalha naval por turnos: mapa de mar em grade, ficha do navio, postos da tripulação, tiro com d20 + TEC.
 // Estado durável em db.naval.cur (sincronizado entre abas como o resto). Cada ação é calculada pela aba que a faz.
 'use strict';
@@ -18,7 +18,7 @@ const Naval = (() => {
   };
   let target = null, cv = null, npcWait = 0, bgKey = '', bg = null, lay = { cell: 40, ox: 0, oy: 0 };
 
-  const cur = () => (db.naval && db.naval.cur && db.naval.cur.on ? db.naval.cur : null);
+  const cur = () => (db.naval && db.naval.cur && db.naval.cur.on && db.naval.cur.mode === 'turnos' ? db.naval.cur : null);
   const save = () => { commit('naval', 'cur', db.naval.cur); };
   const shipList = c => c.order.map(id => c.ships[id]).filter(Boolean);
   const alive = s => !s.out;
@@ -28,7 +28,7 @@ const Naval = (() => {
   // Quem vê o mapa de mar: o Narrador e a tripulação de um navio que está na batalha.
   function visible() {
     const c = cur(), m = me(); if (!c || !m) return false;
-    return m.gm || Object.values(c.ships).some(s => s.side === 'pj' && s.fac === m.faccao);
+    return m.gm || Object.values(c.ships).some(s => s.side === 'pj' && s.key === shipKey(m));
   }
   // Para o 3D parar de ouvir o teclado enquanto a batalha corre.
   const lockedFor = () => !!(cur() && visible() && !isGM());
@@ -39,16 +39,16 @@ const Naval = (() => {
   const windText = h => { const m = windMod(h); return m > 0 ? 'a favor (+1)' : m < 0 ? 'contra (−1)' : 'de lado'; };
 
   // ---- Postos ----
-  function autoPosts(fac) {
-    const crew = crewOf(fac), posts = { timoneiro: null, artilheiro: null, carpinteiro: null, capitao: null };
+  function autoPosts(key) {
+    const crew = crewOf(key), posts = { timoneiro: null, artilheiro: null, carpinteiro: null, capitao: null };
     const taken = () => Object.values(posts);
     const take = (post, pred, score) => {
       const c = crew.filter(x => !taken().includes(x.id) && pred(x)).sort((a, b) => score(b) - score(a))[0]; if (c) posts[post] = c.id;
     };
     const tec = x => attr(x, 'TEC');
-    take('timoneiro', x => x.estilo === 'navegador', tec);
-    take('artilheiro', x => x.estilo === 'atirador', tec);
-    take('carpinteiro', x => x.estilo === 'medico' || x.estilo === 'cozinheiro', tec);
+    take('timoneiro', x => x.prof === 'navegador' || x.prof === 'timoneiro', tec);
+    take('artilheiro', x => x.classe === 'atirador', tec);
+    take('carpinteiro', x => x.prof === 'carpinteiro' || x.prof === 'medico' || x.prof === 'cozinheiro', tec);
     take('capitao', () => true, x => attr(x, 'CAR'));
     ['timoneiro', 'artilheiro', 'carpinteiro'].forEach(p => take(p, () => true, tec));
     // equipe pequena: a mesma pessoa cobre mais de um posto
@@ -60,44 +60,53 @@ const Naval = (() => {
   function start(opts) {
     if (cur()) { toast('Já existe uma batalha naval em andamento.'); return; }
     const cols = tune.navalCols, rows = tune.navalRows, ships = {}, order = [];
-    const fac = opts.fac.filter(f => !db.ships[f].at);
-    if (!fac.length) { toast('Os navios escolhidos estão atracados: zarpe antes.'); return; }
+    const keys = opts.keys.filter(k => db.ships[k] && !db.ships[k].at);
+    if (!keys.length) { toast('Os navios escolhidos estão atracados: zarpem antes.'); return; }
     const n = opts.count, spread = (i, k) => Math.round(rows / 2 - (k - 1) * 1.5 + i * 3);
-    fac.forEach((f, i) => {
-      const nav = navOf(f), id = 'pj-' + f;
-      ships[id] = { id, side: 'pj', fac: f, nome: f === 'marinha' ? 'Navio da Marinha' : 'Navio pirata', emb: f, x: 3, y: clamp(spread(i, fac.length), 1, rows - 2), h: 2,
-        casco: tune.navalCasco, cascoMax: tune.navalCasco, moral: tune.navalMoral, moralMax: tune.navalMoral, canhoes: tune.navalCanhoes,
-        vel: tune.navalVel + (nav ? tune.navalNavVel : 0), def: tune.navalDef, atk: tune.navalFillerAtk, posts: autoPosts(f), out: null };
+    const lvE = opts.lv || 1, scale = 1 + (lvE - 1) * 0.06;
+    keys.forEach((k, i) => {
+      const sh = db.ships[k], nav = profOn(k, 'navegador'), id = 'pj-' + k; if (sh.travel) Travel.pause(sh);
+      ships[id] = { id, side: 'pj', key: k, fac: sh.fac, nome: shipName(sh), emb: sh.fac, x: 3, y: clamp(spread(i, keys.length), 1, rows - 2), h: 2,
+        casco: sh.casco, cascoMax: sh.cascoMax, moral: tune.navalMoral, moralMax: tune.navalMoral, canhoes: sh.canhoes,
+        vel: tune.navalVel + (nav ? tune.navalNavVel : 0) + Math.min(sh.velas || 0, 2), def: tune.navalDef, atk: tune.navalFillerAtk, posts: autoPosts(k), out: null };
     });
     const E = ENEMIES[opts.enemy];
     for (let i = 0; i < n; i++) {
       const id = 'npc-' + i;
       ships[id] = { id, side: 'npc', fac: null, nome: n > 1 ? E.nome + ' ' + (i + 1) : E.nome, emb: E.emb, x: cols - 4, y: clamp(spread(i, n), 1, rows - 2), h: 6,
-        casco: E.casco, cascoMax: E.casco, moral: E.moral, moralMax: E.moral, canhoes: E.canhoes, vel: E.vel, def: E.def, atk: E.atk, posts: {}, out: null };
+        casco: Math.round(E.casco * scale), cascoMax: Math.round(E.casco * scale), moral: E.moral, moralMax: E.moral, canhoes: E.canhoes, vel: E.vel, def: E.def, atk: E.atk + Math.floor(lvE / 3), posts: {}, out: null, lv: lvE };
     }
     const ini = Object.values(ships).map(s => {
       const tim = db.chars[s.posts && s.posts.timoneiro], b = s.side === 'pj' ? (tim ? attr(tim, 'TEC') : 0) : s.atk;
       return { id: s.id, v: roll(20) + b, side: s.side };
     }).sort((a, b) => b.v - a.v || (a.side === 'pj' ? -1 : 1));
     ini.forEach(r => order.push(r.id));
-    const c = { on: true, mode: 'turnos', cols, rows, ships, order, ini: Object.fromEntries(ini.map(r => [r.id, r.v])), turn: 0, round: 1 };
+    const c = { on: true, mode: 'turnos', enemyLv: lvE, cols, rows, ships, order, ini: Object.fromEntries(ini.map(r => [r.id, r.v])), turn: 0, round: 1 };
     db.naval.cur = c; turnStart(here(c)); target = null; save();
     say('Navios à vista! Batalha naval por turnos: ' + ini.map(r => c.ships[r.id].nome + ' ' + r.v).join(' · ') + '.');
     say('Rodada 1: vez de ' + here(c).nome + '.'); announce(c);
   }
   function end(why) {
     const c = cur(); if (!c) return; c.on = false; save();
+    Object.values(c.ships).filter(x => x.side === 'pj').forEach(x => { const sh = db.ships[x.key]; if (sh) { sh.casco = Math.max(1, x.casco); commit('ships', sh.key, sh); Travel.resume(sh); } });
     say(why || 'A batalha naval terminou.'); mesaDirty = true;
+  }
+  // espólio da vitória: XP, Berries e reputação para cada tripulante dos navios dos jogadores
+  function reward(c) {
+    const lv = c.enemyLv || 1, npc = Object.values(c.ships).filter(x => x.side === 'npc');
+    const xp = Math.round(tune.xpPerNpcLv * lv * npc.length * 2), money = Math.round(tune.berriesPerNpcLv * lv * npc.length * 3 * (0.7 + rng() * 0.6));
+    Object.values(c.ships).filter(x => x.side === 'pj').forEach(p => { const crew = crewOf(p.key); crew.forEach(x => { x.berries = (x.berries || 0) + Math.round(money / Math.max(1, crew.length)); addXp(x, xp); addRep(x, tune.repPerKill * npc.length + Math.floor(lv / 4)); }); });
+    say('Espólio: cada tripulante recebe +' + xp + ' XP e parte de ' + money + ' Berries.');
   }
   function checkEnd() {
     const c = cur(); if (!c) return false; const L = shipList(c);
-    if (!L.some(s => s.side === 'npc' && alive(s))) { end('Vitória! Os navios inimigos foram vencidos ou fugiram.'); return true; }
+    if (!L.some(s => s.side === 'npc' && alive(s))) { reward(c); end('Vitória! Os navios inimigos foram vencidos ou fugiram.'); return true; }
     if (!L.some(s => s.side === 'pj' && alive(s))) { end('Derrota: a tripulação não tem mais navio em condições de lutar. O Narrador decide as consequências.'); return true; }
     return false;
   }
 
   // ---- Mensagens: vão para o convés de cada navio de jogador que está na batalha ----
-  function chans(c) { const s = new Set(); Object.values((c || cur()).ships).forEach(sh => { if (sh.side === 'pj') s.add('navio-' + sh.fac); }); return [...s]; }
+  function chans(c) { const s = new Set(); Object.values((c || cur()).ships).forEach(sh => { if (sh.side === 'pj') s.add('navio-' + sh.key); }); return [...s]; }
   function say(txt) { const c = cur() || db.naval.cur; chans(c).forEach(ch => sysMsg(ch, txt)); }
   function postRoll(r, nome, ship) {
     chans().forEach(ch => {
@@ -108,12 +117,12 @@ const Naval = (() => {
   function announce(c) { const s = here(c); if (s && canControl(s) && !isGM()) { toast('É a vez do seu navio!'); tone(784, 0.15, 'triangle', 0.3); } }
 
   // ---- Permissão e quem rola ----
-  function canControl(s) { if (!s || s.out || !visible()) return false; return isGM() || (s.side === 'pj' && s.fac === me().faccao); }
+  function canControl(s) { if (!s || s.out || !visible()) return false; return isGM() || (s.side === 'pj' && s.key === shipKey(me())); }
   // Quem executa um posto: o dono do posto rola com a ficha dele; qualquer outro da tripulação cobre com penalidade; o Narrador usa o bônus do navio.
   function actor(s, post) {
     const m = me();
     if (isGM()) return { c: null, bonus: s.atk, nome: s.nome };
-    if (s.side !== 'pj' || s.fac !== m.faccao) return null;
+    if (s.side !== 'pj' || s.key !== shipKey(m)) return null;
     const holder = s.posts[post];
     if (holder === myId) return { c: m, bonus: statOf(m, post), nome: m.nome };
     if (holder && db.chars[holder]) { toast('O posto de ' + POSTS[post] + ' é de ' + db.chars[holder].nome + '. Peça para assumir o posto na barra de baixo.'); return null; }
@@ -121,7 +130,7 @@ const Naval = (() => {
   }
   function statOf(c, post) {
     if (post === 'capitao') return attr(c, 'CAR');
-    return attr(c, 'TEC') + (post === 'artilheiro' && c.estilo === 'atirador' ? 1 : 0) + (post === 'timoneiro' && c.estilo === 'navegador' ? 2 : 0) + (post === 'carpinteiro' && (c.estilo === 'medico' || c.estilo === 'cozinheiro') ? 1 : 0);
+    return attr(c, 'TEC') + (post === 'artilheiro' && c.classe === 'atirador' ? 1 : 0) + (post === 'timoneiro' && (c.prof === 'navegador' || c.prof === 'timoneiro') ? 2 : 0) + (post === 'carpinteiro' && c.prof === 'carpinteiro' ? 1 : 0);
   }
   const mode = s => (s.adv ? 'vantagem' : 'normal');
   function d20(s, bonus, label, extra) {
@@ -232,7 +241,7 @@ const Naval = (() => {
     else { say('O vento não ajuda: ' + s.nome + ' não consegue escapar.'); s.mp = 0; save(); }
   }
   function claim(s, post) {
-    const m = me(); if (!m || m.gm || s.fac !== m.faccao) return;
+    const m = me(); if (!m || m.gm || s.key !== shipKey(m)) return;
     s.posts[post] = myId; save(); say(m.nome + ' assume o posto de ' + POSTS[post] + '.');
   }
 
@@ -373,7 +382,7 @@ const Naval = (() => {
       (s && !s.out ? ` · movimento <b>${s.mp}</b> · vento ${windText(s.h)}${s.adv ? ' · <b>vantagem</b>' : ''}` : '') + `</div>`;
     h += `<div class="nv-list">${sh.map(x => `<div class="nv-row plate ${x.id === s.id ? 'turn' : ''} ${x.out ? 'out' : ''}"><b>${esc(x.nome)}</b><span class="nv-tag" style="background:${x.side === 'npc' ? '#555' : (x.fac === 'marinha' ? '#1f4f9a' : '#b3261e')}">${x.out ? x.out : x.side === 'npc' ? 'inimigo' : 'aliado'}</span><span>Casco <b>${x.casco}/${x.cascoMax}</b></span><span>Moral <b>${x.moral}/${x.moralMax}</b></span></div>`).join('')}</div>`;
     // postos do meu navio, dentro da barra de ações
-    const mineShip = m && !m.gm ? sh.find(x => x.side === 'pj' && x.fac === m.faccao) : null;
+    const mineShip = m && !m.gm ? sh.find(x => x.side === 'pj' && x.key === shipKey(m)) : null;
     const postsRow = mineShip ? `<div class="row nv-postsrow"><b>Postos:</b> ${Object.entries(POSTS).map(([k, n]) => { const holder = db.chars[mineShip.posts[k]]; return `<button class="nv-post ${mineShip.posts[k] === myId ? 'mine' : ''}" data-post="${k}" title="Assumir o posto">${n}: ${holder ? esc(holder.nome) : 'vago'}</button>`; }).join('')}</div>` : '';
     if (mine && s) {
       const cmpTarget = target && c.ships[target] ? c.ships[target].nome : 'o mais próximo';

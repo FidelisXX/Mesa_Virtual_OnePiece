@@ -1,6 +1,6 @@
 // PROTOTYPE - NOT FOR PRODUCTION
-// Question: O ciclo navegar → atracar → jogar pelo chat da ilha → zarpar funciona como mesa de RPG, e o chat é gostoso de usar para interpretar?
-// Date: 2026-11-16
+// Question: Uma carreira com raça, nível 1–100, ataques criados e viagem automática continua sendo um jogo de chat gostoso, e a luta naval 3D no meio da viagem vale a pausa na narração?
+// Date: 2026-11-23
 // O chat preso ao lugar: fala, ação, narração, OOC, sussurro, grito, rolagens; texto rico e estilo por personagem.
 'use strict';
 
@@ -120,12 +120,21 @@ const Chat = (() => {
     lastCh = ch; lastCount = msgs.length; lastSeen[ch] = msgs.length ? msgs[msgs.length - 1].ts : 0;
     head();
   }
+  // fundo de imagem do chat (só para quem escolheu, por canal)
+  function applyBg(ch) {
+    const l = $('chatList'); let u = null; try { u = localStorage.getItem('mdm-bg-' + ch); } catch (e) { u = null; }
+    if (u) { l.style.backgroundImage = 'linear-gradient(rgba(243,230,196,.8), rgba(243,230,196,.8)), url(' + u + ')'; l.style.backgroundSize = 'cover'; l.style.backgroundPosition = 'center'; }
+    else l.style.backgroundImage = '';
+    const b = $('chatBgClear'); if (b) b.hidden = !u;
+  }
+  function setBg(file) { const ch = currentView(); processBg(file, tune.bgImgMax, url => { try { localStorage.setItem('mdm-bg-' + ch, url); } catch (e) { toast('Imagem pesada demais para guardar.'); return; } applyBg(ch); }); }
+  function clearBg() { try { localStorage.removeItem('mdm-bg-' + currentView()); } catch (e) { /* tudo bem */ } applyBg(currentView()); }
   function head() {
     const ch = currentView(), here = whoIn(ch);
     $('chatPlace').textContent = chanName(ch);
     $('chatWho').innerHTML = here.map(c => `<img class="pic xs" src="${portraitURL(c)}" title="${esc(c.nome)}${c.gm ? ' (Narrador)' : ''}" alt="">`).join('') +
       `<span class="who-n">${here.length} aqui</span>`;
-    const lock = $('chatLock'); lock.textContent = isIsland(ch) ? 'Só quem está nesta ilha lê este chat.' : 'Só a tripulação a bordo lê este chat.';
+    const lock = $('chatLock'); lock.textContent = isIsland(ch) ? 'Só quem está nesta ilha lê este chat.' : isPrison(ch) ? 'Só quem está preso aqui lê este chat.' : 'Só a tripulação a bordo lê este chat.'; applyBg(ch);
     // sussurro: alvos
     const sel = $('susAlvo'), cur = sel.value;
     sel.innerHTML = here.filter(c => c.id !== myId).map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join('') || '<option value="">ninguém aqui</option>';
@@ -257,7 +266,7 @@ const Chat = (() => {
     $('susAlvo').onchange = preview;
   }
 
-  return { init, render, head, send, sysMsg, post, postRoll, teste, rollFormula, setModo, onNew, unread, format, get modo() { return modo; }, portraitFor, tokenPortrait };
+  return { init, render, head, setBg, clearBg, send, sysMsg, post, postRoll, teste, rollFormula, setModo, onNew, unread, format, get modo() { return modo; }, portraitFor, tokenPortrait };
 })();
 const sysMsg = (ch, txt) => Chat.sysMsg(ch, txt);
 

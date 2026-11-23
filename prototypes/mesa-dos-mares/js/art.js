@@ -1,6 +1,6 @@
 // PROTOTYPE - NOT FOR PRODUCTION
-// Question: O ciclo navegar → atracar → jogar pelo chat da ilha → zarpar funciona como mesa de RPG, e o chat é gostoso de usar para interpretar?
-// Date: 2026-11-16
+// Question: Uma carreira com raça, nível 1–100, ataques criados e viagem automática continua sendo um jogo de chat gostoso, e a luta naval 3D no meio da viagem vale a pausa na narração?
+// Date: 2026-11-23
 // Tudo desenhado em código: bustos dos tokens, mapas de pergaminho, rosa dos ventos, dado d20.
 'use strict';
 
@@ -212,7 +212,7 @@ function drawCompass(g, x, y, r, rot = 0) {
 // ---- Mapa da ilha em pergaminho (pré-renderizado) ----
 const mapCache = {};
 function islandLayout(isl) {
-  const cols = 26, rows = 18, R = artRng(hashStr(isl.id));
+  const cols = 26, rows = 18, R = artRng(hashStr(isl.id + (isl.seed || '')));
   const L = { cols, rows, R, houses: [], trees: [], special: isl.tema };
   const cx = cols / 2, cy = rows * 0.46;
   // costa: blob radial com ruído
@@ -252,11 +252,11 @@ function islandLayout(isl) {
   return L;
 }
 function islandMap(isl, cell) {
-  const key = isl.id + ':' + cell;
+  const key = isl.id + (isl.seed || '') + (isl.tema || '') + ':' + cell;
   if (mapCache[key]) return mapCache[key];
   const L = islandLayout(isl), W = L.cols * cell, H = L.rows * cell;
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const g = cv.getContext('2d');
-  const R = artRng(hashStr(isl.id) + 7), P = (x, y) => [x * cell, y * cell];
+  const R = artRng(hashStr(isl.id + (isl.seed || '')) + 7), P = (x, y) => [x * cell, y * cell];
   // pergaminho com manchas
   g.fillStyle = PARCH; g.fillRect(0, 0, W, H);
   for (let i = 0; i < 40; i++) {
@@ -368,4 +368,33 @@ function d20Svg(n, cor) {
   return `<svg viewBox="0 0 100 100" width="120" height="120"><polygon points="${H.map(p => p.join(',')).join(' ')}" fill="${cor}" stroke="${INK}" stroke-width="3"/>` +
     `<polygon points="${T.map(p => p.join(',')).join(' ')}" fill="rgba(255,255,255,.18)" stroke="${INK}" stroke-width="2"/>` + lines +
     `<text x="50" y="55" text-anchor="middle" dominant-baseline="middle" font-family="Georgia,serif" font-weight="bold" font-size="24" fill="#fff" stroke="${INK}" stroke-width="1">${n}</text></svg>`;
+}
+
+// ---- Barco visto de cima (carta náutica) ----
+function drawBoat(g, x, y, L, ang, emb) {
+  const cor = { pirata: ['#6b3a1f', '#b9854f', RED], marinha: ['#e9e6dc', '#f7f4ea', NAVY] }[emb] || ['#6b3a1f', '#b9854f', RED], hw = L * 0.2;
+  g.save(); g.translate(x, y); g.rotate(ang);
+  g.fillStyle = 'rgba(43,33,24,.25)'; g.beginPath(); g.ellipse(2, 5, L * 0.5, hw * 1.0, 0, 0, Math.PI * 2); g.fill();
+  const hull = k => { g.beginPath(); g.moveTo(L / 2 * k, 0); g.quadraticCurveTo(L * 0.25 * k, -hw * 1.1 * k, -L * 0.35 * k, -hw * k); g.lineTo(-L / 2 * k, -hw * 0.7 * k); g.lineTo(-L / 2 * k, hw * 0.7 * k); g.lineTo(-L * 0.35 * k, hw * k); g.quadraticCurveTo(L * 0.25 * k, hw * 1.1 * k, L / 2 * k, 0); g.closePath(); };
+  hull(1); g.fillStyle = cor[0]; g.fill(); g.lineWidth = Math.max(1.5, L * 0.04); g.strokeStyle = INK; g.stroke();
+  hull(0.78); g.fillStyle = cor[1]; g.fill(); g.lineWidth = 1; g.stroke();
+  g.fillStyle = '#fbf7ea'; g.beginPath(); g.ellipse(L * 0.03, 0, L * 0.06, hw * 1.0, 0, 0, Math.PI * 2); g.fill(); g.stroke();
+  g.fillStyle = cor[2]; g.beginPath(); g.moveTo(L * 0.03, 0); g.lineTo(-L * 0.12, -hw * 0.35); g.lineTo(-L * 0.12, hw * 0.35); g.closePath(); g.fill();
+  g.restore();
+}
+
+// Imagem de fundo do chat: reduz mantendo a proporção e guarda em WebP
+function processBg(file, max, cb) {
+  if (!file || file.type.indexOf('image/') !== 0) { toast('Escolha um arquivo de imagem.'); return; }
+  const fr = new FileReader();
+  fr.onload = () => {
+    const im = new Image();
+    im.onload = () => {
+      const k = Math.min(1, max / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
+      c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+      let url = c.toDataURL('image/webp', 0.75); if (url.indexOf('data:image/webp') !== 0) url = c.toDataURL('image/jpeg', 0.75); cb(url);
+    };
+    im.onerror = () => toast('Não consegui abrir essa imagem.'); im.src = fr.result;
+  };
+  fr.readAsDataURL(file);
 }

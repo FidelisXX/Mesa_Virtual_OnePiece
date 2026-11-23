@@ -1,6 +1,6 @@
 /* PROTOTYPE - NOT FOR PRODUCTION */
-/* Question: O ciclo navegar → atracar → jogar pelo chat da ilha → zarpar funciona como mesa de RPG, e o chat é gostoso de usar para interpretar? */
-/* Date: 2026-11-16 */
+/* Question: Uma carreira com raça, nível 1–100, ataques criados e viagem automática continua sendo um jogo de chat gostoso, e a luta naval 3D no meio da viagem vale a pausa na narração? */
+/* Date: 2026-11-23 */
 /* Madeira escura e latão em volta; pergaminho onde se lê. */
 :root {
   --wood: #2a1d14; --wood2: #3b2a1d; --wood3: #51392a; --brass: #d8b04a; --brass2: #a9812a;
@@ -220,3 +220,28 @@ input[type=file] { display: none; }
 .nv-row.out { opacity: .55; }
 .nv-tag { padding: 0 8px; border-radius: 10px; font-size: 12px; font-weight: bold; color: #fff; }
 .nv-postsrow { margin: 0 0 4px; font-size: 14px; color: var(--parch2); }
+
+/* ---- Carreira: conta, raças, ataques, roleta ---- */
+input[type=password] { background: #fffaf0; border: 1.5px solid var(--sepia); border-radius: 6px; padding: 4px 8px; font-size: 16px; }
+.field input[type=password] { width: 100%; }
+.home-list { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; max-height: 46vh; overflow: auto; }
+.home-card { display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: var(--parch2); border: 2px solid var(--sepia); border-radius: 10px; }
+.home-card .pic { width: 52px; height: 52px; }
+.races { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.race { text-align: left; padding: 6px 9px; background: var(--parch2); border: 2px solid var(--sepia); border-radius: 8px; display: flex; flex-direction: column; font-size: 15px; }
+.race small { color: var(--sepia); font-size: 12px; }
+.race.on { background: var(--ink); color: var(--parch2); } .race.on small { color: var(--brass); }
+.race.rare { border-color: #7d3c98; }
+.race.lock { opacity: .5; cursor: default; }
+.seg button.on.mar { background: var(--sea); color: var(--ink); border-color: #0d6070; }
+.pointer { position: absolute; left: 50%; top: -6px; transform: translateX(-50%); width: 0; height: 0; border-left: 12px solid transparent; border-right: 12px solid transparent; border-top: 22px solid var(--ink); z-index: 2; }
+.atk-list { display: flex; flex-direction: column; gap: 6px; }
+.atk { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 8px; background: var(--parch2); border: 2px solid var(--sepia); border-radius: 8px; }
+.atk .note { flex-basis: 100%; margin: 0; }
+.atk-h { flex: 1; display: flex; gap: 10px; align-items: baseline; } .atk-h span { color: var(--sepia); font-size: 14px; }
+.fx { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px dashed var(--sepia); }
+.fx .val { width: 24px; text-align: center; font-weight: bold; font-size: 20px; }
+.bar.xp i { background: #4a7ab8; }
+#chatBgFile { display: none; }
+#chartHud { position: absolute; inset: 0; pointer-events: none; }
+#chartHud > * { pointer-events: auto; }

@@ -13,63 +13,65 @@ VTT de One Piece no East Blue, antes da Grand Line, no estilo da Mesa Virtual do
 
 After play: "Gostaria de ter encontros de batalha naval também, acha que é possivel isso? NE como poderiamos fazer uma batalha naval com rolagem de dados"
 After play: "E se tiver a opção, de combate por turno ou real? Quero experimentar os dois" · "Faça isso agora" (a proposta aceita: ficha do navio, postos da tripulação, tiro com d20 + TEC contra a Defesa; primeiro o modo por turnos, depois o tempo real; abordagem depois)
+After play: "vamos ajustar o sistema, me ajude a pensar. Será mais um sistema de narração com texto mesmo. A navegação serão duas maneiras, um barquinho navegando de forma automatica até uma ilha, e o mestre pode rolar eventos aleatorios climaticos, ou brigas navais. Na luta naval, vamos para o modelo de navegação 3D, e a luta acontece, depois volta para a navegação. Eu quero que você me ajude a dividir por partes. Faremos um sistema onde tenha várias raças do mundo de One Piece, o jogador pode escolher ser, humano, braços longos, pernas longas, pescoços longos, tritão/sereiano, gigante, tontatta e mink. Eu quero que cada raça tenha algo especial e/ou atributos diferentes, duas raças irão rolar uma roleta para poder pegar, com chances de 1% podendo rolar apenas uma vez, que são os gigantes ancestrais e lunariano. Teremos um sistema de lv 1 ao 100. A progressão de lv deve ser dificil e demorada, os lv 100 são os topo do mundo, como os yonkou e almirantes. O jogo será escrito, mas nos combates faremos uma mistura com rolagem de dados, então os atributos importam, todo jogador pode criar seu proprio ataque, e cada ataque tem seu custo de energia. Quando o jogador for criar um ataque, ele terá o dano inicial, e por custo de energia, o jogador pode comprar efeitos, como +dano, envenenado, atordoado, preso e por ai vai. As ilhas podem ser atualizadas com o gerador de ilha do mestre, de acordo com o que a mesa virtual já faz. No chat da mesa, pode se quiser, o jogador colocar uma iamgem de fundo para ambientação. O mestre pode ser alguém ou uma IA. Todo jogador pode mestrar, basta escolher a tag mestre. A IA que for mestrar, ela será consumida um token de API, para poder trazer a historia, ela deve entender o momento e trazer lutas moderadas, faceis e dificeis. Com liberdade para criar a historia da ilha e lutas. O jogador pode adicionar uma imagem ao seu token. O mundo, eu quero que tenha todas as ilhas catalogadas de One Piece, o jogador escolhe o mar inicial, podendo apenas ser nos 4 mares inicias, east blue, north blue, west blue ou soul blue. A ilha que ele começa também pode ser escolhida, ou ele vai no aleatorio. Quero uma tela de login, para salvar cada informação, então também quero um banco de dados para o sistema. O jogador poderá ser pirata ou marinheiro, e para cada grupo tem uma progressão pelos atos e missões. Pirata vai estar navegando entre ilhas e jogando, vencendo, saqueando, e lutando contra outros piratas, dependendo de seus atos, os piratas ganham pontos de reputação, a cada x pontos eles podem ganhar recompensas por suas cabeças, quando um pirata recebe recompensas, ele ganha um bonus em seus atributos, e quanto maior a recompensa maior o bonus. Quando um pirata for capturado, derrotado por um marinheiro, ele é mandado para a prisão, Ennies Loby, um pirata que é lançado lá, perde metade do valor de seu cartaz de procurado, perde xp, podento até descer de lv. Para piratas que já são muito fortes, com titulos como Pior geração ou yonkou, ser derrotado, é mandado para Impeldown, automaticamente o jogador perde 10 lvs, perfe 80% do seu cartaz de procurado. Quando for marinheiro, o jogador ganha pontos por cumprir missões da marinha em ilhas, proteger ilhas de ataques piratas, e proteger pessoas do governo como os tenryubitos. Com mais reputação o marinheiro vai subindo de patente, até se tornar um almirante, mas só podem existir 3 almirantes e 1 almirante de frota, se o cargo estiver ocupado, ele deve desafiar o almirante e vencer para ocupar o cargo. Um marinheiro que é derrotado por um pirata, perde xp, podendo perder lv e reputação. Sistema de treinamento, o jogador pode deixar o personagem afk treinando, o que gera Xp para evoluir de lv, o marinheiro tem um bonus no treino por ter o treino guiado por superiores. O jogador poderá escolher classes para o personagem, lutador, espadachim ou atirador. Também profissões como, carpinteiro, navegador, timoneiro, cozinheiro, medico. As profissões precisam ajudar o jogador na viagem e terem impactos reais. Toda ilha vai ter um comercio, e lá o jogador pode gastar o dinheiro para comprar recursos para o navio e sua viagem, reparar navio, comprar comida e coisas afins."
+After play: "Irei criar uma conta no Supabase para guardar as informações" · "Mestre automatico e humano, a parte da IA pode ser uma api do gemini para consumir e jogar" · "Combinar os três" (a proposta aceita: tudo agora com peças trocáveis, conta local e mestre automático no lugar do Supabase e do Gemini; a ligação real vem depois)
 
-**Pitch:** Uma mesa de RPG de One Piece onde a tripulação pilota o próprio navio por um East Blue 3D e, ao atracar, entra no battlemap e no chat daquela ilha.
+**Pitch:** Uma carreira de One Piece jogada por texto: crie um pirata ou marinheiro de uma raça rara, navegue sozinho entre as ilhas dos quatro mares, lute com ataques que você mesmo monta e suba do nível 1 ao 100.
 
-**Genre:** mesa virtual de RPG (VTT) + navegação 3D
+**Genre:** RPG de mesa por chat (VTT) com carreira e viagem
 
-**Controls:** Mar: W/S velas (velocidade), A/D leme, E atracar perto de uma ilha. Ilha: arrastar tokens com o mouse, roda = zoom, botão do meio/Espaço = mover câmera. Chat: Enter envia, `/r 1d20+3` rola.
+**Controls:** Login e criação por cliques. Mar: clique numa ilha da carta náutica e em Viajar; o barco vai sozinho. Luta naval 3D: W/S velas, A/D leme, Q/E tiro de bombordo/boreste, R conserta. Ilha: arrastar tokens, roda = zoom, botão do meio/Espaço = mover câmera. Chat: Enter envia, `/r 1d20+3` rola.
 
-**Question:** O ciclo navegar → atracar → jogar pelo chat da ilha → zarpar funciona como mesa de RPG, e o chat é gostoso de usar para interpretar?
+**Question:** Uma carreira com raça, nível 1–100, ataques criados e viagem automática continua sendo um jogo de chat gostoso, e a luta naval 3D no meio da viagem vale a pausa na narração?
 
-**Hooks:** O chat é preso à ilha (só fala ali quem está atracado nela); o navio é pilotado de verdade e o navegador da tripulação deixa ele mais rápido; Pirata e Marinha dividem o mesmo mar.
+**Hooks:** O ataque é seu: dano inicial mais efeitos comprados com Energia. A raça muda o jogo, e duas raças só saem numa roleta de 1% que se gira uma vez. Pirata cresce em recompensa e arrisca a prisão; marinheiro sobe de patente e disputa os cargos de almirante. O mestre é um jogador com a tag mestre ou o mestre automático.
 
-**Intent:** no goal to reach *(guessed)* · needs 2+ players *(inferred (strong))*
+**Intent:** payoff builds *(you said: progressão difícil e demorada)* · needs 2+ players *(inferred (strong))*
 
 ## Look and references
-- Look: mar 3D low-poly toon — água turquesa com espuma branca em faixas desenhadas, céu claro com nuvens chapadas, ilhas como montes verdes com casinhas; navios low-poly com vela branca e caveira (pirata) ou vela com gaivota azul (Marinha). Ilhas: battlemap 2D em pergaminho envelhecido, traço de nanquim, grade sépia, rosa dos ventos no canto. UI em madeira escura e latão. Paleta: turquesa (mar), creme (pergaminho), nanquim (traço), vermelho-pirata (destaque do jogador), azul-marinha (destaque da Marinha). Detalhe assinatura: a rota percorrida fica marcada no mar como traço pontilhado de mapa de tesouro. Every figure drawn, no emoji, no plain circles.
-- References: Zelda: Wind Waker (mar toon, navegação livre); a Mesa Virtual HxH5e, MESA_VIRTUAL_GUIA.md (tokens, dados, chat, iniciativa, broadcast vs estado durável); Roll20 (chat com rolagens intercaladas).
-- View: 3D no mar · 2D nas ilhas · Camera: mar = terceira pessoa atrás do navio, orbitável; ilha = de cima, pan e zoom no cursor.
+- Look: mar 3D low-poly toon — água turquesa com espuma branca em faixas desenhadas, céu claro com nuvens chapadas; navios low-poly com vela branca e caveira (pirata) ou vela com gaivota azul (Marinha). A viagem é uma carta náutica em pergaminho com o barquinho desenhado e rota pontilhada. Ilhas: battlemap 2D em pergaminho envelhecido, traço de nanquim, grade sépia, rosa dos ventos no canto. UI em madeira escura e latão. Paleta: turquesa (mar), creme (pergaminho), nanquim (traço), vermelho-pirata (destaque do jogador), azul-marinha (destaque da Marinha). Every figure drawn, no emoji, no plain circles.
+- References: Zelda: Wind Waker (mar toon); a Mesa Virtual HxH5e, MESA_VIRTUAL_GUIA.md (tokens, dados, chat, iniciativa); Roll20 (chat com rolagens intercaladas).
+- View: carta 2D na viagem · 3D na luta naval · 2D nas ilhas · Camera: luta 3D em terceira pessoa atrás do navio; ilha de cima, pan e zoom no cursor.
 
 ## First minute
-O jogador abre o lobby, escolhe Narrador ou Jogador. O Jogador cria a ficha (nome, Pirata/Marinha, estilo — ex.: Navegador —, distribui 6 atributos, sobe a imagem que vira token). Aparece no mar 3D sobre o navio da tripulação perto da Vila Foosha; uma dica "W para soltar as velas" aparece uma vez. Navega, vê a ilha crescer, aperta E ao entrar no anel de atracação. A tela vira o battlemap de pergaminho da ilha com o token dele no cais, e o chat troca para "Vila Foosha". O Narrador (outra aba) já escreveu uma narração; o jogador responde como personagem, testa negrito/cor, e rola `/r 1d20+FOR` — o dado anima no palco e o resultado cai no chat. É aqui que o gancho se paga.
+Login ou cadastro (conta local neste navegador), depois "Novo personagem": nome, lado (Pirata/Marinha), raça (com a roleta de 1% uma vez), classe, profissão, mar inicial e ilha (escolhida ou aleatória), atributos e imagem. O personagem aparece no battlemap da ilha com o chat dela e a narração de abertura do mestre automático. Ele abre a carta náutica, escolhe outra ilha e o barquinho segue sozinho. No caminho cai um evento (clima ou navio inimigo); se for briga naval, a tela vira o mar 3D, ele atira de bombordo, vê o dado rolar no chat e vence. De volta à carta, chega à ilha nova, cria um ataque com efeito comprado com Energia e usa. Esse é o momento em que o gancho se paga.
 
 ## Challenge
-É uma mesa: o desafio vem do Narrador. O sistema dá: testes d20 + atributo contra CD 10/15/20, vantagem/desvantagem, combate por iniciativa (d20 + AGI), Vida e Estamina nos tokens; Vida 0 = Nocauteado. No mar, a primeira "dificuldade" chega em 2–3 min: o mar aberto entre ilhas é longe, e sem Navegador a viagem é mais lenta. Perder não apaga nada: o Narrador decide as consequências. *(guessed)*
+Fácil, moderado ou difícil conforme o nível do grupo: o primeiro evento na viagem chega entre 30% e 70% do caminho e a primeira luta de ilha vem na primeira ou segunda chegada. Perder custa: Vida 0 deixa o token Nocauteado; pirata vencido pela Marinha vai para Enies Lobby (perde metade da recompensa e XP, e pode descer de nível) ou, se for Pior Geração ou Yonkou, para Impel Down (−10 níveis, −80% da recompensa); marinheiro vencido por pirata perde XP, reputação e talvez nível. O nível sobe devagar: o XP do nível seguinte cresce com o nível elevado a 2,2.
 
 ## Core loop
-- Navegar: a tripulação pilota o navio pelo mar 3D até uma ilha (Navegador = mais velocidade).
-- Atracar: entrar na ilha troca para o battlemap e o chat dela; quem ficou no mar não lê esse chat.
-- Jogar: interpretar pelo chat (fala/narração/OOC), rolar d20 + atributo, mover tokens, combate por iniciativa.
-- Zarpar: voltar ao navio e seguir para a próxima ilha.
-- Combater no mar (opcional): o Narrador avista um navio inimigo; a tripulação assume os postos e troca tiros por turnos, com dados.
+- Viajar: escolher a próxima ilha e deixar o barquinho ir; o mestre (ou o automático) sorteia clima ou briga naval no caminho.
+- Atracar: o battlemap e o chat da ilha; narração, comércio, missões ou saque.
+- Lutar: dados + atributos, com os ataques que o jogador criou; vencer dá XP, berries e reputação.
+- Crescer: nível, recompensa (pirata) ou patente (marinha), treino AFK e reparos do navio.
 
 ## Goal & fail state
-- Uma sessão está completa quando a tripulação visita uma ilha, joga uma cena pelo chat dela, navega até outra e vê o chat trocar.
-- Falha no sistema: Vida 0 → token Nocauteado (cinza, sem ações); o Narrador pode restaurar. *(guessed)*
+- Uma sessão está completa quando o personagem sai de uma ilha, vence um evento no mar, chega a outra ilha e usa um ataque que ele criou.
+- A meta de longo prazo é o nível 100: Yonkou (pirata) ou Almirante (marinha).
+- Falha: Vida 0 nocauteia; a derrota para o lado rival custa XP, reputação, recompensa ou prisão como descrito em Challenge.
 
 ## Features
-- [x] Ficha de personagem: Pirata ou Marinha, FOR/AGI/VIG/TEC/ESP/CAR, Vida e Estamina, estilo de luta (espadachim, atirador, lutador, navegador, cozinheiro, médico), Akuma no Mi opcional, Recompensa (pirata) ou Patente (marinha), imagem enviada vira token
-- [ ] Mar 3D toon pilotável por teclado com 4 ilhas (Vila Foosha, Shells Town, Orange Town, Baratie) *(provisional)*; velocidade sobe com Navegador
-- [ ] Battlemap 2D por ilha (pergaminho + grade) com tokens arrastáveis; jogador só move os seus; Narrador cria tokens de NPC e move qualquer um
-- [ ] Chat preso à ilha (+ chat "a bordo"): fala com retrato, narração, OOC; negrito, itálico, cor, sussurro, grito; cor e fonte por personagem; rolagens intercaladas
-- [ ] Dados: d20 + atributo vs CD, `/r` com fórmula, vantagem/desvantagem, animação no palco, botões de teste na ficha
-- [ ] Iniciativa e turnos simples com Vida/Estamina no token (thin stand-in)
-- [ ] Narrador e Jogadores em abas separadas, sincronizados ao vivo (stand-in do Supabase Realtime)
-- [x] Batalha naval por turnos: o Narrador inicia o encontro; mapa de mar em grade; ficha do navio (Casco, Velas, Canhões, Defesa, Moral); postos Timoneiro, Artilheiro, Carpinteiro e Capitão; tiro com d20 + TEC contra a Defesa; vento; fuga, afundar e render; navio inimigo NPC
-- [ ] Batalha naval em tempo real (modo experimental, segundo modo do mesmo encontro): navios pilotados no mar 3D, tiro de bombordo/boreste por tecla com recarga *(não nesta rodada)*
+- [x] Login e cadastro (conta local neste navegador) com vários personagens por conta; o Mestre entra pela tag mestre
+- [x] Personagem: 8 raças com atributos e especial próprios, roleta de 1% (uma vez) para Gigante Ancestral e Lunariano, classes lutador/espadachim/atirador, profissões carpinteiro/navegador/timoneiro/cozinheiro/médico, nível 1–100 com curva lenta
+- [x] Ataques criados: dano inicial + efeitos comprados com Energia (+dano, veneno, atordoar, prender, queimar, alcance), rolagem d20 + atributo contra a Defesa
+- [x] Mundo: 4 mares iniciais, ilhas catalogadas, mar e ilha inicial escolhidos ou aleatórios
+- [x] Viagem automática pela carta náutica com eventos de clima (as profissões decidem), navio com Casco e comida, e luta naval em 3D (tempo real) ou por turnos
+- [x] Pirata e Marinha: reputação, recompensa com bônus de atributos, Enies Lobby, Impel Down, patentes até Almirante (3 vagas + Almirante de Frota, por desafio)
+- [x] Comércio em toda ilha (comida, reparo, curativo, canhões, velas), treino AFK, missões da Marinha e saque
+- [x] Mestre humano (tag mestre) e mestre automático por tabela, no formato que a API do Gemini usaria depois; fundo de imagem no chat; gerador de ilha do mestre
 
 ## Your systems
-- ficha com status de One Piece · in the slice
-- navegação 3D pilotada por teclado, navegador dá velocidade · in the slice
-- mesa 2D por ilha com mapa e tokens · in the slice
-- chat por ilha com texto rico customizável · in the slice
-- dados d20 + atributo · in the slice
-- upload de imagem do personagem e criação de tokens · in the slice
-- pirata ou marinha · in the slice
-- combate/iniciativa · thin stand-in *(guessed)*
-- batalha naval por turnos · in the slice
-- batalha naval em tempo real · later
+- conta e personagens salvos (local) · in the slice
+- raças, roleta de 1% e classes · in the slice
+- nível 1–100 e treino AFK · in the slice
+- criador de ataques com efeitos · in the slice
+- viagem automática, clima e navio (casco, comida, canhões, velas) · in the slice
+- luta naval 3D em tempo real e por turnos · in the slice
+- recompensa, patentes e prisões · in the slice
+- comércio, missões e saque · in the slice
+- mestre humano e mestre automático · in the slice
+- fundo de imagem do chat e gerador de ilha · in the slice
+- Supabase de verdade e IA Gemini de verdade · later
 - Haki · later
 
 ## Keep
@@ -79,20 +81,24 @@ O jogador abre o lobby, escolhe Narrador ou Jogador. O Jogador cria a ficha (nom
 - Voz como foco: o jogo é por chat ("poucas vezes por voz")
 
 ## Out of scope
-- Online: session with friends on their own machines: needs a server, so not built; built instead: cada aba do navegador é um participante, sincronizado ao vivo nesta máquina
+- Online: sessão com amigos em máquinas diferentes: needs a server, so not built; built instead: cada aba do navegador é um participante, sincronizado ao vivo nesta máquina
+- Supabase de verdade (login real e banco) e a IA Gemini de verdade: needs a server; no lugar, conta local e mestre automático na mesma interface, prontos para trocar
 - Haki e a Grand Line: grow it
-- Supabase, login e contas: needs a server
-- Trilha sonora do YouTube, gerador procedural de mapas, bestiário: add it as a feature
+- Trilha sonora do YouTube e bestiário: add it as a feature
 - Sigilo real de rolagens secretas: needs a server
 - Abordagem (abordo) nas batalhas navais, com o convés virando mesa de ilha: add it as a feature
+- Todas as ilhas de One Piece: o catálogo começa por um punhado de ilhas por mar (as inventadas ficam marcadas "original"): add it as a feature
 
 ## Build order
-1. A fatia: criar ficha com imagem → navegar no 3D → atracar → jogar no chat da ilha com dados e tokens → zarpar até outra ilha e ver o chat trocar. Tudo em duas abas (Narrador + Jogador).
-2. Dentro da fatia, primeiro o mar 3D e o navio pilotável (a parte menos provada), depois a sincronização entre abas, o chat rico, o battlemap e a ficha.
+1. Conta, personagem (raça, classe, profissão, roleta) e o mundo dos 4 mares, com a ilha inicial.
+2. Ataques criados e a luta na ilha com dados, XP e nível.
+3. Viagem automática, eventos de clima e luta naval em 3D (a parte menos provada).
+4. Pirata e Marinha (recompensa, patentes, prisões), comércio, treino e missões.
+5. Mestre automático e as ferramentas do mestre (gerador de ilha, fundo do chat).
 
 ---
-**Kill condition:** se navegar entre ilhas parecer só uma tela de carregamento chata, e não parte da sessão. *(guessed)*
+**Kill condition:** se a viagem automática e as lutas navais parecerem esperas entre cenas de chat em vez de parte da sessão. *(guessed)*
 
-**Who it's for / what they feel:** grupo de amigos fãs de One Piece que jogam RPG por texto e querem sentir que são uma tripulação de verdade. *(guessed)*
+**Who it's for / what they feel:** grupo de amigos fãs de One Piece que jogam RPG por texto e querem uma carreira de verdade, do nível 1 ao topo do mundo. *(guessed)*
 
 **Games you love / don't:** Love Wind Waker (o mar), a Mesa Virtual HxH5e (a mesa), Roll20 (o chat). *(guessed)*
