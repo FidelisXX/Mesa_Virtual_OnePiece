@@ -77,7 +77,7 @@ module.exports = function criar(cfg) {
 
   // Uma chamada ao Gemini que devolve JSON, com a troca de modelo quando ele some, lota ou demora
   const semPensar = new Set(), mortos = new Set();   // modelos que recusam o ajuste de pensamento: nas próximas chamadas já vai sem ele
-  async function chamar(sistema, pedido, maxTok, temp) {
+  async function chamar(sistema, pedido, maxTok, temp, prazo) {
     if (!cfg.KEY) throw new Error('GEMINI_API_KEY não configurada (crie server/.env)');
     // Tarefa curta: pouco "pensamento" interno deixa a resposta rápida e dentro do limite de tokens.
     // O campo muda de nome entre as famílias (2.x: thinkingBudget; 3.x: thinkingLevel); se a API recusar, repete sem ele.
@@ -88,7 +88,7 @@ module.exports = function criar(cfg) {
         pensar ? { thinkingConfig: /(^|-)3\./.test(modelo) ? { thinkingLevel: 'low' } : { thinkingBudget: 0 } } : {}),
     });
     // Uma tentativa com um modelo, com o seu próprio limite de tempo (a API às vezes demora quando está cheia)
-    const t0 = Date.now(), PRAZO = cfg.PRAZO || 80000, sobra = () => PRAZO - (Date.now() - t0);   // o prazo total da chamada (o jogo espera 90 s; no Vercel, menos)
+    const t0 = Date.now(), PRAZO = prazo || cfg.PRAZO || 80000, sobra = () => PRAZO - (Date.now() - t0);   // o prazo total da chamada (o jogo espera 90 s; no Vercel, menos)
     const enviar = async (modelo, pensar) => {
       const ms = Math.max(4000, Math.min(TIMEOUT_MS, sobra())), ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), ms);
       try {
@@ -157,6 +157,25 @@ module.exports = function criar(cfg) {
     return out;
   }
 
+  // ---- Narração de combate: o jogo já rolou os dados; a IA só conta o que aconteceu, em poucas frases ----
+  const SISTEMA_COMBATE = [
+    'Você é o Narrador de uma mesa de OP RPG (RPG de mesa de One Piece, d20). Escreva em português do Brasil, com voz de mestre de mesa.',
+    'Você receberá as linhas do que acabou de acontecer numa luta: as rolagens (com o total e a CR do alvo) e os avisos do jogo. Os resultados JÁ FORAM decididos pelos dados: narre exatamente o que as linhas dizem, sem mudar quem acertou, quem errou ou quanto dano saiu.',
+    'Regras: 2 a 4 frases (até 70 palavras); descreva golpes, esquivas e o estrago de forma vívida e concreta; cite técnicas e nomes; mostre o estado de quem está ferido (passou da metade da vida: ferimentos visíveis); se um lado caiu ou fugiu, narre o desfecho. Não peça testes, não crie novos inimigos e não decida nada pelos jogadores.',
+    'Responda SOMENTE com um JSON válido: {"narracao": "texto"}',
+  ].join('\n');
+  async function combate(ctx) {
+    ctx = ctx || {};
+    if (cfg.MOCK) return { narracao: '[teste sem IA] Os golpes se cruzam e a poeira sobe.', uso: 0 };
+    const linhas = (Array.isArray(ctx.linhas) ? ctx.linhas : []).slice(-16).map(l => '- ' + lim(l, 220)).join('\n');
+    if (!linhas) throw new Error('sem linhas de combate');
+    const vivos = (Array.isArray(ctx.vivos) ? ctx.vivos : []).slice(0, 10).map(v => '- ' + lim(v.nome, 40) + ' (' + lim(v.lado, 10) + '): vida ' + lim(v.vida, 12)).join('\n');
+    const pedido = 'LUGAR: ' + lim(ctx.lugar && ctx.lugar.nome, 60) + ' · RODADA ' + (+ctx.rodada || 1) + (ctx.vez ? ' · agora é a vez de ' + lim(ctx.vez, 40) : '') + (ctx.fim ? ' · A LUTA TERMINOU' : '') + '\n\nO QUE ACONTECEU:\n' + linhas + '\n\nSITUAÇÃO ATUAL:\n' + (vivos || '(sem dados)');
+    const x = await chamar(SISTEMA_COMBATE, pedido, 500, 0.9, 28000), j = x.json || {};
+    const narracao = lim(j.narracao, 700).trim(); if (!narracao) throw new Error('narração vazia');
+    return { narracao, uso: x.uso, modelo: x.modelo };
+  }
+
   // ---- Gerador de ficha de NPC: o mestre descreve, a IA escolhe tipo, perfil, nome e uma nota; os números vêm do nível, no jogo ----
   const PERFIS = ['equilibrado', 'tanque', 'brutamontes', 'agil', 'atirador', 'fraco', 'chefe'];
   const SISTEMA_FICHA = [
@@ -173,5 +192,5 @@ module.exports = function criar(cfg) {
     const x = await chamar(SISTEMA_FICHA, 'NÍVEL: ' + nivel + '\nDESCRIÇÃO: ' + descricao, 400, 0.8), j = x.json || {};
     return { nome: lim(j.nome, 24).trim(), tipo: TIPOS.includes(j.tipo) ? j.tipo : 'bandido', perfil: PERFIS.includes(j.perfil) ? j.perfil : 'equilibrado', nota: lim(j.nota, 200).trim(), uso: x.uso, modelo: x.modelo };
   }
-  return { narrar, gerarFicha, abertura, descobrirModelo, MAX_BODY, TIMEOUT_MS };
+  return { narrar, gerarFicha, abertura, combate, descobrirModelo, MAX_BODY, TIMEOUT_MS };
 };

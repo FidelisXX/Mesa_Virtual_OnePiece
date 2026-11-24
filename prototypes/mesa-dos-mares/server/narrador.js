@@ -40,7 +40,7 @@ const ipOk = req => { const a = enderecoDe(req); return ehLoopback(a) || ehPriva
 // a chave do Gemini só se mexe de dentro desta máquina, nunca de um celular na rede
 const soLocal = req => ehLoopback(enderecoDe(req));
 const core = require('./gemini-core.js')({ get KEY() { return KEY; }, get MODEL() { return MODEL; }, set MODEL(v) { MODEL = v; }, get MOCK() { return MOCK; } });
-const { narrar, gerarFicha, abertura, descobrirModelo, MAX_BODY, TIMEOUT_MS } = core;
+const { narrar, gerarFicha, abertura, combate, descobrirModelo, MAX_BODY, TIMEOUT_MS } = core;
 const lim = (s, n) => String(s == null ? '' : s).slice(0, n);
 
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' };
@@ -105,6 +105,15 @@ http.createServer((req, res) => {
         console.log(new Date().toLocaleTimeString('pt-BR'), 'narrou para', (ctx.novas || []).length, 'mensagem(ns);', r.uso, 'tokens;', Date.now() - t0, 'ms');
         send(res, 200, r);
       } catch (e) { console.error('erro:', e.message); send(res, 502, { erro: e.message }); }
+    });
+    return;
+  }
+  if (req.method === 'POST' && req.url === '/combate') { // a IA narra a troca de golpes (os dados já foram rolados pelo jogo)
+    let body = ''; let big = false;
+    req.on('data', c => { body += c; if (body.length > MAX_BODY) { big = true; req.destroy(); } });
+    req.on('end', async () => {
+      if (big) return;
+      try { const t0 = Date.now(), r = await combate(JSON.parse(body || '{}')); console.log(new Date().toLocaleTimeString('pt-BR'), 'narrou o combate;', r.uso, 'tokens;', Date.now() - t0, 'ms'); send(res, 200, r); } catch (e) { console.error('erro (combate):', e.message); send(res, 502, { erro: e.message }); }
     });
     return;
   }

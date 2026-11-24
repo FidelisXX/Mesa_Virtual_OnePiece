@@ -9,6 +9,7 @@
     { "source": "/narrar", "destination": "/api/narrar" },
     { "source": "/ficha", "destination": "/api/ficha" },
     { "source": "/abertura", "destination": "/api/abertura" },
+    { "source": "/combate", "destination": "/api/combate" },
     { "source": "/chave", "destination": "/api/chave" },
     { "source": "/teste", "destination": "/api/chave" },
     { "source": "/modelos", "destination": "/api/chave" }
@@ -16,7 +17,8 @@
   "functions": {
     "api/narrar.js": { "maxDuration": 60 },
     "api/ficha.js": { "maxDuration": 30 },
-    "api/abertura.js": { "maxDuration": 60 }
+    "api/abertura.js": { "maxDuration": 60 },
+    "api/combate.js": { "maxDuration": 40 }
   },
   "headers": [
     {

@@ -98,12 +98,21 @@ const Combat = (() => {
   };
 
   // ---- Usar um ataque ----
+  // O ataque gasta a ação do turno: depois dele o turno passa sozinho (o botão "Terminar meu turno" continua para quem não quer atacar).
+  let atacou = false;
   function useAttack(atk, modo) {
+    atacou = false; usarAtaque(atk, modo);
+    if (!atacou) return;
+    const isl = currentView(), cb = db.combat[isl], mt = myTok(isl); if (!cb || !cb.on || !mt || cb.order[cb.turn] !== mt.id) return;
+    later(1.6, () => { const c2 = db.combat[isl]; if (c2 && c2.on && c2.order[c2.turn] === mt.id) next(); });
+  }
+  function usarAtaque(atk, modo) {
     const c = me(); if (!c || c.gm) return; const g = getTarget(c); if (!g || !canAct(c)) return;
     const { t, mt } = g, reach = atkReach(c, atk.fx), dist = cheb(mt, t);
     if (dist > reach) { toast('Fora de alcance: o ataque alcança ' + reach + ' quadrado(s) e o alvo está a ' + dist + '. Arraste seu token para perto.'); return; }
     if (c.st < atk.custo) { toast('Pontos de Poder insuficientes: a técnica custa ' + atk.custo + ' PP.'); return; }
     c.st -= atk.custo; commit('chars', c.id, c); syncPc(c);
+    atacou = true;
     if (atk.img && typeof Fx !== 'undefined') Fx.cast(currentView(), c.nome, atk);
     const cl = CLASSES[c.classe], race = RACES[c.raca] || {}, ch = currentView(), def = defOfToken(t);
     const r = rolarD20(attr(c, atkAttr(c)) + bonusProf(c.lv), modo || 'normal'); r.label = atk.nome + ' (' + cl.nome + ')'; r.vs = { nome: t.nome, def };
@@ -152,7 +161,8 @@ const Combat = (() => {
     sysMsg(isl, 'Rodada ' + cb.round + ': vez de ' + t.nome + '.');
     if (t.owner === myId) { toast('É a sua vez!'); tone(784, 0.15, 'triangle', 0.3); }
     if (turnStart(t)) { later(0.5, () => next()); return; }
-    if (t.owner === 'gm' && db.world.auto) runNpc(isl);
+    if (t.owner !== 'gm') Master.narrarCombate(isl);   // com o narrador de IA, a troca de golpes até aqui vira narração
+    if (t.owner === 'gm' && Master.auto(isl)) runNpc(isl);
   }
   function next() {
     const isl = currentView(); const cb = db.combat[isl]; if (!cb || !cb.on) return;
@@ -168,6 +178,7 @@ const Combat = (() => {
     tokensOn(isl).filter(t => t.pc && t.hp <= 0).forEach(t => { const c = charOf(t); if (c && !c.prisao) { c.hp = Math.max(1, Math.round(c.hpMax * 0.25)); commit('chars', c.id, c); syncPc(c); } });
     tokensOn(isl).forEach(t => { if (t.status && Object.keys(t.status).length) { t.status = {}; commit('tokens', t.id, t); } });
     sysMsg(isl, why || 'O combate terminou.'); mesaDirty = true;
+    Master.narrarCombate(isl, true);
   }
   function checkEnd(isl) {
     const L = tokensOn(isl).filter(t => t.hp > 0 && t.kind !== 'tenryu' && t.hpMax > 0);

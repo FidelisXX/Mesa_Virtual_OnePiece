@@ -789,7 +789,7 @@ function bindPanels() {
 // ======================================================================================
 // HUD
 // ======================================================================================
-let chartSig = '', worldSig = '';
+let chartSig = '', worldSig = '', turnSig = '';
 // O Mundo do narrador: quem está onde, e o botão para levar um jogador a uma ilha
 function renderWorldHud(ch) {
   const sel = World.sel && ISLAND[World.sel], jog = Object.values(db.chars).filter(x => !x.gm);
@@ -814,7 +814,15 @@ function updateHud() {
   if (isl) {
     $('islName').innerHTML = `<b>${esc(chanName(v))}</b>` + (Island.editTool ? ' <small>· desenhando: ' + ({ casa: 'casa', casaG: 'casa grande', arvore: 'árvore', apagar: 'borracha' }[Island.editTool]) + '</small>' : ''); $('btnCarta').textContent = c.gm ? 'Mundo' : 'Carta náutica';
     const cb = db.combat[v], tp = $('turnPlate');
-    if (cb && cb.on) { const t = db.tokens[cb.order[cb.turn]]; tp.hidden = false; tp.innerHTML = `Rodada ${cb.round} · vez de <b>${t ? esc(t.nome) : '?'}</b>`; } else tp.hidden = true;
+    if (cb && cb.on) {
+      const ids = cb.order.filter(id => db.tokens[id]), sig = JSON.stringify([cb.turn, cb.round, ids.map(id => [id, db.tokens[id].hp > 0, db.tokens[id].nome]), Island.sel, ids.length ? cb.vals : 0]);
+      tp.hidden = false;
+      if (sig !== turnSig) {
+        turnSig = sig; const atual = db.tokens[cb.order[cb.turn]];
+        tp.innerHTML = `<div class="to-top"><b>Rodada ${cb.round}</b> · vez de <b>${atual ? esc(atual.nome) : '?'}</b></div><div class="to-list">${ids.map(id => { const t = db.tokens[id], vez = id === cb.order[cb.turn], ko = t.hpMax > 0 && t.hp <= 0, lado = t.owner === 'gm' ? 'npc' : 'pc'; return `<button class="to ${vez ? 'on' : ''} ${ko ? 'ko' : ''} ${lado} ${Island.sel === id ? 'sel' : ''}" data-to="${id}" title="${esc(t.nome)} · iniciativa ${(cb.vals || {})[id] != null ? cb.vals[id] : '?'}"><img src="${Chat.tokenPortrait(t)}" alt=""><small>${esc(t.nome.length > 9 ? t.nome.slice(0, 8) + '…' : t.nome)}</small><i>${(cb.vals || {})[id] != null ? cb.vals[id] : ''}</i></button>`; }).join('')}</div>`;
+        tp.querySelectorAll('[data-to]').forEach(b => b.onclick = () => { Island.sel = b.dataset.to; turnSig = ''; mesaDirty = true; });
+      }
+    } else { tp.hidden = true; turnSig = ''; }
   }
   const ch = $('chartHud'); ch.hidden = mode !== 'chart' && mode !== 'world';
   if (mode === 'world') { renderWorldHud(ch); return; }

@@ -277,6 +277,13 @@ const Ia = (() => {
     const r = await fetch(base() + '/chave', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo), signal: AbortSignal.timeout(6000) });
     const j = await r.json(); if (!r.ok) throw new Error(j.erro || 'HTTP ' + r.status); return j;
   }
+  // A IA narra a troca de golpes de um combate (rápido: uma tentativa curta, sem insistir)
+  async function combate(corpo) {
+    const h = { 'Content-Type': 'application/json' };
+    if (typeof Net !== 'undefined' && Net.sb) { try { h.Authorization = 'Bearer ' + await SB.token(); h['x-mesa'] = myMesa || ''; } catch (e) { /* sem sessão: o servidor recusa */ } }
+    const r = await fetch(base() + '/combate', { method: 'POST', headers: h, body: JSON.stringify(corpo), signal: AbortSignal.timeout(35000) });
+    const j = await r.json(); if (!r.ok) throw new Error(j.erro || 'HTTP ' + r.status); return j;
+  }
   // A IA abre a cena numa ilha: introdução e uma missão aleatória
   async function abertura(corpo) {
     const h = { 'Content-Type': 'application/json' };
@@ -296,7 +303,7 @@ const Ia = (() => {
     const r = await fetch(base() + '/teste', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', signal: AbortSignal.timeout(30000) });
     return r.json();
   }
-  return { check, narrar, ficha, abertura, salvar, testar, base, setBase, get on() { return on; }, get modelo() { return modelo; }, get mock() { return mock; }, get erro() { return erro; }, get last() { return last; } };
+  return { check, narrar, ficha, abertura, combate, salvar, testar, base, setBase, get on() { return on; }, get modelo() { return modelo; }, get mock() { return mock; }, get erro() { return erro; }, get last() { return last; } };
 })();
 
 // ======================================================================================
@@ -412,6 +419,25 @@ const Master = (() => {
     ctx.jogadores = ctx.jogadores.sort((a, b) => (b.nome === c.nome) - (a.nome === c.nome));
     Ia.abertura(ctx).then(r => mostrarAbertura(ch, c, Object.assign({}, r, { ia: true }))).catch(e => { Ia.check(); fallback(e.message); }).finally(() => { thinking = false; });
   }
+  // Narra o combate: junta o que aconteceu desde a última narração (as rolagens e avisos do chat) e pede uma narração curta à IA.
+  // Só com o narrador de IA da ilha. A mecânica é do jogo; se a IA não responder, os avisos de sistema já contam o que houve.
+  const ultimaNarrCombate = {}; let narrandoCombate = false;
+  const linhaDoChat = m => {
+    if (m.tipo === 'rolagem' && m.roll) { const r = m.roll; return m.nome + ': ' + (r.label || 'rolagem') + ' = ' + r.total + (r.nat === 20 ? ' (crítico)' : r.nat === 1 ? ' (falha crítica)' : '') + (r.vs ? ' contra a CR ' + r.vs.def + ' de ' + r.vs.nome : ''); }
+    if (m.tipo === 'sistema') return limpaTxt(m.txt);
+    return '';
+  };
+  function narrarCombate(ch, fim) {
+    if (modo(ch) !== 'ia' || narrandoCombate || !Ia.on || Ia.mock || !isIsland(ch)) return;
+    const desde = Math.max(ultimaNarrCombate[ch] || 0, lastNarr(ch));
+    const linhas = db.msgs.filter(m => m.ch === ch && m.ts > desde && (m.tipo === 'rolagem' || m.tipo === 'sistema')).map(linhaDoChat).filter(l => l && !/^Rodada \d+: vez de/.test(l)).slice(-14);
+    if (linhas.length < (fim ? 1 : 2)) return;
+    const cb = db.combat[ch], vez = cb && cb.on ? db.tokens[cb.order[cb.turn]] : null;
+    ultimaNarrCombate[ch] = Date.now(); narrandoCombate = true;
+    const ctx = { lugar: { nome: ISLAND[ch].nome, tema: ISLAND[ch].tema }, rodada: cb ? cb.round : 0, vez: vez ? vez.nome : '', fim: !!fim, linhas,
+      vivos: Object.values(db.tokens).filter(t => t.isl === ch && t.hpMax > 0).map(t => ({ nome: t.nome, vida: Math.max(0, t.hp) + '/' + t.hpMax, lado: t.owner === 'gm' ? 'inimigo' : 'grupo' })) };
+    Ia.combate(ctx).then(r => { if (r && r.narracao) say(ch, r.narracao, null, [], { ia: true, uso: r.uso || 0 }); }).catch(() => { /* sem narração desta vez: os avisos do jogo já contam o que aconteceu */ }).finally(() => { narrandoCombate = false; });
+  }
   const introHumano = ch => { const isl = ISLAND[ch]; if (isl && !db.msgs.some(m => m.ch === ch && (m.uid === 'mestre' || m.tipo === 'sistema'))) sysMsg(ch, '**' + isl.nome + '.** ' + isl.intro); };
   // Chamar o narrador: com o servidor de IA no ar, uma chamada lê tudo e responde; senão, a tabela responde
   function call(c, ch) {
@@ -460,7 +486,7 @@ const Master = (() => {
       later(1.6, () => { if (!(db.combat[islId] && db.combat[islId].on) && whoIn(islId).some(x => !x.gm)) Combat.start(islId); });
     });
   }
-  return { ask, say, call, pendingCount, arrival, text, cls, difficulty, abertura, introHumano, modo, auto: autoOn, get thinking() { return thinking; } };
+  return { ask, say, call, pendingCount, arrival, text, cls, difficulty, abertura, narrarCombate, introHumano, modo, auto: autoOn, get thinking() { return thinking; } };
 })();
 
 // ======================================================================================

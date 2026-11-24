@@ -9,7 +9,16 @@ const Island = (() => {
   // a ilha com o que o gerador do mestre mudou (semente e tema)
   const IS = id => Object.assign({}, ISLAND[id], (db.islandCfg && db.islandCfg[id]) || {});
   let sel = null, drag = null, pan = null, isl = null, cv = null, spaceDown = false;
-  let tmoveClock = 0, editTool = null;
+  let tmoveClock = 0, editTool = null, lastPing = 0;
+  const MPQ = 1.5;   // metros por quadrado (o livro usa a grade de 1,5 m)
+  const pings = [];  // pontos marcados no mapa: { x, y, t, nome, cor } (x e y em quadrados)
+  function addPing(p) { pings.push({ x: p.x, y: p.y, t: state.t, nome: p.nome || '', cor: p.cor || null }); if (pings.length > 12) pings.shift(); }
+  function ping(w) {
+    const agora = clock.now(); if (agora - lastPing < 0.35) return; lastPing = agora;   // sem metralhadora de pings
+    const c = me(), x = w.x / tune.cellPx, y = w.y / tune.cellPx, p = { x, y, nome: c ? c.nome : '', cor: c ? c.cor : null };
+    addPing(p); broadcast({ t: 'ping', isl, x, y, nome: p.nome, cor: p.cor }); tone(660, 0.12, 'sine', 0.18);
+  }
+  bcHandlers.ping = m => { if (m.isl === currentView()) { addPing(m); tone(660, 0.12, 'sine', 0.12); } };
   // ---- O mestre desenha a ilha: casa, casa grande, árvore ou borracha. O que ele põe substitui o que o gerador sorteou. ----
   function editAt(w) {
     const id = isl, cell = tune.cellPx, x = w.x / cell, y = w.y / cell, L = islandMap(IS(id), cell).L, cfg = Object.assign({}, db.islandCfg[id] || {});
@@ -75,7 +84,7 @@ const Island = (() => {
         drag = { id: t.id, ox: w.x - t.x * tune.cellPx, oy: w.y - t.y * tune.cellPx, x0: t.x, y0: t.y, sx: e.clientX, sy: e.clientY, moved: false, ok: canMove(t) };
       } else {
         if (e.button === 0 && !spaceDown) { sel = null; uiSelChanged(); }
-        const c = cam(isl); pan = { sx: e.clientX, sy: e.clientY, cx: c.x, cy: c.y };
+        const c = cam(isl); pan = { sx: e.clientX, sy: e.clientY, cx: c.x, cy: c.y, moved: false, ping: e.button === 0 && !spaceDown && !editTool };
       }
     });
     cv.addEventListener('pointermove', e => {
@@ -94,6 +103,7 @@ const Island = (() => {
         t.x = (w.x - drag.ox) / tune.cellPx; t.y = (w.y - drag.oy) / tune.cellPx; dirty.tokens = true;
         tmoveClock++; if (tmoveClock % 3 === 0) sendTokMove(t.id, t.x, t.y);
       } else if (pan) {
+        if (!pan.moved && Math.hypot(e.clientX - pan.sx, e.clientY - pan.sy) < 4) return; pan.moved = true;
         const c = cam(isl); c.x = pan.cx + e.clientX - pan.sx; c.y = pan.cy + e.clientY - pan.sy; dirty.tokens = true; saveCam(isl);
       }
     });
@@ -105,6 +115,7 @@ const Island = (() => {
         if (t) { t.x = Math.round(t.x); t.y = Math.round(t.y); commit('tokens', t.id, t); tone(220, 0.06, 'square', 0.12); }
       }
       else if (drag && !drag.moved) { const t = db.tokens[drag.id]; if (t && t.loja && typeof Shop !== 'undefined' && Shop.open) Shop.open(t.id); } // clicar num lojista abre o balcão
+      if (pan && pan.ping && !pan.moved && !drag && e && e.type === 'pointerup' && isl && scene === 'play' && stageMode() === 'island') ping(toWorld(e));   // um toque num lugar vazio marca o ponto
       drag = null; pan = null;
     };
     cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
@@ -195,6 +206,27 @@ const Island = (() => {
     tokensOn(id).sort(drawOrder).forEach(t => {
       const z = t.tam || 1; drawToken(g, t, t.x * cell, t.y * cell, cell * z, { sel: t.id === sel, turn: t.id === turnId, bars: canSeeBars(t), label: true }); statusIcons(g, t, t.x * cell, t.y * cell, cell * z); if (t.loja) shopBadge(g, t.x * cell, t.y * cell, cell * z);
     });
+    // a metragem do arrasto: de onde o token saiu até onde ele está (1 quadrado = 1,5 m; a diagonal conta como 1)
+    if (drag && drag.moved && db.tokens[drag.id]) {
+      const t = db.tokens[drag.id], z = t.tam || 1, sx = (drag.x0 + z / 2) * cell, sy = (drag.y0 + z / 2) * cell, ex = (t.x + z / 2) * cell, ey = (t.y + z / 2) * cell;
+      const sq = Math.max(Math.abs(Math.round(t.x - drag.x0)), Math.abs(Math.round(t.y - drag.y0))), metros = sq * MPQ, dono = db.chars[t.owner];
+      const max = dono && !dono.gm ? ((RACES[dono.raca] || {}).desloc || 9) : 0, alem = max && metros > max, cor = alem ? '#e0533d' : '#2f8f5b';
+      g.save(); g.setLineDash([cell * 0.2, cell * 0.14]); g.lineWidth = cell * 0.09; g.strokeStyle = cor; g.lineCap = 'round'; g.beginPath(); g.moveTo(sx, sy); g.lineTo(ex, ey); g.stroke(); g.setLineDash([]);
+      g.beginPath(); g.arc(sx, sy, cell * 0.2, 0, 7); g.fillStyle = cor; g.fill();
+      const txt = metros.toLocaleString('pt-BR') + ' m' + (max ? ' / ' + max + ' m' : '') + ' · ' + sq + (sq === 1 ? ' quadrado' : ' quadrados');
+      g.font = '700 ' + Math.round(cell * 0.34) + 'px Segoe UI, sans-serif'; const tw = g.measureText(txt).width + cell * 0.5, bx = ex - tw / 2, by = ey - z * cell / 2 - cell * 0.95;
+      g.fillStyle = 'rgba(20,24,28,.88)'; g.beginPath(); g.roundRect ? g.roundRect(bx, by, tw, cell * 0.6, cell * 0.2) : g.rect(bx, by, tw, cell * 0.6); g.fill();
+      g.fillStyle = alem ? '#ff9a8a' : '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, ex, by + cell * 0.31); g.restore();
+    }
+    // os pings: anéis que se abrem e somem
+    for (let i = pings.length - 1; i >= 0; i--) {
+      const p = pings[i], idade = state.t - p.t; if (idade > 2.4) { pings.splice(i, 1); continue; }
+      const px = p.x * cell, py = p.y * cell, a = 1 - idade / 2.4, cor = p.cor ? tc(p.cor) : '#d8a21a';
+      g.save(); g.strokeStyle = cor; g.lineWidth = cell * 0.1; for (let k = 0; k < 2; k++) { const r = cell * (0.3 + Math.max(0, idade - k * 0.35) * 1.5); g.globalAlpha = Math.max(0, a * (k ? 0.6 : 1)); g.beginPath(); g.arc(px, py, r, 0, 7); g.stroke(); }
+      g.globalAlpha = a; g.fillStyle = cor; g.beginPath(); g.arc(px, py, cell * 0.16, 0, 7); g.fill();
+      if (p.nome) { g.font = '700 ' + Math.round(cell * 0.3) + 'px Segoe UI, sans-serif'; g.textAlign = 'center'; g.fillStyle = 'rgba(20,24,28,.85)'; const tw = g.measureText(p.nome).width + cell * 0.4; g.fillRect(px - tw / 2, py - cell * 1.05, tw, cell * 0.5); g.fillStyle = '#fff'; g.textBaseline = 'middle'; g.fillText(p.nome, px, py - cell * 0.8); }
+      g.restore();
+    }
     g.restore();
   }
 

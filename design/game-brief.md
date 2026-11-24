@@ -75,6 +75,7 @@ Fácil, moderado ou difícil conforme o nível do grupo: o primeiro evento na vi
 - [x] Mundo do narrador: ao entrar como Mestre ele começa vendo os quatro mares com todas as ilhas e quem está em cada uma; abre o mapa de uma ilha ou leva um jogador para lá
 - [x] Ilhas povoadas: moradores e lojistas (mercado, estaleiro, curandeiro, taverna) em toda ilha; clicar no lojista abre o balcão e a compra sai da carteira
 - [x] Mídia da mesa: catálogo de Akuma no Mi (lista parcial), imagem/GIF nas técnicas e trilha sonora compartilhada
+- [x] Combate legível: fila da ordem de turno, ping no mapa, metragem ao arrastar e turnos automáticos (o inimigo age na vez dele; a IA narra a troca de golpes)
 - [x] Versão para celular: abas embaixo (Cena, Chat, Ficha, Técnicas, Mesa), chat em primeiro plano, mapa em tela cheia com pinça e arrasto, direcional de toque na luta 3D e botão flutuante do narrador
 
 ## Your systems
