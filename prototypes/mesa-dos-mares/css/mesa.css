@@ -343,3 +343,24 @@ body.in-title #resizer, body.in-create #resizer, body.mobile #resizer { display:
 .ak-row { align-items: center; }
 .ak-paramecia { background: #c4472f33; } .ak-zoan { background: #3a9b4a33; } .ak-zoan-ancestral { background: #8a5a3a44; } .ak-zoan-mitica { background: #d8a21a44; } .ak-logia { background: #2a7bb844; }
 .ak-nova { margin: 8px 0; } .ak-nova summary { cursor: pointer; font-weight: 650; }
+
+/* ---- Criação de ficha (livro em 7 passos) e ficha OP RPG ---- */
+.passos { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0 12px; }
+.passo { flex: 1 1 110px; padding: 6px 8px; font-size: 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); text-align: left; }
+.passo b { display: inline-block; width: 18px; height: 18px; line-height: 18px; text-align: center; border-radius: 50%; background: var(--surface3); margin-right: 4px; color: var(--text); }
+.passo.on { border-color: var(--accent); color: var(--text); font-weight: 650; } .passo.on b { background: var(--accent); color: var(--on-accent); }
+.passo.ok b { background: var(--accent2); color: #fff; } .passo:disabled { opacity: .5; cursor: default; }
+.cr-corpo { max-height: 56vh; overflow: auto; padding-right: 4px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { padding: 5px 12px; border-radius: 16px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font-size: 13px; }
+.chip.on { background: var(--accent); color: var(--on-accent); border-color: transparent; } .chip:disabled { opacity: .4; cursor: default; }
+.atab { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 14px; } .atab th { text-align: left; font-size: 12px; color: var(--muted); } .atab td { padding: 4px 6px; border-top: 1px solid var(--border); vertical-align: middle; }
+.stats { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; } .stats > div { flex: 1 1 70px; text-align: center; padding: 6px 4px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface2); }
+.stats b { display: block; font-size: 18px; } .stats span { font-size: 11px; color: var(--muted); }
+.pericias { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+.per { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface2); color: var(--text); font-size: 13px; text-align: left; }
+.per.on { border-color: var(--accent); } .per:hover { border-color: var(--accent); }
+.race small { display: block; font-weight: 400; font-size: 11px; opacity: .85; }
+.attr .v { white-space: nowrap; font-size: 18px; } .attr .v small { font-size: 13px; color: var(--muted); font-weight: 500; }
+.attr.salv .k::after { content: ' ●'; color: var(--accent); font-size: 10px; }
+.attr .v { width: auto; text-align: left; flex: 1; }

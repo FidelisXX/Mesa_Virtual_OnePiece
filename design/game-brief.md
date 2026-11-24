@@ -21,6 +21,7 @@ After play: "Uma ideia para economizar token, o jogador pode escrever vários te
 After play: "A resposta foi bem ruim, então vamos logo fazer a integração com a API" (o narrador passa a poder ser o Gemini, por um servidor local que guarda a chave; sem o servidor, o narrador de tabela continua como reserva)
 After play: "Lembre de colocar um local onde eu possa informar a chave da api" (a chave é digitada no jogo, botão IA, e vai só para o servidor local, que a guarda na memória e no server/.env; o navegador não a guarda)
 After play: "Eu quero que também tenha uma versão mobile, onde o jogador que entrar pelo celular consiga mover o token, acessar o chat, tudo de uma forma muito boa, seguindo o modelo do Friend&Fable" · "As mesas podem ter um convite para que possam jogar juntos" (a mesa vira uma sala com código e link de convite, num servidor que repassa tudo em tempo real; o celular ganha abas embaixo, chat em primeiro plano e a cena em tela cheia)
+After play: "Veja esses dois sistemas de regras, eu quero implementar eles ao meu jogo. O guia do narrador deve ajudar a IA em como narrar para os jogadores. Já o livro do jogador, deve ser o caminho para que cada jogador crie sua ficha." (o jogo passa a usar o OP RPG: a ficha e a criação seguem o Livro do Jogador; o narrador de IA seguirá o Guia do Narrador; as fichas antigas ficam guardadas só para consulta)
 
 **Pitch:** Uma carreira de One Piece jogada por texto: crie um pirata ou marinheiro de uma raça rara, navegue sozinho entre as ilhas dos quatro mares, lute com ataques que você mesmo monta e suba do nível 1 ao 100.
 
@@ -58,7 +59,7 @@ Fácil, moderado ou difícil conforme o nível do grupo: o primeiro evento na vi
 
 ## Features
 - [x] Login e cadastro (conta local neste navegador) com vários personagens por conta; o Mestre entra pela tag mestre
-- [x] Personagem: 8 raças com atributos e especial próprios, roleta de 1% (uma vez) para Gigante Ancestral e Lunariano, classes lutador/espadachim/atirador, profissões carpinteiro/navegador/timoneiro/cozinheiro/médico, nível 1–100 com curva lenta
+- [x] Personagem pelo OP RPG (Livro do Jogador 2.1): criação em 7 passos (espécie, estilo de combate, profissão, atributos, personagem, equipamento, tripulação), seis atributos (FOR, DES, CON, SAB, VON, PRE), 8 espécies, 12 estilos, 20 profissões, 17 antecedentes, 19 perícias, Vida/CR/Pontos de Poder pelas fórmulas do livro, níveis 1 a 20; a roleta de 1% agora sorteia as Variações Raras
 - [x] Ataques criados: dano inicial + efeitos comprados com Energia (+dano, veneno, atordoar, prender, queimar, alcance), rolagem d20 + atributo contra a Defesa
 - [x] Mundo: 4 mares iniciais, ilhas catalogadas, mar e ilha inicial escolhidos ou aleatórios
 - [x] Viagem automática pela carta náutica com eventos de clima (as profissões decidem), navio com Casco e comida, e luta naval em 3D (tempo real) ou por turnos

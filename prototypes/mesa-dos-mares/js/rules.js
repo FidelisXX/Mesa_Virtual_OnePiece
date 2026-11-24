@@ -5,7 +5,9 @@
 'use strict';
 
 // ---- Nível 1 a 100 ----
-const xpNext = lv => Math.round(tune.xpBase * Math.pow(lv, tune.xpExp));
+const xpNext = lv => (PE_NIVEL[lv + 1] != null ? PE_NIVEL[lv + 1] - PE_NIVEL[lv] : Infinity);   // PE entre um nível e o seguinte (tabela do livro)
+const AVA = [4, 8, 12, 16, 20];   // níveis que dão aumento de atributo (+2 pontos)
+const attrLimite = lv => (lv >= 16 ? 24 : lv >= 12 ? 22 : 20);
 const xpTotal = c => { let t = c.xp || 0; for (let l = 1; l < (c.lv || 1); l++) t += xpNext(l); return t; };
 function levelMsg(c, txt) { const ch = chanOf(c); if (ch) sysMsg(ch, txt); }
 
@@ -17,10 +19,10 @@ function refreshChar(c, heal) {
 }
 function addXp(c, n) {
   if (c.gm || n <= 0 || c.lv >= tune.maxLv) return 0;
-  n = Math.round(n * ((RACES[c.raca] || {}).xpMul || 1)); c.xp += n; let up = 0;
+  n = Math.round(n * ((RACES[c.raca] || {}).xpMul || 1) * tune.xpMul); c.xp += n; let up = 0;   // tune.xpMul: as recompensas antigas valiam pouco diante da tabela do livro
   while (c.lv < tune.maxLv && c.xp >= xpNext(c.lv)) {
     c.xp -= xpNext(c.lv); c.lv++; up++;
-    if (c.lv % tune.ptsEvery === 0) c.pts = (c.pts || 0) + 1;
+    if (AVA.includes(c.lv)) c.pts = (c.pts || 0) + 2;
   }
   if (c.lv >= tune.maxLv) c.xp = 0;
   if (up) { refreshChar(c, true); levelMsg(c, c.nome + ' chegou ao nível ' + c.lv + '!'); tone(660, 0.12, 'triangle', 0.3); setTimeout(() => tone(880, 0.2, 'triangle', 0.3), 130); }
@@ -34,12 +36,12 @@ function loseXp(c, n) {
   n = Math.max(0, Math.round(n)); c.xp -= n; let down = 0;
   while (c.xp < 0 && c.lv > 1) { c.lv--; c.xp += xpNext(c.lv); down++; }
   if (c.xp < 0) c.xp = 0;
-  if (down) { if ((c.pts || 0) > 0 && c.lv % tune.ptsEvery === tune.ptsEvery - 1) c.pts--; refreshChar(c, false); levelMsg(c, c.nome + ' desceu para o nível ' + c.lv + '.'); }
+  if (down) { if (AVA.includes(c.lv + 1)) c.pts = Math.max(0, (c.pts || 0) - 2); refreshChar(c, false); levelMsg(c, c.nome + ' desceu para o nível ' + c.lv + '.'); }
   else commit('chars', c.id, c);
   return n;
 }
 function loseLevels(c, n) {
-  const was = c.lv; c.lv = Math.max(1, c.lv - n); c.xp = 0; c.pts = Math.min(c.pts || 0, Math.floor(c.lv / tune.ptsEvery));
+  const was = c.lv; c.lv = Math.max(1, c.lv - n); c.xp = 0; c.pts = Math.min(c.pts || 0, 2 * AVA.filter(x => x <= c.lv).length);
   refreshChar(c, false); return was - c.lv;
 }
 

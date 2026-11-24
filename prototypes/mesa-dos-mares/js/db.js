@@ -44,36 +44,15 @@ const ISLAND = Object.fromEntries(ISLANDS.map(i => [i.id, i]));
 const islandsOf = mar => ISLANDS.filter(i => i.mar === mar);
 const isBase = isl => !!isl && isl.tema === 'base';
 
-const ATTRS = [
-  { k: 'FOR', nome: 'Força' }, { k: 'AGI', nome: 'Agilidade' }, { k: 'VIG', nome: 'Vigor' },
-  { k: 'TEC', nome: 'Técnica' }, { k: 'ESP', nome: 'Espírito' }, { k: 'CAR', nome: 'Carisma' },
-];
+// Atributos, espécies, estilos e profissões: OP RPG (js/opdata.js). Os nomes abaixo ficam para o resto do jogo.
+const ATTRS = ATRIBUTOS.map(a => ({ k: a.k, nome: a.nome }));
+const ficha_antiga = { nome: 'Ficha antiga', esp: 'Personagem criado nas regras anteriores: refaça pelo livro.', desc: '', mods: {}, atk: 'FOR', dado: 6, hp: 0, reach: 1, size: 1 };
+const comFallback = obj => new Proxy(obj, { get: (t, k) => (k in t || typeof k === 'symbol' ? t[k] : ficha_antiga) });
+const RACES = comFallback(Object.fromEntries(Object.entries(ESPECIES).map(([k, e]) => [k, Object.assign({ esp: e.ben + ' ' + e.dif, mods: {} }, e)])));
+const CLASSES = comFallback(Object.fromEntries(Object.entries(ESTILOS).map(([k, e]) => [k, Object.assign({ atk: e.prim[0], hp: 0 }, e)])));
+const PROFS = comFallback(Object.fromEntries(Object.entries(PROFISSOES).map(([k, p]) => [k, p])));
+const isLegacy = c => !!c && !c.gm && c.v !== 2;   // personagem das regras anteriores: guardado, mas não joga
 
-// ---- Raças: atributos e um especial cada. As duas raras só saem na roleta (1% cada, uma vez por conta) ----
-const RACES = {
-  humano:    { nome: 'Humano', mods: { CAR: 1, TEC: 1 }, esp: 'Versátil: ganha 10% mais XP.', xpMul: 1.1 },
-  bracos:    { nome: 'Braços Longos', mods: { FOR: 1, TEC: 1 }, esp: 'Alcance: +1 quadrado em todo ataque.', reach: 1 },
-  pernas:    { nome: 'Pernas Longas', mods: { AGI: 2 }, esp: 'Passada longa: +2 na iniciativa e +1 na Defesa.', ini: 2, def: 1 },
-  pescoco:   { nome: 'Pescoço Longo', mods: { ESP: 1, TEC: 1 }, esp: 'Vigia: +3 nos testes contra eventos do mar.', evento: 3 },
-  tritao:    { nome: 'Tritão / Sereiano', mods: { VIG: 1, AGI: 1 }, esp: 'Filho do mar: +2 nos testes do mar e nunca se afoga.', evento: 2 },
-  gigante:   { nome: 'Gigante', mods: { FOR: 3, VIG: 2, AGI: -2 }, esp: 'Enorme: Vida +50% e token 2x2.', hpMul: 1.5, size: 2 },
-  tontatta:  { nome: 'Tontatta', mods: { AGI: 3, FOR: -1 }, esp: 'Miúdo e veloz: Defesa +3; difícil de acertar.', def: 3, size: 0.7 },
-  mink:      { nome: 'Mink', mods: { AGI: 1, FOR: 1 }, esp: 'Electro: seus golpes que atordoam custam 1 Energia a menos.', electro: true },
-  ancestral: { nome: 'Gigante Ancestral', rare: true, mods: { FOR: 5, VIG: 4, AGI: -1 }, esp: 'Lendário: Vida em dobro, token 3x3 e +2 de dano em todo ataque.', hpMul: 2, size: 3, dmg: 2 },
-  lunariano: { nome: 'Lunariano', rare: true, mods: { FOR: 2, AGI: 2, VIG: 2, ESP: 2 }, esp: 'Chama nas costas: Defesa +3 enquanto tiver Energia e imune a queimadura.', def: 3, fireImmune: true },
-};
-const CLASSES = {
-  lutador:    { nome: 'Lutador',    atk: 'FOR', dado: 6, hp: 3, reach: 1, desc: 'Punhos e chutes: +3 de Vida, dano 1d6 e ataca de perto.' },
-  espadachim: { nome: 'Espadachim', atk: 'FOR', dado: 8, hp: 0, reach: 1, desc: 'Lâminas: dano base 1d8, ataca de perto.' },
-  atirador:   { nome: 'Atirador',   atk: 'TEC', dado: 8, hp: 0, reach: 6, desc: 'Armas de fogo: dano base 1d8, ataca de longe (6 quadrados).' },
-};
-const PROFS = {
-  carpinteiro: { nome: 'Carpinteiro', desc: 'Conserta o casco em viagem e na luta naval, e paga metade no reparo do comércio.' },
-  navegador:   { nome: 'Navegador',   desc: 'A viagem é 25% mais curta e +3 nos testes de clima.' },
-  timoneiro:   { nome: 'Timoneiro',   desc: '+2 nos testes de clima; o navio vira melhor e desvia de tiros na luta 3D.' },
-  cozinheiro:  { nome: 'Cozinheiro',  desc: 'A tripulação gasta metade da comida e recupera Energia ao chegar.' },
-  medico:      { nome: 'Médico',      desc: 'A tripulação recupera Vida ao chegar e perde menos XP nas derrotas.' },
-};
 // NPCs: o nível manda na Vida, no ataque e na defesa (veja npcHp, npcAtk, npcDef)
 const NPC_KINDS = {
   aldeao:    { nome: 'Aldeão',             lv: 1,  mul: 0.6, cor: '#7a5a34' },
@@ -295,21 +274,36 @@ function profOn(key, prof) { // o melhor tripulante com essa profissão
   let best = null; crewOf(key).forEach(c => { if (c.prof === prof && (!best || attr(c, 'TEC') > attr(best, 'TEC'))) best = c; }); return best;
 }
 
-// ---- Atributos totais: base + raça + bônus da carreira (recompensa ou patente) ----
-function attr(c, k) {
-  if (!c || !c.attrs) return 0;
-  const r = RACES[c.raca] || {};
-  return (c.attrs[k] || 0) + ((r.mods || {})[k] || 0) + (typeof careerBonus === 'function' ? careerBonus(c) : 0);
+// ---- Atributos (OP RPG): o valor fica na ficha; o modificador é (valor − 10) ÷ 2. Os nomes antigos dos atributos ainda funcionam. ----
+const ATTR_ANTIGO = { AGI: 'DES', VIG: 'CON', TEC: 'DES', ESP: 'VON', CAR: 'PRE' };
+const hasHb = (c, k) => !!(c && (c.hb || []).includes(k));
+// valor do atributo: o da ficha + o bônus da carreira (recompensa ou patente)
+function attrVal(c, k) {
+  if (!c || !c.attrs) return 10;
+  k = ATTR_ANTIGO[k] || k; const base = c.attrs[k] == null ? 10 : c.attrs[k];
+  return Math.min(30, base + (typeof careerBonus === 'function' ? careerBonus(c) : 0));
 }
+const attr = (c, k) => (c && c.attrs ? modDe(attrVal(c, k)) : 0);   // o modificador, que é o que entra nas rolagens
+const atkAttr = c => (c && c.prim) || (CLASSES[c && c.classe] || {}).atk || 'FOR';   // o atributo do ataque: o primário do estilo
+const especiePV = c => { const e = ESPECIES[c.raca]; if (!e) return 10; if (e.mestico) { const a = ESPECIES[c.raca1], b = ESPECIES[c.raca2]; return a && b ? Math.floor((a.pv + b.pv) / 2) : 10; } return e.pv; };
+// Vida: 1º nível = dado máximo + PV da espécie + Constituição; depois o valor médio do dado + Constituição por nível (p.10 e p.13)
 function hpMaxOf(c) {
-  const r = RACES[c.raca] || {}, cl = CLASSES[c.classe] || {};
-  return Math.round((tune.hpBase + attr(c, 'VIG') * tune.hpPerVig + (c.lv || 1) * tune.hpPerLv + (cl.hp || 0)) * (r.hpMul || 1));
+  const est = ESTILOS[c.classe]; if (!est) return 10;
+  const lv = c.lv || 1, con = attr(c, 'CON'), dv = est.dv;
+  let pv = dv + especiePV(c) + con + (lv - 1) * Math.max(1, Math.floor(dv / 2) + 1 + con);
+  if (hasHb(c, 'robusto')) pv += 3 * lv;
+  return Math.max(1, pv);
 }
-const stMaxOf = c => tune.stBase + attr(c, 'ESP') * tune.stPerEsp + Math.floor((c.lv || 1) / 2);
+const stMaxOf = c => 4 * (c.lv || 1);   // Pontos de Poder = 4 × nível (p.36)
+// Classe de Resistência: 10 + Destreza; Corpo de Guerreiro e Defesa Ofensiva usam o atributo primário (p.38)
 function defOf(c) {
-  const r = RACES[c.raca] || {};
-  return tune.defBase + attr(c, 'AGI') + Math.floor((c.lv || 1) / 10) + ((r.def && !(c.raca === 'lunariano' && !(c.st > 0))) ? r.def : 0);
+  const lv = c.lv || 1, des = attr(c, 'DES'), prim = attr(c, atkAttr(c));
+  let cr = 10 + des;
+  if (hasHb(c, 'corpo')) cr = 10 + Math.max(1, prim) + Math.min(attr(c, 'CON'), lv === 1 ? 1 : Math.floor(lv / 2));
+  else if (hasHb(c, 'defesa')) cr = 10 + prim;
+  return cr + ((RACES[c.raca] || {}).def || 0);
 }
+const bonusDe = (c, per) => attr(c, PERICIA[per].a) + ((c.pericias || []).includes(per) ? bonusProf(c.lv) : 0);   // d20 + isto contra a CD
 
 // ---- Dados (rng seeded para o resultado) ----
 function roll(sides) { return 1 + Math.floor(rng() * sides); }
@@ -317,7 +311,7 @@ function roll(sides) { return 1 + Math.floor(rng() * sides); }
 function parseRolagem(src, c) {
   let f = String(src || '').replace(/\s+/g, '').toUpperCase();
   if (!f) return { erro: 'Fórmula vazia.' };
-  f = f.replace(/\b(FOR|AGI|VIG|TEC|ESP|CAR)\b/g, k => String(attr(c, k)));
+  f = f.replace(/\b(FOR|DES|CON|SAB|VON|PRE|AGI|VIG|TEC|ESP|CAR)\b/g, k => String(attr(c, k)));
   f = f.replace(/\+-/g, '-').replace(/--/g, '+');
   const terms = f.match(/[+-]?[^+-]+/g);
   if (!terms) return { erro: 'Não entendi "' + src + '".' };

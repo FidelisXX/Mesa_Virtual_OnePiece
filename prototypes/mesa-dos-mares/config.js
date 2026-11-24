@@ -20,15 +20,16 @@ window.CONFIG = {
   cdFacil:        { value: 10,   min: 5,   max: 30,  step: 1 },
   cdMedia:        { value: 15,   min: 5,   max: 30,  step: 1 },
   cdDificil:      { value: 20,   min: 5,   max: 35,  step: 1 },
-  berriesStart:   { value: 600,  min: 0,   max: 5000, step: 50 },   // Berries ao criar o personagem
+  berriesStart:   { value: 0, min: 0, max: 500000, step: 1000 },   // Berries ao criar o personagem
 
   // ---- Nível 1 a 100: o XP do próximo nível é xpBase × nível ^ xpExp ----
   xpBase:         { value: 40,   min: 5,   max: 400, step: 5 },
   xpExp:          { value: 2.2,  min: 1.2, max: 3.2, step: 0.1 },
-  maxLv:          { value: 100,  min: 10,  max: 100, step: 1 },
+  maxLv:          { value: 20,   min: 5,   max: 20,  step: 1 },     // o livro vai do nível 1 ao 20
+  xpMul:          { value: 6,    min: 1,   max: 50,  step: 1 },     // multiplica as recompensas de XP do jogo (até a luta passar a dar XP por nível de desafio)
   ptsEvery:       { value: 3,    min: 1,   max: 10,  step: 1 },     // um ponto de atributo a cada tantos níveis
   xpPerNpcLv:     { value: 8,    min: 1,   max: 100, step: 1 },     // XP por nível de um NPC vencido, ajustado pela diferença de nível
-  berriesPerNpcLv:{ value: 30,   min: 0,   max: 300, step: 5 },
+  berriesPerNpcLv:{ value: 3000,   min: 0,   max: 30000, step: 500 },
   repPerKill:     { value: 3,    min: 0,   max: 30,  step: 1 },     // reputação por NPC vencido (por nível/4 +)
   roletaChance:   { value: 0.01, min: 0.001, max: 0.5, step: 0.001 }, // chance de cada raça rara na roleta (uma vez por conta)
 
@@ -59,9 +60,9 @@ window.CONFIG = {
   rankRepMul:     { value: 0.2,  min: 0.02, max: 3,  step: 0.02 },  // multiplica a reputação de cada patente (a tabela está em db.js)
   rankAttrPer:    { value: 0.4,  min: 0,   max: 1.5, step: 0.1 },   // bônus em todos os atributos por patente
   saqueRep:       { value: 6,    min: 0,   max: 40,  step: 1 },
-  saqueBerries:   { value: 120,  min: 0,   max: 2000, step: 10 },   // por nível da ilha-base de dificuldade (nível do jogador)
+  saqueBerries:   { value: 12000,  min: 0,   max: 200000, step: 1000 },   // por nível da ilha-base de dificuldade (nível do jogador)
   missaoRep:      { value: 14,   min: 0,   max: 80,  step: 1 },
-  missaoBerries:  { value: 200,  min: 0,   max: 3000, step: 10 },
+  missaoBerries:  { value: 20000,  min: 0,   max: 300000, step: 1000 },
   enieSec:        { value: 120,  min: 10,  max: 3600, step: 10 },   // segundos de pena em Enies Lobby
   impelSec:       { value: 420,  min: 10,  max: 7200, step: 10 },   // segundos de pena em Impel Down
   enieBounty:     { value: 0.5,  min: 0,   max: 1,   step: 0.05 },  // fração da recompensa perdida em Enies Lobby
@@ -95,11 +96,11 @@ window.CONFIG = {
   autoEncounter:  { value: 0.6,  min: 0,   max: 1,   step: 0.05 },  // chance do mestre automático armar uma luta ao chegar na ilha
 
   // ---- Comércio ----
-  priceFood:      { value: 8,    min: 1,   max: 100, step: 1 },     // por unidade de comida
-  priceRepair:    { value: 6,    min: 1,   max: 100, step: 1 },     // por ponto de casco
-  priceHeal:      { value: 40,   min: 1,   max: 500, step: 5 },     // curativo: recupera metade da Vida
-  priceCannon:    { value: 600,  min: 50,  max: 5000, step: 50 },
-  priceSails:     { value: 800,  min: 50,  max: 5000, step: 50 },
+  priceFood:      { value: 800,    min: 100,   max: 10000, step: 100 },     // por unidade de comida
+  priceRepair:    { value: 600,    min: 100,   max: 10000, step: 100 },     // por ponto de casco
+  priceHeal:      { value: 4000,   min: 100,   max: 50000, step: 500 },     // curativo: recupera metade da Vida
+  priceCannon:    { value: 60000,  min: 5000,  max: 500000, step: 5000 },
+  priceSails:     { value: 80000,  min: 5000,  max: 500000, step: 5000 },
   carpDiscount:   { value: 0.5,  min: 0,   max: 1,   step: 0.05 },  // desconto do Carpinteiro no reparo
   cannonMax:      { value: 6,    min: 1,   max: 12,  step: 1 },
   sailsMax:       { value: 4,    min: 1,   max: 8,   step: 1 },

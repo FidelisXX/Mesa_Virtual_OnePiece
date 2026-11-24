@@ -106,17 +106,17 @@ const Combat = (() => {
     c.st -= atk.custo; commit('chars', c.id, c); syncPc(c);
     if (atk.img && typeof Fx !== 'undefined') Fx.cast(currentView(), c.nome, atk);
     const cl = CLASSES[c.classe], race = RACES[c.raca] || {}, ch = currentView(), def = defOfToken(t);
-    const r = rolarD20(attr(c, cl.atk) + Math.floor(c.lv / 5), modo || 'normal'); r.label = atk.nome + ' (' + cl.nome + ')'; r.vs = { nome: t.nome, def };
+    const r = rolarD20(attr(c, atkAttr(c)) + bonusProf(c.lv), modo || 'normal'); r.label = atk.nome + ' (' + cl.nome + ')'; r.vs = { nome: t.nome, def };
     postRollTo(ch, c.nome, r, { fac: c.faccao });
     const by = { side: c.faccao, nome: c.nome, char: c };
     if (r.nat === 1 || (r.nat !== 20 && r.total < def)) { sysMsg(ch, c.nome + ' erra ' + t.nome + '.'); sheetDirty = true; return; }
-    const crit = r.nat === 20, n = countFx(atk.fx, 'dano'), mod = attr(c, cl.atk) + (race.dmg || 0);
+    const crit = r.nat === 20, n = countFx(atk.fx, 'dano'), mod = attr(c, atkAttr(c)) + (race.dmg || 0);
     const f = (crit ? 2 : 1) * 1 + 'd' + cl.dado + (n ? '+' + (n * (crit ? 2 : 1)) + 'd6' : '') + '+' + mod;
     const d = parseRolagem(f, null); d.label = 'Dano em ' + t.nome + (crit ? ' (crítico)' : ''); d.formula = f.toLowerCase();
     postRollTo(ch, c.nome, d, { fac: c.faccao });
     // efeitos de status (a resistência é uma rolagem à parte)
     t.status = t.status || {};
-    const tc = charOf(t), cd = 10 + attr(c, 'ESP') + Math.floor(c.lv / 10);
+    const tc = charOf(t), cd = 8 + bonusProf(c.lv) + attr(c, atkAttr(c));
     const resist = (label, attrK) => {
       const rr = rolarD20(tc ? attr(tc, attrK) : Math.floor((t.lv || 1) / 2), 'normal'); rr.label = label + ' de ' + t.nome; rr.cd = cd; postRollTo(ch, t.nome, rr, { npc: tc ? undefined : t.id }); return rr.total >= cd;
     };

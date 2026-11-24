@@ -187,7 +187,7 @@ const Chat = (() => {
     if (cmd) {
       const c = cmd[1].toLowerCase(), rest = cmd[2];
       if (c === 'r' || c === 'roll' || c === 'rolar') { rollFormula(rest || '1d20'); ta.value = ''; preview(); return; }
-      if (c === 'teste') { const [a, cd] = rest.toUpperCase().split(/\s+/); if (ATTRS.some(x => x.k === a)) teste(a, cd ? +cd : 0, 'normal'); else toast('Use /teste FOR 15 (FOR, AGI, VIG, TEC, ESP, CAR).'); ta.value = ''; preview(); return; }
+      if (c === 'teste') { const [a0, cd] = rest.trim().split(/\s+/), a = a0.toUpperCase(), k = ATTRS.some(x => x.k === a) ? a : periciaKey(a0); if (k) teste(k, cd ? +cd : 0, 'normal'); else toast('Use /teste FOR 15 ou /teste atletismo 15 (FOR, DES, CON, SAB, VON, PRE ou uma perícia).'); ta.value = ''; preview(); return; }
       if (c === 'limpar' && isGM()) { clearChannel(currentView()); ta.value = ''; return; }
       const map = { me: 'acao', acao: 'acao', n: 'narra', narrar: 'narra', ooc: 'ooc', s: 'sussurro', sus: 'sussurro', g: 'grito', grito: 'grito', f: 'fala' };
       if (map[c]) { tipo = map[c]; txt = rest; }
@@ -214,8 +214,8 @@ const Chat = (() => {
     r.label = 'Rolagem'; postRoll(r);
   }
   function teste(a, cd, modoD, label) {
-    const c = me(); const r = rolarD20(attr(c, a), modoD || 'normal');
-    r.label = label || ('Teste de ' + ATTRS.find(x => x.k === a).nome); r.cd = cd || 0; r.modo = modoD; postRoll(r);
+    const c = me(), per = PERICIA[a]; const r = rolarD20(per ? bonusDe(c, a) : attr(c, a), modoD || 'normal');
+    r.label = label || ('Teste de ' + (per ? per.nome : (ATTRS.find(x => x.k === a) || { nome: a }).nome)); r.cd = cd || 0; r.modo = modoD; postRoll(r);
   }
 
   // ---- Quando chega mensagem (minha ou de outra aba) ----

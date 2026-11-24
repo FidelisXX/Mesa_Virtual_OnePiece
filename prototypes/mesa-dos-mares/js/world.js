@@ -32,7 +32,8 @@ const Acc = (() => {
     spin() {
       const a = this.cur(); if (!a || a.roleta) return null;
       const r = rng(), ch = tune.roletaChance;
-      a.roleta = { res: r < ch ? 'ancestral' : r < ch * 2 ? 'lunariano' : 'nada', ts: Date.now() }; commit('accounts', a.key, a); return a.roleta.res;
+      const ks = Object.keys(VARIACOES_RARAS), i = Math.floor(r / ch);
+      a.roleta = { res: i < ks.length ? ks[i] : 'nada', ts: Date.now() }; commit('accounts', a.key, a); return a.roleta.res;
     },
     unlocked: () => { const a = Acc.cur(); return a && a.roleta && a.roleta.res !== 'nada' ? [a.roleta.res] : []; },
   };
@@ -227,7 +228,7 @@ const Events = (() => {
     commit('ships', s.key, s); Travel.resume(s);
   }
   function bau(s) {
-    Travel.pause(s); const money = Math.round(60 * (1 + Master.cls(s).lvMed / 3) * (0.7 + rng() * 0.6)), c = crewOf(s.key)[0];
+    Travel.pause(s); const money = Math.round(6000 * (1 + Master.cls(s).lvMed / 3) * (0.7 + rng() * 0.6)), c = crewOf(s.key)[0];
     sysMsg(deck(s), 'Um baú boia à deriva! Dentro, ' + money + ' Berries encharcados.'); crewOf(s.key).forEach(x => { x.berries = (x.berries || 0) + Math.round(money / Math.max(1, crewOf(s.key).length)); commit('chars', x.id, x); }); Travel.resume(s);
   }
   function naufrago(s) {
