@@ -376,7 +376,6 @@ function createHTML() { return Criar.html(); }
 function bindCreate() { Criar.bind(); }
 function aposCriar(c) {
   sysMsg(chanOf(c), c.nome + ' (' + RACES[c.raca].nome + ', ' + CLASSES[c.classe].nome + ') chega à tripulação.');
-  const sh = shipOf(c); if (sh && sh.at && !Object.values(db.msgs).some(m => m.ch === sh.at && m.uid === 'mestre')) Master.say(sh.at, '**' + ISLAND[sh.at].nome + '.** ' + ISLAND[sh.at].intro);
 }
 function pauseHTML() {
   return `<div class="card small"><h1 style="font-size:34px">Pausa</h1><div class="tagline">A mesa continua para os outros</div>
@@ -499,7 +498,7 @@ function renderTecs() {
   if (c.gm) { el.innerHTML = '<div class="note">O Mestre não usa técnicas. Os NPCs lutam com a força do nível deles.</div>'; return; }
   const cl = CLASSES[c.classe], race = RACES[c.raca], list = [BASIC, ...(c.ataques || [])];
   el.innerHTML = `<button class="btn tec-cta" id="tecNew" ${(c.ataques || []).length >= tune.atkMax ? 'disabled' : ''}>+ Criar técnica</button>
-  <div class="note">Uma técnica é o seu golpe: dano inicial <b>${atkDice(c, [])}+${attr(c, atkAttr(c))}</b> mais efeitos que você compra com Energia. Custo máximo por técnica: <b>${atkCap(c)}</b> (sobe com o nível). Energia agora: <b>${c.st}/${c.stMax}</b>. Limite: ${tune.atkMax} técnicas.</div>
+  <div class="note">Uma técnica é o seu golpe: dano inicial <b>${atkDice(c, [])}+${attr(c, atkAttr(c))}</b> mais efeitos que você compra com Pontos de Poder. Custo máximo por técnica: <b>${atkCap(c)}</b> PP (sobe com o nível). PP agora: <b>${c.st}/${c.stMax}</b>. Limite: ${tune.atkMax} técnicas.</div>
   <h3>Suas técnicas</h3><div class="tec-list">${list.map((a, i) => `<div class="tec"><div class="tec-h"><b>${esc(a.nome)}</b><span>custo ${a.custo}</span></div><div class="note">${atkDice(c, a.fx)}+${attr(c, atkAttr(c)) + (race.dmg || 0)} · alcance ${atkReach(c, a.fx)} · tecla ${i + 1}</div><div>${a.fx.length ? [...new Set(a.fx)].map(k => '<span class="chip-fx">' + FX[k].nome + (countFx(a.fx, k) > 1 ? ' ×' + countFx(a.fx, k) : '') + '</span>').join('') : '<span class="chip-fx">sem efeitos</span>'}</div><button class="btn sm red" data-use="${a.id}" ${c.st < a.custo ? 'disabled' : ''}>Usar</button>${a.id === 'basico' ? '' : '<button class="btn sm wood" data-edit="' + a.id + '">Editar</button>'}</div>`).join('')}</div>
   <div class="tec-help"><b>Como usar:</b> selecione um alvo no mapa (clique, ou tecle <kbd>F</kbd> para o inimigo mais próximo), chegue perto o bastante e use a técnica pelo botão, pela barra de atalhos ou pelas teclas <kbd>1</kbd> a <kbd>9</kbd>.<br><b>Efeitos:</b> ${Object.values(FX).map(f => f.nome).join(', ')}.</div>`;
   $('tecNew').onclick = () => atkEditor(null);
@@ -521,7 +520,7 @@ function renderHotbar(show) {
 function applyTheme(t) { document.documentElement.dataset.theme = t; try { localStorage.setItem('mdm-theme', t); } catch (e) { /* tudo bem */ } dirty.msgs = true; sheetDirty = true; tecDirty = true; hotSig = ''; }
 const QUICK = [['Olhar ao redor', 'olha ao redor e investiga o lugar.'], ['Conversar', 'puxa conversa com alguém por perto.'], ['Esgueirar-se', 'se esgueira pelas sombras sem ser notado.'], ['Forçar', 'tenta arrombar o que estiver trancado.'], ['Procurar briga', 'procura briga com o primeiro valentão que encontrar.']];
 function renderChips() {
-  const c = me(), el = $('actChips'), v = c && currentView(), show = !!(c && !c.gm && (isIsland(v) || isDeck(v)) && db.world.auto);
+  const c = me(), el = $('actChips'), v = c && currentView(), show = !!(c && !c.gm && (isIsland(v) || isDeck(v)) && Master.auto(v));
   $('callBar').hidden = !show;
   if (show) {
     $('callCount').textContent = Master.pendingCount(v); $('callMaster').disabled = Master.thinking; $('callLbl').textContent = Master.thinking ? 'Narrador pensando…' : 'Chamar o narrador';
@@ -552,21 +551,34 @@ function imagemDaTecnica(file, cb) {
   };
   fr.readAsDataURL(file);
 }
+// O "i" da criação de técnicas: o que é, quanto custa e como se usa
+function infoTecnica(c) {
+  const f = k => fxCost(c, k);
+  return `<div class="info-box"><b>Como funciona a criação de técnicas</b><ul>
+    <li><b>O golpe-base.</b> Toda técnica parte do dano do seu estilo (<b>${atkDice(c, [])} + ${attr(c, atkAttr(c))}</b>). Sem efeitos ela custa só ${tune.atkBase} PP.</li>
+    <li><b>Efeitos.</b> Você compra efeitos com Pontos de Poder: <b>+Dano</b> (${f('dano')} PP, até 3 vezes, +1d6 cada), <b>Veneno</b> (${f('veneno')}), <b>Queimar</b> (${f('queimar')}), <b>Atordoar</b> (${f('atordoar')}), <b>Prender</b> (${f('prender')}) e <b>+Alcance</b> (${f('alcance')} PP, até 2 vezes, +2 quadrados cada). O custo total é o que você gasta <i>cada vez</i> que usa a técnica.</li>
+    <li><b>Limite.</b> Uma técnica não pode custar mais que <b>${atkCap(c)} PP</b> (o limite sobe com o nível). Você tem <b>${c.stMax} PP</b> no total, que voltam no descanso; sem PP suficiente a técnica não dispara. Pode guardar até ${tune.atkMax} técnicas.</li>
+    <li><b>Como acerta.</b> d20 + seu modificador + proficiência contra a CR do alvo. No 20 natural é crítico (dano dobrado); no 1 natural erra sempre.</li>
+    <li><b>Atordoar e Prender</b> dão ao alvo uma salvaguarda (CD = 8 + proficiência + seu atributo): se ele passar, o efeito não pega. Veneno e Queimar não têm salvaguarda.</li>
+    <li><b>Imagem ou GIF.</b> Opcional: aparece na cena de quem está na ilha quando você usa a técnica.</li>
+    <li><b>Para usar:</b> na aba Técnicas, na barra do mapa ou com as teclas 1 a 9. O alvo é o token selecionado.</li></ul></div>`;
+}
 function atkEditor(old) {
   const c = me(), st = { nome: old ? old.nome : '', fx: old ? old.fx.slice() : [], img: old && old.img ? old.img : '' }, ov = $('overlay');
   const draw = () => {
     const custo = atkCost(c, st.fx), cap = atkCap(c), ok = custo <= cap && st.nome.trim();
-    ov.innerHTML = `<div class="card small"><h1 style="font-size:32px">${old ? 'Editar' : 'Criar'} técnica</h1><div class="tagline">Dano inicial ${atkDice(c, [])} + ${attr(c, atkAttr(c))}. Cada efeito custa Energia.</div>
+    ov.innerHTML = `<div class="card small"><h1 style="font-size:32px">${old ? 'Editar' : 'Criar'} técnica <button class="info-btn ${st.info ? 'on' : ''}" id="akInfo" title="Como funciona a criação de técnicas" aria-label="Como funciona a criação de técnicas">i</button></h1><div class="tagline">Dano inicial ${atkDice(c, [])} + ${attr(c, atkAttr(c))}. Cada efeito custa Pontos de Poder (PP).</div>${st.info ? infoTecnica(c) : ''}
     <div class="field"><label>Nome da técnica</label><input type="text" id="akNome" maxlength="28" value="${esc(st.nome)}" placeholder="Ex.: Furacão de Lâminas"></div>
     <div class="field"><label>Imagem ou GIF que aparece na cena quando você usa (opcional)</label><div class="row"><input type="text" id="akImgUrl" placeholder="Link de uma imagem ou GIF (https://…)" value="${/^data:/.test(st.img) ? '' : esc(st.img)}" style="flex:1;min-width:140px"><label class="btn wood sm" for="akImgFile">Arquivo…</label><input type="file" id="akImgFile" accept="image/*" hidden></div>${st.img ? `<div class="row"><img src="${esc(st.img)}" class="tec-prev" alt=""><button class="btn sm wood" id="akImgClear">Tirar</button></div>` : ''}</div>
     ${Object.entries(FX).map(([k, f]) => { const n = countFx(st.fx, k); return `<div class="fx"><div style="flex:1"><b>${f.nome}</b> <span class="note">custo ${fxCost(c, k)} · ${f.desc}</span></div><button class="btn sm wood" data-fx="${k}" data-d="-1">−</button><span class="val">${n}</span><button class="btn sm wood" data-fx="${k}" data-d="1" ${n >= f.max ? 'disabled' : ''}>+</button></div>`; }).join('')}
-    <div class="note" style="margin-top:8px">Dano: <b>${atkDice(c, st.fx)}+${attr(c, atkAttr(c)) + ((RACES[c.raca].dmg) || 0)}</b> · alcance <b>${atkReach(c, st.fx)}</b> · custo total <b style="color:${custo > cap ? 'var(--no)' : 'inherit'}">${custo} / ${cap}</b> de Energia por uso${RACES[c.raca].electro ? ' (Electro: atordoar mais barato)' : ''}.</div>
+    <div class="note" style="margin-top:8px">Dano: <b>${atkDice(c, st.fx)}+${attr(c, atkAttr(c)) + ((RACES[c.raca].dmg) || 0)}</b> · alcance <b>${atkReach(c, st.fx)}</b> · custo total <b style="color:${custo > cap ? 'var(--no)' : 'inherit'}">${custo} / ${cap}</b> PP por uso${RACES[c.raca].electro ? ' (Electro: atordoar mais barato)' : ''}.</div>
     <div class="actions"><button class="btn wood" id="akCancel">Cancelar</button>${old ? '<button class="btn red" id="akDel">Apagar</button>' : ''}<button class="btn" id="akSave" ${ok ? '' : 'disabled'}>Guardar</button></div></div>`;
     ov.querySelectorAll('[data-fx]').forEach(b => b.onclick = () => { const k = b.dataset.fx, d = +b.dataset.d; if (d > 0 && countFx(st.fx, k) < FX[k].max) st.fx.push(k); if (d < 0) { const i = st.fx.indexOf(k); if (i >= 0) st.fx.splice(i, 1); } draw(); });
     $('akNome').oninput = e => { st.nome = e.target.value; $('akSave').disabled = !(atkCost(c, st.fx) <= atkCap(c) && st.nome.trim()); };
     $('akImgUrl').onchange = e => { const u = e.target.value.trim(); if (!u) st.img = ''; else if (Fx.okUrl(u) && !/^data:/i.test(u)) st.img = u; else { toast('Use um link que comece com https://'); } draw(); };
     $('akImgFile').onchange = e => { const f = e.target.files[0]; if (!f) return; imagemDaTecnica(f, url => { st.img = url; draw(); }); };
     if ($('akImgClear')) $('akImgClear').onclick = () => { st.img = ''; draw(); };
+    $('akInfo').onclick = () => { st.info = !st.info; draw(); };
     $('akCancel').onclick = close; $('akSave').onclick = () => { const a = { id: old ? old.id : 'a' + uid(), nome: st.nome.trim(), fx: st.fx, custo: atkCost(c, st.fx), img: st.img || null }; c.ataques = c.ataques || []; if (old) c.ataques[c.ataques.findIndex(x => x.id === old.id)] = a; else c.ataques.push(a); commit('chars', c.id, c); sheetDirty = true; close(); toast('Técnica guardada: ' + a.nome); };
     if ($('akDel')) $('akDel').onclick = () => { c.ataques = c.ataques.filter(x => x.id !== old.id); commit('chars', c.id, c); sheetDirty = true; close(); };
   };
@@ -587,8 +599,11 @@ function renderMesa() {
   let h = '';
   const ship = c.gm ? (isDeck(v) ? db.ships[v.slice(6)] : null) : shipOf(c);
   h += '<div class="row"><button class="btn sm wood" id="musBtn">♪ Trilha sonora</button><button class="btn sm wood" id="akBtn">Akuma no Mi</button></div>';
+  if (!c.gm && c.quest && c.quest.estado === 'ativa') h += `<h3>Missão</h3><div class="ord"><div style="flex:1"><b>${esc(c.quest.titulo)}</b> <span class="tag">${{ facil: 'fácil', media: 'média', dificil: 'difícil' }[c.quest.dificuldade] || ''}</span><div class="note">${esc(c.quest.descricao)}<br><b>Objetivo:</b> ${esc(c.quest.objetivo)}</div></div></div><div class="row"><button class="btn sm" id="qDone">Concluir (receber a recompensa)</button><button class="btn sm wood" id="qDrop">Abandonar</button></div>`;
+  else if (!c.gm && isIsland(v) && ship && ship.at === v && Master.modo(v) === 'ia') h += '<div class="row"><button class="btn sm" id="qNew" ' + (Master.thinking ? 'disabled' : '') + '>Pedir uma missão ao narrador</button></div>';
   if (c.gm) {
     h += `<h3>Mestre</h3><div class="row"><select id="gmGo" style="flex:1">${gmPlaces().map(([k, n]) => `<option value="${k}" ${k === v ? 'selected' : ''} ${k.startsWith('g:') ? 'disabled' : ''}>${esc(n)}${k.startsWith('g:') ? '' : (Chat.unread(k) && k !== v ? ' (' + Chat.unread(k) + ' novas)' : '')}</option>`).join('')}</select></div>
+      <div class="row"><label class="note">Quem narra esta ilha: <select id="gmNarr"><option value="" ${!Master.modo(v) ? 'selected' : ''}>a escolher (pergunta a quem chegar)</option><option value="ia" ${Master.modo(v) === 'ia' ? 'selected' : ''}>Narrador de IA</option><option value="humano" ${Master.modo(v) === 'humano' ? 'selected' : ''}>Narrador humano</option></select></label></div>
       <div class="row"><label><input type="checkbox" id="gmAuto" ${db.world.auto ? 'checked' : ''}> Mestre automático (narra, sorteia eventos e arma lutas)</label></div>`;
   }
   if (c.prisao) h += `<h3>Prisão</h3><div class="note">Você cumpre pena em ${c.prisao.lugar === 'impel' ? 'Impel Down' : 'Enies Lobby'}. O Mestre pode soltá-lo antes.</div>`;
@@ -650,6 +665,10 @@ function renderMesa() {
   on('[data-buy]', b => b.onclick = () => Shop.buy(b.dataset.buy));
   on('[data-loja]', b => b.onclick = () => lojaModal(b.dataset.loja));
   if ($('musBtn')) $('musBtn').onclick = () => Trilha.modal();
+  if ($('qDone')) $('qDone').onclick = () => Quest.concluir(me());
+  if ($('qDrop')) $('qDrop').onclick = () => { if (confirm('Abandonar a missão?')) Quest.abandonar(me()); };
+  if ($('qNew')) $('qNew').onclick = () => Master.abertura(v, me());
+  if ($('gmNarr')) $('gmNarr').onchange = e => { const w = db.world; w.narra = Object.assign({}, w.narra); if (e.target.value) w.narra[v] = e.target.value; else delete w.narra[v]; commit('world', null, w); if (!e.target.value) Object.keys(narrPerguntado).forEach(k => delete narrPerguntado[k]); toast('Narração desta ilha: ' + ({ ia: 'IA', humano: 'humano', '': 'a escolher' }[e.target.value])); mesaDirty = true; };
   if ($('akBtn')) $('akBtn').onclick = () => Akuma.modal();
   if ($('tkLoja')) $('tkLoja').onchange = e => { const t = db.tokens[Island.sel]; if (!t) return; t.loja = e.target.value || null; commit('tokens', t.id, t); mesaDirty = true; };
   on('[data-ev]', b => b.onclick = () => {
@@ -707,6 +726,26 @@ function lojaModal(tid) {
   render();
 }
 Shop.open = lojaModal;
+// Ao entrar numa ilha, o jogador escolhe quem narra: um narrador humano (o mestre da mesa) ou a IA. A IA já abre a cena e dá uma missão.
+const narrPerguntado = {};
+const notaIa = () => (Ia.on && !Ia.mock ? 'IA conectada (' + Ia.modelo + ').' : 'A IA não está conectada: o narrador de tabela fará a abertura, com uma missão sorteada.');
+function perguntarNarrador(ch) {
+  const ov = $('overlay'); if (narrPerguntado[ch] || (db.world.narra || {})[ch] || (ov.className && ov.className !== '')) return;
+  narrPerguntado[ch] = true;
+  const fechar = () => { ov.className = ''; ov.innerHTML = ''; };
+  const desenha = () => {
+    ov.innerHTML = `<div class="card small"><h1 style="font-size:30px">Quem narra ${esc(ISLAND[ch].nome)}?</h1><div class="tagline">Escolha como a história desta ilha vai ser conduzida</div>
+      <div class="title-actions" style="max-width:none">
+        <button class="btn" id="nrIa">Narrador de IA<br><small>Abre a cena agora e entrega uma missão aleatória</small></button>
+        <button class="btn wood" id="nrHum">Narrador humano<br><small>Alguém da mesa (tag Mestre) conduz a história</small></button></div>
+      <div class="note" style="text-align:center"><span id="nrNota">${notaIa()}</span> Vale para todos nesta ilha; o mestre pode mudar depois na aba Mesa.</div></div>`;
+    ov.className = 'on';
+    const escolher = modo => { const w = db.world; w.narra = Object.assign({}, w.narra, { [ch]: modo }); commit('world', null, w); fechar(); if (modo === 'ia') Master.abertura(ch, me()); else Master.introHumano(ch); mesaDirty = true; };
+    $('nrIa').onclick = () => escolher('ia'); $('nrHum').onclick = () => escolher('humano');
+  };
+  desenha();   // a janela abre na hora; a nota sobre a IA é atualizada quando a conferência do servidor terminar
+  Ia.check().finally(() => { const e = $('nrNota'); if (e) e.textContent = notaIa(); });
+}
 function gmGo(p) {
   const c = me(); if (p.startsWith('g:')) return; c.view = p; chartOpen = false; worldOpen = false; Island.sel = null; dirty.msgs = true; mesaDirty = true; setTimeout(() => { const l = $('chatList'); l.scrollTop = l.scrollHeight; }, 0);
 }
@@ -857,7 +896,7 @@ const scenes = {
       if (Date.now() - Ia.last > 15000) Ia.check();
       if (seaOK && mode === 'fight') { Sea.update(dt, 'fight'); Fight3D.update(dt); }
       if (mode === 'naval') Naval.update(dt);
-      if (mode === 'island') { Island.populate(state.view); if (!c.gm) Island.ensureMyToken(state.view); }
+      if (mode === 'island') { Island.populate(state.view); if (!c.gm) { Island.ensureMyToken(state.view); perguntarNarrador(state.view); } }
       if (mode === 'island' && pressed('KeyF')) focusFoe();
       if (mode === 'island' && !c.gm) for (let i = 1; i <= 9; i++) if (pressed('Digit' + i)) useTec(i - 1);
       // pena cumprida?

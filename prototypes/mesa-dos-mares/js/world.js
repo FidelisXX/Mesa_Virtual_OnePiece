@@ -277,6 +277,13 @@ const Ia = (() => {
     const r = await fetch(base() + '/chave', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo), signal: AbortSignal.timeout(6000) });
     const j = await r.json(); if (!r.ok) throw new Error(j.erro || 'HTTP ' + r.status); return j;
   }
+  // A IA abre a cena numa ilha: introdução e uma missão aleatória
+  async function abertura(corpo) {
+    const h = { 'Content-Type': 'application/json' };
+    if (typeof Net !== 'undefined' && Net.sb) { try { h.Authorization = 'Bearer ' + await SB.token(); h['x-mesa'] = myMesa || ''; } catch (e) { /* sem sessão: o servidor recusa */ } }
+    const r = await fetch(base() + '/abertura', { method: 'POST', headers: h, body: JSON.stringify(corpo), signal: AbortSignal.timeout(90000) });
+    const j = await r.json(); if (!r.ok) throw new Error(j.erro || 'HTTP ' + r.status); return j;
+  }
   // O mestre descreve um NPC e a IA devolve nome, tipo, perfil e nota
   async function ficha(corpo) {
     const h = { 'Content-Type': 'application/json' };
@@ -289,7 +296,7 @@ const Ia = (() => {
     const r = await fetch(base() + '/teste', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', signal: AbortSignal.timeout(30000) });
     return r.json();
   }
-  return { check, narrar, ficha, salvar, testar, base, setBase, get on() { return on; }, get modelo() { return modelo; }, get mock() { return mock; }, get erro() { return erro; }, get last() { return last; } };
+  return { check, narrar, ficha, abertura, salvar, testar, base, setBase, get on() { return on; }, get modelo() { return modelo; }, get mock() { return mock; }, get erro() { return erro; }, get last() { return last; } };
 })();
 
 // ======================================================================================
@@ -375,9 +382,40 @@ const Master = (() => {
       later(1.2, () => { r.luta.inimigos.forEach(e => Combat.spawnNpc(ch, e.tipo, e.nivel)); later(1.4, () => { if (!(db.combat[ch] && db.combat[ch].on)) Combat.start(ch); }); });
     }
   }
+  // Quem narra cada ilha: a escolha de quem chegou primeiro (o mestre pode mudar). Sem escolha, vale o mestre automático da mesa.
+  const modo = ch => (db.world.narra || {})[ch];
+  const autoOn = ch => !!db.world.auto && modo(ch) !== 'humano';
+  const MISSOES = [
+    { tipo: 'entregar', titulo: 'Recado ao faroleiro', descricao: 'Um morador aflito pede que alguém leve um embrulho lacrado antes do anoitecer.', objetivo: 'Entregar o embrulho a quem cuida do farol, sem abrir.', dificuldade: 'facil' },
+    { tipo: 'investigar', titulo: 'Barulho na madrugada', descricao: 'Há noites algo remexe os barris do porto e ninguém viu quem foi.', objetivo: 'Descobrir o que (ou quem) mexe nos barris.', dificuldade: 'facil' },
+    { tipo: 'resgatar', titulo: 'O menino da maré', descricao: 'Uma criança foi vista pela última vez perto dos rochedos, onde a maré sobe rápido.', objetivo: 'Achar a criança antes que a maré cubra os rochedos.', dificuldade: 'media' },
+    { tipo: 'escoltar', titulo: 'Mercador com pressa', descricao: 'Um mercador precisa cruzar a ilha com uma carga valiosa e jura que está sendo seguido.', objetivo: 'Levar o mercador e a carga em segurança até o outro lado da ilha.', dificuldade: 'media' },
+    { tipo: 'cacar', titulo: 'O lobo da colina', descricao: 'Um lobo enorme anda rondando as casas e já levou metade das galinhas da vila.', objetivo: 'Afugentar ou capturar o lobo da colina.', dificuldade: 'media' },
+    { tipo: 'recuperar', titulo: 'Mapa rasgado', descricao: 'Metade de um mapa antigo foi roubada de uma taverna por um ladrão que fugiu para as ruínas.', objetivo: 'Recuperar a metade roubada do mapa.', dificuldade: 'media' },
+    { tipo: 'infiltrar', titulo: 'Papéis do cais', descricao: 'Um contrabandista guarda no armazém do cais uns papéis que podem incriminar um oficial corrupto.', objetivo: 'Entrar no armazém sem ser visto e trazer os papéis.', dificuldade: 'dificil' },
+    { tipo: 'paz', titulo: 'Briga de pescadores', descricao: 'Duas famílias de pescadores estão a ponto de se atracar por causa de uma rede cortada.', objetivo: 'Convencer as duas famílias a encerrar a briga.', dificuldade: 'facil' },
+  ];
+  const aberturaLocal = (ch, c) => { const isl = ISLAND[ch], m = Object.assign({}, pick(MISSOES)); return { introducao: '**' + isl.nome + '.** ' + isl.intro + ' ' + text('chegada', null, isl.tema), missao: m, ia: false }; };
+  function mostrarAbertura(ch, c, r) {
+    const dif = { facil: 'fácil', media: 'média', dificil: 'difícil' }[r.missao.dificuldade] || 'média';
+    say(ch, r.introducao, null, [], { ia: !!r.ia, uso: r.uso || 0 });
+    later(0.6, () => say(ch, '**Missão: ' + r.missao.titulo + '** (' + dif + ')\n' + r.missao.descricao + '\n**Objetivo:** ' + r.missao.objetivo, null, [], { ia: !!r.ia }));
+    c.quest = Object.assign({}, r.missao, { ilha: ch, estado: 'ativa', ts: Date.now() }); commit('chars', c.id, c); mesaDirty = true; sheetDirty = true;
+  }
+  // O narrador de IA abre a cena para quem chegou: introdução e uma missão aleatória. Sem IA, abre uma tabela local.
+  function abertura(ch, c) {
+    if (!c || c.gm || !isIsland(ch) || thinking) return;
+    const fallback = motivo => { if (motivo) toast('A IA não respondeu (' + motivo + '). Abri com o narrador de tabela.'); mostrarAbertura(ch, c, aberturaLocal(ch, c)); };
+    if (!Ia.on || Ia.mock) { fallback(Ia.mock ? '' : 'servidor da IA fora do ar'); return; }
+    thinking = true; toast('O narrador de IA está abrindo a cena…');
+    const ctx = montarCtx(ch, [{ ts: Date.now(), nome: c.nome, tipo: 'acao', txt: 'chega à ilha' }]);
+    ctx.jogadores = ctx.jogadores.sort((a, b) => (b.nome === c.nome) - (a.nome === c.nome));
+    Ia.abertura(ctx).then(r => mostrarAbertura(ch, c, Object.assign({}, r, { ia: true }))).catch(e => { Ia.check(); fallback(e.message); }).finally(() => { thinking = false; });
+  }
+  const introHumano = ch => { const isl = ISLAND[ch]; if (isl && !db.msgs.some(m => m.ch === ch && (m.uid === 'mestre' || m.tipo === 'sistema'))) sysMsg(ch, '**' + isl.nome + '.** ' + isl.intro); };
   // Chamar o narrador: com o servidor de IA no ar, uma chamada lê tudo e responde; senão, a tabela responde
   function call(c, ch) {
-    if (!db.world.auto || !c || c.gm || !(isIsland(ch) || isDeck(ch)) || thinking) return;
+    if (!autoOn(ch) || !c || c.gm || !(isIsland(ch) || isDeck(ch)) || thinking) return;
     const msgs = pending(ch); if (!msgs.length) { toast('Nada novo para o narrador ler. Escreva o que seu personagem faz ou diz e chame de novo.'); return; }
     if (!Ia.on) { callTabela(c, ch); return; }
     thinking = true;
@@ -385,7 +423,7 @@ const Master = (() => {
   }
   // A tabela: a reserva de quando a IA não está no ar. Lê tudo de uma vez e responde a todos.
   function callTabela(c, ch) {
-    if (!db.world.auto || !c || c.gm || !(isIsland(ch) || isDeck(ch))) return;
+    if (!autoOn(ch) || !c || c.gm || !(isIsland(ch) || isDeck(ch))) return;
     const msgs = pending(ch); if (!msgs.length) { toast('Nada novo para o narrador ler. Escreva o que seu personagem faz ou diz e chame de novo.'); return; }
     const porJogador = new Map(); msgs.forEach(m => { const a = porJogador.get(m.uid) || []; a.push(m); porJogador.set(m.uid, a); });
     const isl = ISLAND[ch], tema = isl ? isl.tema : 'vila', partes = [], asks = []; let luta = null;
@@ -412,7 +450,7 @@ const Master = (() => {
   }
   const pendingCount = ch => pending(ch).length;
   function arrival(islId, s) {
-    if (!db.world.auto) return; const isl = ISLAND[islId], c = cls(s);
+    if (!autoOn(islId)) return; const isl = ISLAND[islId], c = cls(s);
     say(islId, '**' + isl.nome + '.** ' + text('chegada', null, isl.tema));
     if (rng() >= tune.autoEncounter) return;
     const r = ask({ ilha: isl, nivelMedio: c.lvMed, faccao: s.fac });
@@ -422,7 +460,7 @@ const Master = (() => {
       later(1.6, () => { if (!(db.combat[islId] && db.combat[islId].on) && whoIn(islId).some(x => !x.gm)) Combat.start(islId); });
     });
   }
-  return { ask, say, call, pendingCount, arrival, text, cls, difficulty, get thinking() { return thinking; } };
+  return { ask, say, call, pendingCount, arrival, text, cls, difficulty, abertura, introHumano, modo, auto: autoOn, get thinking() { return thinking; } };
 })();
 
 // ======================================================================================
@@ -464,6 +502,18 @@ const Shop = (() => {
     sysMsg(s.at, c.nome + ' compra: ' + it.nome + ' (−' + berry(it.pr) + ' Berries).'); tone(520, 0.08, 'triangle', 0.2); sheetDirty = true; mesaDirty = true;
   }
   return { items, buy };
+})();
+
+const Quest = (() => {
+  const MULT = { facil: 1, media: 2, dificil: 3 };
+  function concluir(c) {
+    const q = c.quest; if (!q || q.estado !== 'ativa') return;
+    const m = MULT[q.dificuldade] || 1, xp = XP_FACIL[Math.min(20, c.lv)] * m, ouro = Math.round(tune.missaoBerries * (1 + c.lv / 4) * m);
+    const got = addXp(c, xp, true); c.berries = (c.berries || 0) + ouro; c.quest = null; commit('chars', c.id, c);
+    sysMsg(q.ilha || chanOf(c), c.nome + ' conclui a missão "' + q.titulo + '": +' + berry(got) + ' PE e ฿ ' + berry(ouro) + '.'); mesaDirty = true; sheetDirty = true;
+  }
+  function abandonar(c) { if (!c.quest) return; sysMsg(c.quest.ilha || chanOf(c), c.nome + ' abandona a missão "' + c.quest.titulo + '".'); c.quest = null; commit('chars', c.id, c); mesaDirty = true; sheetDirty = true; }
+  return { concluir, abandonar };
 })();
 
 const Train = (() => {

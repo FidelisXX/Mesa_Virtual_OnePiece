@@ -17,9 +17,9 @@ function refreshChar(c, heal) {
   c.hp = heal ? c.hpMax : Math.min(c.hp, c.hpMax); c.st = heal ? c.stMax : Math.min(c.st, c.stMax);
   commit('chars', c.id, c); syncPc(c);
 }
-function addXp(c, n) {
+function addXp(c, n, exato) {   // exato: já está na escala do livro (sem o multiplicador das recompensas antigas)
   if (c.gm || n <= 0 || c.lv >= tune.maxLv) return 0;
-  n = Math.round(n * ((RACES[c.raca] || {}).xpMul || 1) * tune.xpMul); c.xp += n; let up = 0;   // tune.xpMul: as recompensas antigas valiam pouco diante da tabela do livro
+  n = Math.round(n * ((RACES[c.raca] || {}).xpMul || 1) * (exato ? 1 : tune.xpMul)); c.xp += n; let up = 0;   // tune.xpMul: as recompensas antigas valiam pouco diante da tabela do livro
   while (c.lv < tune.maxLv && c.xp >= xpNext(c.lv)) {
     c.xp -= xpNext(c.lv); c.lv++; up++;
     if (AVA.includes(c.lv)) c.pts = (c.pts || 0) + 2;

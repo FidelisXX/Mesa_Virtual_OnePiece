@@ -102,7 +102,7 @@ const Combat = (() => {
     const c = me(); if (!c || c.gm) return; const g = getTarget(c); if (!g || !canAct(c)) return;
     const { t, mt } = g, reach = atkReach(c, atk.fx), dist = cheb(mt, t);
     if (dist > reach) { toast('Fora de alcance: o ataque alcança ' + reach + ' quadrado(s) e o alvo está a ' + dist + '. Arraste seu token para perto.'); return; }
-    if (c.st < atk.custo) { toast('Energia insuficiente: o ataque custa ' + atk.custo + '.'); return; }
+    if (c.st < atk.custo) { toast('Pontos de Poder insuficientes: a técnica custa ' + atk.custo + ' PP.'); return; }
     c.st -= atk.custo; commit('chars', c.id, c); syncPc(c);
     if (atk.img && typeof Fx !== 'undefined') Fx.cast(currentView(), c.nome, atk);
     const cl = CLASSES[c.classe], race = RACES[c.raca] || {}, ch = currentView(), def = defOfToken(t);

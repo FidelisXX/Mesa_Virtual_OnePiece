@@ -67,6 +67,7 @@ Fácil, moderado ou difícil conforme o nível do grupo: o primeiro evento na vi
 - [x] Comércio em toda ilha (comida, reparo, curativo, canhões, velas), treino AFK, missões da Marinha e saque
 - [x] Mestre humano (tag mestre) e mestre automático por tabela, no formato que a API do Gemini usaria depois; fundo de imagem no chat; gerador de ilha do mestre
 - [x] Narração em primeiro plano, no estilo de um mestre de IA: os jogadores escrevem à vontade e o botão "Chamar o narrador" faz o mestre automático ler tudo o que a mesa escreveu de uma vez e responder a todos (um teste por jogador, com botão de rolar, e lutas armadas); ações rápidas sob o chat
+- [x] Ao entrar numa ilha o jogador escolhe o narrador (IA ou humano); a IA abre a cena com introdução e uma missão aleatória
 - [x] O narrador de IA segue o Guia do Narrador do OP RPG (testes só com consequência, CDs 10/15/20, luta por nível e tamanho do grupo, escala por estágio)
 - [x] Narrador de IA (Gemini) por um servidor local (`server/narrador.js`) que guarda a chave fora do navegador (a chave é informada no jogo, botão IA, e o servidor só aceita pedidos do jogo local); uma chamada por vez que a mesa chama o narrador, mostrando os tokens gastos; se o modelo sumir (404) ou estiver lotado (503), o servidor troca sozinho por outro que a chave enxerga, começando pelos "lite"; sem o servidor, o narrador de tabela responde
 - [x] Aba Técnicas (criar, editar e usar), barra de atalhos no mapa e teclas 1 a 9; tema escuro e claro e modo Foco que dá mais espaço ao chat

@@ -31,6 +31,8 @@ const bonusProf = lv => 2 + Math.floor((Math.max(1, Math.min(20, lv || 1)) - 1) 
 // Pontos de Experiência para ENTRAR em cada nível (p.13); o nível 1 começa com 0
 const PE_NIVEL = [0, 0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000];
 const NIVEL_MAX = 20;
+// Limite de XP de um encontro fácil por nível (Guia do Narrador, p.45): serve de recompensa base de uma missão
+const XP_FACIL = [0, 25, 50, 75, 125, 250, 300, 350, 450, 550, 600, 800, 1000, 1100, 1250, 1400, 1600, 2000, 2100, 2400, 2800];
 // Estágios da carreira (p.13; a divisão por nível é a provável do livro)
 const ESTAGIOS = [[1, 'Pirata Desconhecido'], [5, 'Pirata Infame'], [11, 'Dono dos Mares'], [17, 'Ameaça Mundial']];
 const estagioDe = lv => { let e = ESTAGIOS[0][1]; ESTAGIOS.forEach(([n, t]) => { if (lv >= n) e = t; }); return e; };

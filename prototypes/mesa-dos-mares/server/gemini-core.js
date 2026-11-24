@@ -76,7 +76,7 @@ module.exports = function criar(cfg) {
   }
 
   // Uma chamada ao Gemini que devolve JSON, com a troca de modelo quando ele some, lota ou demora
-  const semPensar = new Set();   // modelos que recusam o ajuste de pensamento: nas próximas chamadas já vai sem ele
+  const semPensar = new Set(), mortos = new Set();   // modelos que recusam o ajuste de pensamento: nas próximas chamadas já vai sem ele
   async function chamar(sistema, pedido, maxTok, temp) {
     if (!cfg.KEY) throw new Error('GEMINI_API_KEY não configurada (crie server/.env)');
     // Tarefa curta: pouco "pensamento" interno deixa a resposta rápida e dentro do limite de tokens.
@@ -88,12 +88,13 @@ module.exports = function criar(cfg) {
         pensar ? { thinkingConfig: /(^|-)3\./.test(modelo) ? { thinkingLevel: 'low' } : { thinkingBudget: 0 } } : {}),
     });
     // Uma tentativa com um modelo, com o seu próprio limite de tempo (a API às vezes demora quando está cheia)
+    const t0 = Date.now(), PRAZO = cfg.PRAZO || 80000, sobra = () => PRAZO - (Date.now() - t0);   // o prazo total da chamada (o jogo espera 90 s; no Vercel, menos)
     const enviar = async (modelo, pensar) => {
-      const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), TIMEOUT_MS);
+      const ms = Math.max(4000, Math.min(TIMEOUT_MS, sobra())), ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), ms);
       try {
         const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelo)}:generateContent`, { method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cfg.KEY }, body: corpoPara(modelo, pensar) });
         return { r, data: await r.json() };
-      } catch (e) { return { r: { ok: false, status: 504 }, data: { error: { message: 'tempo esgotado (' + Math.round(TIMEOUT_MS / 1000) + ' s)' } } }; }
+      } catch (e) { return { r: { ok: false, status: 504 }, data: { error: { message: 'tempo esgotado (' + Math.round(ms / 1000) + ' s)' } } }; }
       finally { clearTimeout(timer); }
     };
     const tentar = async modelo => {
@@ -103,21 +104,23 @@ module.exports = function criar(cfg) {
       return x;
     };
     const motivo = x => lim(x.data && x.data.error && x.data.error.message, 200);
-    let usado = cfg.MODEL, res = await tentar(cfg.MODEL);
-    // Modelo aposentado (404), API cheia (503), limite (429) ou lenta (504): tenta o mesmo e depois os outros "flash" que a sua chave enxerga
-    if (!res.r.ok && [404, 429, 503, 504].includes(res.r.status)) {
-      const era404 = res.r.status === 404;
-      console.log('Gemini', res.r.status, 'com', cfg.MODEL, '-', motivo(res));
-      if (!era404) { await new Promise(ok => setTimeout(ok, 1500)); res = await tentar(cfg.MODEL); }
-      if (!res.r.ok && [404, 429, 503, 504].includes(res.r.status)) {
-        const outros = (await descobrirModelo(AbortSignal.timeout(8000))).filter(n => n !== cfg.MODEL).slice(0, 3);
-        for (const n of outros) {
-          console.log('tentando o modelo', n); res = await tentar(n); usado = n;
-          if (res.r.ok) { if (era404) { console.log('o modelo', cfg.MODEL, 'não existe mais; passando a usar', n); cfg.MODEL = n; } break; }
-        }
-      }
+    // Tenta o modelo configurado e, se ele falhar (lotado, lento ou aposentado), os outros que a chave enxerga, até acabar o prazo.
+    // Cada modelo ganha uma segunda chance quando o erro é de lotação; modelos que respondem 404 são lembrados e pulados.
+    let usado = cfg.MODEL, res = null; const falhas = [], fila = [cfg.MODEL];
+    for (let i = 0; i < fila.length && i < 8; i++) {
+      const modelo = fila[i]; if (i > 0 && mortos.has(modelo)) continue;
+      usado = modelo; res = await tentar(modelo);
+      if (!res.r.ok && [429, 503, 504].includes(res.r.status) && sobra() > 9000) { await new Promise(ok => setTimeout(ok, 1500)); res = await tentar(modelo); }
+      if (res.r.ok) { if (i > 0 && mortos.has(cfg.MODEL)) { console.log('o modelo', cfg.MODEL, 'não existe para esta chave; passando a usar', modelo); cfg.MODEL = modelo; } break; }
+      if (res.r.status === 404) mortos.add(modelo);
+      falhas.push({ modelo, status: res.r.status, msg: motivo(res) });
+      if (sobra() < 5000) break;
+      if (i === 0 && fila.length === 1) { const outros = (await descobrirModelo(AbortSignal.timeout(6000))) || []; ['gemini-flash-latest', 'gemini-flash-lite-latest'].concat(outros).forEach(m => { if (!fila.includes(m)) fila.push(m); }); }
     }
-    if (!res.r.ok) throw new Error('Gemini ' + res.r.status + ': ' + motivo(res));
+    if (!res.r.ok) {
+      const lotado = falhas.filter(f => [429, 503, 504].includes(f.status)), pior = lotado[0] || falhas[falhas.length - 1] || { status: res.r.status, msg: motivo(res) };
+      throw new Error(lotado.length ? 'A API do Gemini está lotada agora (erro ' + pior.status + ' em ' + falhas.length + ' modelo(s)). Tente de novo em instantes.' : 'Gemini ' + pior.status + ': ' + pior.msg);
+    }
     const data = res.data, txt = (((data.candidates || [])[0] || {}).content || {}).parts;
     const texto = Array.isArray(txt) ? txt.map(p => p.text || '').join('') : '';
     if (!texto) throw new Error('resposta vazia' + (data.promptFeedback ? ' (bloqueada pelo filtro)' : ''));
@@ -132,6 +135,25 @@ module.exports = function criar(cfg) {
     const x = await chamar(SISTEMA, montarPedido(ctx), 1400, 0.9);
     const out = limpar(x.json); out.uso = x.uso; out.modelo = x.modelo;
     if (!out.narracao) throw new Error('narração vazia');
+    return out;
+  }
+
+  // ---- Abertura de cena: o narrador de IA apresenta a ilha e entrega uma missão aleatória ao jogador ----
+  const SISTEMA_ABERTURA = [
+    'Você é o Narrador de uma mesa de OP RPG (RPG de mesa de One Piece, d20), nos quatro mares antes da Grand Line. Escreva em português do Brasil, com voz de mestre de mesa.',
+    'Um jogador acaba de chegar a uma ilha e você vai ABRIR a cena. Faça duas coisas:',
+    '1) Uma introdução curta (1 a 2 parágrafos, até 120 palavras): mostre o lugar com cheiro, som e gente, apresente um PdN com voz e deixe uma porta aberta. Use o lugar informado (nome, tema, descrição) e não decida nada pelo personagem do jogador.',
+    '2) UMA missão aleatória e original, adequada ao lugar, ao nível e ao estágio do grupo (nível 1 a 4: o destino de uma vila, ameaças pequenas; evite oficiais da Marinha). Tipos possíveis: investigar, escoltar, resgatar, entregar, caçar, infiltrar, recuperar um objeto, fazer a paz. A missão precisa de um objetivo concreto, um PdN que a dê, e três resultados possíveis (sucesso, parcial, fracasso) com consequências. Não conceda Akuma no Mi nem dinheiro.',
+    'Responda SOMENTE com um JSON válido neste formato:',
+    '{"introducao": "texto", "missao": {"titulo": "até 6 palavras", "descricao": "1 a 2 frases", "objetivo": "uma frase concreta", "tipo": "investigar|escoltar|resgatar|entregar|cacar|infiltrar|recuperar|paz", "dificuldade": "facil|media|dificil"}}',
+  ].join('\n');
+  async function abertura(ctx) {
+    ctx = ctx || {};
+    if (cfg.MOCK) return { introducao: '[teste sem IA] ' + lim(ctx.lugar && ctx.lugar.nome, 60) + ' acorda devagar. Um morador acena para você.', missao: { titulo: 'Recado urgente', descricao: 'Um morador precisa entregar um recado antes do anoitecer.', objetivo: 'Entregar o recado ao faroleiro.', tipo: 'entregar', dificuldade: 'facil' }, uso: 0 };
+    const x = await chamar(SISTEMA_ABERTURA, montarPedido(Object.assign({}, ctx, { novas: [] })) + '\n\nABRA A CENA para o jogador que acabou de chegar' + (ctx.jogadores && ctx.jogadores[0] ? ': ' + lim(ctx.jogadores[0].nome, 40) : '') + '.', 900, 1);
+    const j = x.json || {}, m = j.missao || {};
+    const out = { introducao: lim(j.introducao, 1400).trim(), missao: { titulo: lim(m.titulo, 60).trim(), descricao: lim(m.descricao, 300).trim(), objetivo: lim(m.objetivo, 200).trim(), tipo: lim(m.tipo, 20), dificuldade: ['facil', 'media', 'dificil'].includes(m.dificuldade) ? m.dificuldade : 'facil' }, uso: x.uso, modelo: x.modelo };
+    if (!out.introducao || !out.missao.titulo || !out.missao.objetivo) throw new Error('a abertura veio incompleta');
     return out;
   }
 
@@ -151,5 +173,5 @@ module.exports = function criar(cfg) {
     const x = await chamar(SISTEMA_FICHA, 'NÍVEL: ' + nivel + '\nDESCRIÇÃO: ' + descricao, 400, 0.8), j = x.json || {};
     return { nome: lim(j.nome, 24).trim(), tipo: TIPOS.includes(j.tipo) ? j.tipo : 'bandido', perfil: PERFIS.includes(j.perfil) ? j.perfil : 'equilibrado', nota: lim(j.nota, 200).trim(), uso: x.uso, modelo: x.modelo };
   }
-  return { narrar, gerarFicha, descobrirModelo, MAX_BODY, TIMEOUT_MS };
+  return { narrar, gerarFicha, abertura, descobrirModelo, MAX_BODY, TIMEOUT_MS };
 };

@@ -4,7 +4,7 @@
 // POST /ficha no Vercel: o mestre descreve um NPC e a IA devolve nome, tipo, perfil e uma nota. Mesma proteção do /narrar.
 'use strict';
 const { autorizar } = require('./_guarda.js');
-const cfg = { KEY: process.env.GEMINI_API_KEY || '', MODEL: process.env.GEMINI_MODEL || 'gemini-flash-lite-latest', MOCK: process.env.MOCK === '1' };
+const cfg = { KEY: process.env.GEMINI_API_KEY || '', MODEL: process.env.GEMINI_MODEL || 'gemini-flash-lite-latest', MOCK: process.env.MOCK === '1', PRAZO: 26000 };
 const core = require('../server/gemini-core.js')(cfg);
 
 module.exports = async (req, res) => {

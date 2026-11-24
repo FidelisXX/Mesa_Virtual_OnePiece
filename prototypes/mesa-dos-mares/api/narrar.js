@@ -5,7 +5,7 @@
 // A chave fica na variável de ambiente GEMINI_API_KEY do projeto no Vercel; nunca vai para o navegador.
 'use strict';
 const { autorizar } = require('./_guarda.js');
-const cfg = { KEY: process.env.GEMINI_API_KEY || '', MODEL: process.env.GEMINI_MODEL || 'gemini-flash-lite-latest', MOCK: process.env.MOCK === '1' };
+const cfg = { KEY: process.env.GEMINI_API_KEY || '', MODEL: process.env.GEMINI_MODEL || 'gemini-flash-lite-latest', MOCK: process.env.MOCK === '1', PRAZO: 52000 };   // a função do Vercel para em 60 s
 const core = require('../server/gemini-core.js')(cfg);
 
 module.exports = async (req, res) => {

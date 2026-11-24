@@ -364,3 +364,9 @@ body.in-title #resizer, body.in-create #resizer, body.mobile #resizer { display:
 .attr .v { white-space: nowrap; font-size: 18px; } .attr .v small { font-size: 13px; color: var(--muted); font-weight: 500; }
 .attr.salv .k::after { content: ' ●'; color: var(--accent); font-size: 10px; }
 .attr .v { width: auto; text-align: left; flex: 1; }
+
+/* ---- O "i" das técnicas ---- */
+.info-btn { width: 22px; height: 22px; padding: 0; margin-left: 6px; border-radius: 50%; border: 1px solid var(--accent); background: transparent; color: var(--accent); font: italic 700 14px Georgia, serif; vertical-align: middle; cursor: pointer; }
+.info-btn:hover, .info-btn.on { background: var(--accent); color: var(--on-accent); }
+.info-box { text-align: left; font-size: 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; margin: 8px 0; }
+.info-box ul { margin: 6px 0 0; padding-left: 18px; } .info-box li { margin-bottom: 5px; }
