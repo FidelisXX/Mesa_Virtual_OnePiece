@@ -362,14 +362,14 @@ const Master = (() => {
     const lvs = aqui.map(x => x.lv), nivelMedio = lvs.length ? Math.round(lvs.reduce((a, b) => a + b, 0) / lvs.length) : 1;
     return {
       lugar: isl ? { nome: isl.nome, mar: SEAS[isl.mar].nome, tema: isl.tema, descricao: isl.intro } : { nome: 'Convés do navio', mar: sh ? SEAS[sh.mar].nome : '', tema: 'navio no mar', descricao: sh && sh.travel ? 'Viajando para ' + ISLAND[sh.travel.to].nome : '' },
-      nivelMedio, jogadores: aqui.map(c => ({ nome: c.nome, raca: RACES[c.raca].nome, classe: CLASSES[c.classe].nome, profissao: PROFS[c.prof].nome, lado: c.faccao, nivel: c.lv, vida: c.hp + '/' + c.hpMax })),
+      nivelMedio, tamanho: aqui.length, estagio: estagioDe(nivelMedio), jogadores: aqui.map(c => ({ nome: c.nome, raca: RACES[c.raca].nome, classe: CLASSES[c.classe].nome, profissao: PROFS[c.prof].nome, lado: c.faccao, nivel: c.lv, vida: c.hp + '/' + c.hpMax, cr: defOf(c) })),
       historico: db.msgs.filter(m => m.ch === ch && m.ts < t0 && (m.tipo === 'fala' || m.tipo === 'acao' || m.tipo === 'narra')).slice(-10).map(m => ({ quem: m.uid === 'mestre' ? 'Narrador' : m.nome, texto: limpaTxt(m.txt) })),
       novas: msgs.map(m => ({ quem: m.nome, tipo: m.tipo, texto: limpaTxt(m.txt) })),
     };
   }
   function aplicarIa(ch, r) {
     const aqui = whoIn(ch).filter(x => !x.gm), porNome = n => aqui.find(x => norm(x.nome) === norm(n)) || aqui.find(x => norm(x.nome).split(' ')[0] === norm(n).split(' ')[0]);
-    const asks = (r.testes || []).map(t => { const p = porNome(t.jogador); return p ? { attr: t.atributo, cd: t.cd, who: p.id, nome: p.nome, motivo: t.motivo } : null; }).filter(Boolean);
+    const asks = (r.testes || []).map(t => { const p = porNome(t.jogador); return p ? { attr: t.pericia || t.atributo, rot: t.pericia && PERICIA[t.pericia] ? PERICIA[t.pericia].nome + ' (' + (t.atributo || PERICIA[t.pericia].a) + ')' : t.atributo, cd: t.cd, who: p.id, nome: p.nome, motivo: t.motivo } : null; }).filter(Boolean);
     say(ch, r.narracao, null, asks, { ia: true, uso: r.uso || 0 });
     if (r.luta && isIsland(ch)) {
       later(1.2, () => { r.luta.inimigos.forEach(e => Combat.spawnNpc(ch, e.tipo, e.nivel)); later(1.4, () => { if (!(db.combat[ch] && db.combat[ch].on)) Combat.start(ch); }); });

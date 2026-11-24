@@ -7,41 +7,51 @@
 'use strict';
 module.exports = function criar(cfg) {
   const TIMEOUT_MS = 22000, MAX_BODY = 40000;
-  const ATTRS = ['FOR', 'AGI', 'VIG', 'TEC', 'ESP', 'CAR'], TIPOS = ['aldeao', 'bandido', 'marujo', 'oficial', 'rival', 'cozinha'];
+  const ATTRS = ['FOR', 'DES', 'CON', 'SAB', 'VON', 'PRE'], ANTIGO = { AGI: 'DES', VIG: 'CON', TEC: 'DES', ESP: 'VON', CAR: 'PRE' }, TIPOS = ['aldeao', 'bandido', 'marujo', 'oficial', 'rival', 'cozinha'];
+  const PERICIAS = ['atletismo', 'acrobacia', 'furtividade', 'prestidigitacao', 'historia', 'investigacao', 'medicina', 'natureza', 'sobrevivencia', 'haki', 'intuicao', 'percepcao', 'sobrenatural', 'sorte', 'atuacao', 'enganacao', 'intimidacao', 'persuasao', 'provocacao'];
+  const DIFICULDADES = ['facil', 'media', 'dificil', 'mortal'];
 
+  // Escrito a partir do Guia do Narrador 2.0 do OP RPG (capítulos 1 a 3), em palavras nossas
   const SISTEMA = [
-    'Você é o Mestre (narrador) de uma mesa de RPG por texto, num mundo inspirado em One Piece, nos quatro mares antes da Grand Line (East, North, West e South Blue).',
+    'Você é o Narrador de uma mesa de OP RPG, um RPG de mesa de One Piece com dado de 20 lados, nos quatro mares antes da Grand Line (East, North, West e South Blue).',
     'Escreva em português do Brasil, com voz de mestre de mesa: viva, concreta, com cheiro, som e gente.',
-    'Regras do ofício:',
-    '1) Leia o que cada jogador escreveu e responda ao que ele de fato disse ou fez, chamando-o pelo nome. Nunca ignore uma fala ou ação, e nunca faça o jogador dizer ou decidir algo que ele não escreveu.',
-    '2) Seja curto: 1 a 3 parágrafos, no máximo cerca de 140 palavras no total. Sem listas, sem repetir o texto dos jogadores.',
-    '3) Não decida o resultado de ações arriscadas: peça um teste. Havendo risco, incerteza ou oposição, peça ao jogador o atributo certo (FOR força, AGI agilidade, VIG vigor, TEC técnica, ESP espírito/percepção, CAR carisma) com dificuldade 10 (fácil), 15 (média) ou 20 (difícil). Ações simples e seguras não pedem teste. Peça no máximo um teste por jogador.',
-    '4) NPCs têm voz, desejo e medo; quando falam, use aspas. Mostre a reação do mundo ao que o jogador fez.',
-    '5) Use o lugar: o nome, o tema e a descrição dele são a sua cena. Não invente regras, itens mágicos nem dinheiro.',
-    '6) Luta: só proponha uma se um jogador procurar briga ou a cena pedir claramente. Escolha a dificuldade pelo nível médio do grupo: fácil (inimigos 2 níveis abaixo), moderada (no nível), difícil (4 níveis acima e mais gente). Tipos permitidos: ' + TIPOS.join(', ') + '. No máximo 4 inimigos.',
-    '7) Responda SOMENTE com um JSON válido, sem texto fora dele, neste formato:',
-    '{"narracao": "texto", "testes": [{"jogador": "nome exato", "atributo": "FOR|AGI|VIG|TEC|ESP|CAR", "cd": 10, "motivo": "frase curta"}], "luta": null}',
-    'Quando houver luta, "luta" é {"dificuldade": "facil|moderada|dificil", "inimigos": [{"tipo": "bandido", "nivel": 3}]}; senão é null. "testes" pode ser uma lista vazia.',
+    'O seu papel é ser contador de histórias (ajudar todos a enxergar a cena), ator (dar vida aos PdNs) e árbitro (aplicar as regras a favor da diversão). As regras servem à história, e não o contrário. O objetivo nunca é massacrar os jogadores: é montar um mundo que reage às escolhas deles.',
+    'Como narrar:',
+    '1) Responda ao que cada jogador fez ou disse, chamando-o pelo nome. Nunca ignore ninguém e nunca fale, sinta ou decida pelo personagem de um jogador.',
+    '2) Seja curto: 1 a 3 parágrafos, no máximo cerca de 140 palavras. Sem listas e sem repetir o que os jogadores escreveram. Mostre em vez de explicar: faça os PdNs agirem, com voz, desejo e medo, e use aspas nas falas deles. Termine deixando uma porta aberta (um gancho, uma pergunta, uma escolha) sem decidir pelo grupo.',
+    '3) Consistência é a chave: o mesmo lugar, os mesmos PdNs, as mesmas consequências. Use o lugar da cena (nome, tema, descrição) e o histórico. Não invente itens mágicos, Akuma no Mi nem dinheiro: isso é decisão do mestre humano. Recompense criatividade e bons planos.',
+    '4) Quando pedir um teste: só se falhar tiver consequência significativa. Se a tarefa é fácil e segura, ou impossível, não peça teste: narre direto. Peça no máximo um teste por jogador. Ao pedir um teste, narre só a tentativa (o instante antes do resultado) e NÃO diga se deu certo nem errado: quem decide é o dado, e o resultado vem depois. Atributos: FOR (força), DES (agilidade, mira), CON (vigor), SAB (raciocínio, memória), VON (percepção, determinação, Haki), PRE (carisma). Se couber, indique também a perícia (campo "pericia"): ' + PERICIAS.join(', ') + '.',
+    '5) Dificuldade (CD) do teste: 10 fácil, 15 moderada, 20 difícil (use quase só essas três); 25 muito difícil só para grupos de nível 10 ou mais; tarefa de CD 5 não precisa de teste. Plano criativo ou ambiente favorável baixa a CD; plano ruim a sobe.',
+    '6) Ao falar com um PdN, ele tem uma atitude (amigável, indiferente ou hostil) que muda no máximo um passo por conversa. Convencer, enganar ou intimidar pedem teste de PRE (perícias persuasao, enganacao, intimidacao). Pedir de novo o que já falhou é infrutífero ou arrisca deixar o PdN hostil.',
+    '7) Luta: só proponha uma se um jogador procurar briga ou a cena pedir claramente. Escolha a dificuldade pelo nível médio e pelo tamanho do grupo: "facil" (inimigos bem abaixo do nível, quase sem risco), "media" (um inimigo de nível igual ao do grupo, ou um bando um pouco abaixo; um ou dois sustos), "dificil" (acima do nível ou bando grande; pode haver baixas), "mortal" (só se os jogadores forçarem, e a cena deve avisar o perigo). Nos níveis 1 a 4 evite oficiais da Marinha e qualquer inimigo de nível maior que o do grupo. Um encontro casual jamais deve exterminar o grupo: ofereça fugir, se esconder ou negociar, e deixe os inimigos fugirem ou se renderem quando perdem metade da vida. Tipos permitidos: ' + TIPOS.join(', ') + '. No máximo 4 inimigos, de nível 1 a 20.',
+    '8) A escala da história segue o estágio do grupo: Piratas Desconhecidos (níveis 1 a 4: o destino de uma vila, com bandidos, lobos e soldados de baixa patente), Piratas Infames (5 a 10: uma região), Donos dos Mares (11 a 16: uma nação) e Ameaças Mundiais (17 a 20). Não traga ameaças de um estágio muito acima.',
+    '9) Conheça quem joga: quem interpreta ganha PdNs para conversar; quem explora ganha pistas e detalhes do lugar; quem provoca ganha consequências; quem luta ganha ação e um relato vivo do estrago. Equilibre os tipos na mesma cena.',
+    '10) Responda SOMENTE com um JSON válido, sem texto fora dele, neste formato:',
+    '{"narracao": "texto", "testes": [{"jogador": "nome exato", "atributo": "FOR|DES|CON|SAB|VON|PRE", "pericia": "uma perícia da lista ou vazio", "cd": 10, "motivo": "frase curta"}], "luta": null}',
+    'Quando houver luta, "luta" é {"dificuldade": "facil|media|dificil|mortal", "inimigos": [{"tipo": "bandido", "nivel": 3}]}; senão é null. "testes" pode ser uma lista vazia.',
   ].join('\n');
 
   const lim = (s, n) => String(s == null ? '' : s).slice(0, n);
   function montarPedido(ctx) {
     const l = ctx.lugar || {};
-    const jog = (ctx.jogadores || []).slice(0, 8).map(j => `- ${lim(j.nome, 40)}: ${lim(j.raca, 30)}, ${lim(j.classe, 20)}, ${lim(j.profissao, 20)}, ${lim(j.lado, 12)}, nível ${+j.nivel || 1}, Vida ${lim(j.vida, 12)}`).join('\n');
+    const jog = (ctx.jogadores || []).slice(0, 8).map(j => `- ${lim(j.nome, 40)}: ${lim(j.raca, 30)}, ${lim(j.classe, 20)}, ${lim(j.profissao, 20)}, ${lim(j.lado, 12)}, nível ${+j.nivel || 1}, CR ${+j.cr || '?'}, Vida ${lim(j.vida, 12)}`).join('\n');
     const hist = (ctx.historico || []).slice(-12).map(h => `${lim(h.quem, 40)}: ${lim(h.texto, 400)}`).join('\n');
     const novas = (ctx.novas || []).slice(0, 24).map(n => `[${n.tipo === 'acao' ? 'ação' : 'fala'}] ${lim(n.quem, 40)}: ${lim(n.texto, 500)}`).join('\n');
-    return `LUGAR: ${lim(l.nome, 60)} (${lim(l.mar, 20)}; tema: ${lim(l.tema, 20)}). ${lim(l.descricao, 400)}\nNÍVEL MÉDIO DO GRUPO: ${+ctx.nivelMedio || 1}\nJOGADORES NA CENA:\n${jog || '(ninguém)'}\n\nCONVERSA ANTERIOR (para contexto):\n${hist || '(começo da cena)'}\n\nO QUE OS JOGADORES ESCREVERAM DESDE A SUA ÚLTIMA FALA (responda a TODOS):\n${novas}`;
+    return `LUGAR: ${lim(l.nome, 60)} (${lim(l.mar, 20)}; tema: ${lim(l.tema, 20)}). ${lim(l.descricao, 400)}\nNÍVEL MÉDIO DO GRUPO: ${+ctx.nivelMedio || 1} (${+ctx.tamanho || (ctx.jogadores || []).length || 1} jogador(es); estágio: ${lim(ctx.estagio, 30) || 'Piratas Desconhecidos'})\nJOGADORES NA CENA:\n${jog || '(ninguém)'}\n\nCONVERSA ANTERIOR (para contexto):\n${hist || '(começo da cena)'}\n\nO QUE OS JOGADORES ESCREVERAM DESDE A SUA ÚLTIMA FALA (responda a TODOS):\n${novas}`;
   }
   // Aceita só o que o jogo sabe usar: atributo, CD e tipos de inimigo conhecidos
   function limpar(j) {
     const out = { narracao: lim(j && j.narracao, 1800).trim(), testes: [], luta: null };
     (Array.isArray(j && j.testes) ? j.testes : []).slice(0, 8).forEach(t => {
-      const a = String(t.atributo || '').toUpperCase(); if (!ATTRS.includes(a)) return;
-      out.testes.push({ jogador: lim(t.jogador, 40), atributo: a, cd: Math.max(8, Math.min(25, +t.cd || 15)), motivo: lim(t.motivo, 90) });
+      let a = String(t.atributo || '').toUpperCase(); a = ANTIGO[a] || a;
+      const per = String(t.pericia || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]/g, '');
+      if (!ATTRS.includes(a) && !PERICIAS.includes(per)) return;
+      out.testes.push({ jogador: lim(t.jogador, 40), atributo: ATTRS.includes(a) ? a : '', pericia: PERICIAS.includes(per) ? per : '', cd: Math.max(5, Math.min(30, Math.round(+t.cd || 15))), motivo: lim(t.motivo, 90) });
     });
     if (j && j.luta && Array.isArray(j.luta.inimigos)) {
-      const ini = j.luta.inimigos.filter(i => TIPOS.includes(i.tipo)).slice(0, 4).map(i => ({ tipo: i.tipo, nivel: Math.max(1, Math.min(100, Math.round(+i.nivel || 1))) }));
-      if (ini.length) out.luta = { dificuldade: ['facil', 'moderada', 'dificil'].includes(j.luta.dificuldade) ? j.luta.dificuldade : 'moderada', inimigos: ini };
+      const ini = j.luta.inimigos.filter(i => TIPOS.includes(i.tipo)).slice(0, 4).map(i => ({ tipo: i.tipo, nivel: Math.max(1, Math.min(20, Math.round(+i.nivel || 1))) }));
+      const d = j.luta.dificuldade === 'moderada' ? 'media' : j.luta.dificuldade;
+      if (ini.length) out.luta = { dificuldade: DIFICULDADES.includes(d) ? d : 'media', inimigos: ini };
     }
     return out;
   }
@@ -66,6 +76,7 @@ module.exports = function criar(cfg) {
   }
 
   // Uma chamada ao Gemini que devolve JSON, com a troca de modelo quando ele some, lota ou demora
+  const semPensar = new Set();   // modelos que recusam o ajuste de pensamento: nas próximas chamadas já vai sem ele
   async function chamar(sistema, pedido, maxTok, temp) {
     if (!cfg.KEY) throw new Error('GEMINI_API_KEY não configurada (crie server/.env)');
     // Tarefa curta: pouco "pensamento" interno deixa a resposta rápida e dentro do limite de tokens.
@@ -86,8 +97,9 @@ module.exports = function criar(cfg) {
       finally { clearTimeout(timer); }
     };
     const tentar = async modelo => {
-      let x = await enviar(modelo, true);
-      if (x.r.status === 400) { console.log('o modelo', modelo, 'recusou o pedido (' + lim(x.data && x.data.error && x.data.error.message, 90) + '); repetindo sem o ajuste de pensamento'); x = await enviar(modelo, false); }
+      let x = await enviar(modelo, !semPensar.has(modelo));
+      if (x.r.status === 400 && !semPensar.has(modelo)) { semPensar.add(modelo); console.log('o modelo', modelo, 'recusou o pedido (' + lim(x.data && x.data.error && x.data.error.message, 90) + '); repetindo sem o ajuste de pensamento'); x = await enviar(modelo, false); }
+      if (!x.r.ok) console.log('  falhou com', modelo, '->', x.r.status, lim(x.data && x.data.error && x.data.error.message, 160));
       return x;
     };
     const motivo = x => lim(x.data && x.data.error && x.data.error.message, 200);
@@ -115,7 +127,7 @@ module.exports = function criar(cfg) {
   async function narrar(ctx) {
     if (cfg.MOCK) { // resposta de teste, sem chave e sem custo
       const nomes = [...new Set((ctx.novas || []).map(n => n.quem))];
-      return { narracao: '[teste sem IA] O mestre lê ' + nomes.join(' e ') + ' e a cena responde: o vento muda, e alguém por perto repara em vocês.', testes: nomes.slice(0, 2).map(n => ({ jogador: n, atributo: 'CAR', cd: 15, motivo: 'o clima da cena pede' })), luta: null, uso: 0 };
+      return { narracao: '[teste sem IA] O mestre lê ' + nomes.join(' e ') + ' e a cena responde: o vento muda, e alguém por perto repara em vocês.', testes: nomes.slice(0, 2).map(n => ({ jogador: n, atributo: 'PRE', pericia: 'persuasao', cd: 15, motivo: 'o clima da cena pede' })), luta: null, uso: 0 };
     }
     const x = await chamar(SISTEMA, montarPedido(ctx), 1400, 0.9);
     const out = limpar(x.json); out.uso = x.uso; out.modelo = x.modelo;
