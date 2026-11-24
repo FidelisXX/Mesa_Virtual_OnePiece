@@ -6,19 +6,21 @@
 // As contas continuam locais neste passo; quem entra no Supabase é anônimo (auth.uid), e é a MESA que dá acesso.
 'use strict';
 const SB = (() => {
-  let cli = null, on = false, cid = '', q = [], timer = 0, canais = {};
+  let cli = null, on = false, cid = '', q = [], timer = 0, canais = {}, erro = '';
   const cfg = () => window.SUPABASE_CFG || null;
   const linhaId = key => (key === null || key === undefined ? '_' : String(key));
 
   async function iniciar(id) {
-    const c = cfg(); cid = id;
-    if (!c || !c.url || !c.anonKey || !window.supabase || /SEU-PROJETO/.test(c.url)) return false;
+    const c = cfg(); cid = id; erro = '';
+    if (!c || !c.url || !c.anonKey || /SEU-PROJETO/.test(c.url)) return false;
+    if (!window.supabase) { erro = 'a biblioteca do Supabase não carregou'; return false; }
     try {
       cli = window.supabase.createClient(c.url, c.anonKey, { auth: { persistSession: true, autoRefreshToken: true }, realtime: { params: { eventsPerSecond: 20 } } });
       const s = await cli.auth.getSession();
       if (!s.data.session) { const r = await cli.auth.signInAnonymously(); if (r.error) throw r.error; }
+      const sonda = await cli.from('mesas').select('id').limit(1); if (sonda.error) throw sonda.error;   // as tabelas existem?
       on = true; return true;
-    } catch (e) { console.warn('Supabase indisponível:', e && e.message); cli = null; return false; }
+    } catch (e) { erro = (e && e.message) || String(e); console.warn('Supabase indisponível:', erro); cli = null; return false; }
   }
 
   // ---- Ler: o estado completo de um escopo ----
@@ -101,5 +103,15 @@ const SB = (() => {
   // O token da sessão: o narrador hospedado o usa para conferir, no Supabase, que quem chama é membro da mesa
   async function token() { const s = await cli.auth.getSession(); return (s.data && s.data.session && s.data.session.access_token) || ''; }
 
-  return { iniciar, estado, enviar, assinar, entrarCodigo, sairMesa, token, get on() { return on; }, get siteUrl() { const c = cfg(); return (c && c.siteUrl) || ''; } };
+  // O que fazer, em português, para cada defeito conhecido
+  const DICAS = [
+    [/anonymous sign-?ins? (are|is) disabled/i, 'No Supabase, abra Authentication → Sign In / Providers, ligue "Anonymous Sign-Ins" e salve.'],
+    [/could not find the table|relation .* does not exist|schema cache/i, 'As tabelas ainda não existem: no Supabase, abra o SQL Editor, cole o arquivo supabase/schema.sql e clique em Run.'],
+    [/invalid api key|apikey|jwt/i, 'A chave do Supabase está errada: confira SUPABASE_ANON_KEY no Vercel (só a chave pública).'],
+    [/failed to fetch|networkerror|load failed/i, 'Não deu para falar com o Supabase: confira a internet e a SUPABASE_URL.'],
+  ];
+  const dica = () => { const d = DICAS.find(([re]) => re.test(erro)); return d ? d[1] : ''; };
+  const configurado = () => { const c = cfg(); return !!(c && c.url && c.anonKey && !/SEU-PROJETO/.test(c.url)); };
+
+  return { iniciar, estado, enviar, assinar, entrarCodigo, sairMesa, token, get erro() { return erro; }, get dica() { return dica(); }, get configurado() { return configurado(); }, get on() { return on; }, get siteUrl() { const c = cfg(); return (c && c.siteUrl) || ''; } };
 })();

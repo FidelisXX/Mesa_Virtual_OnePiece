@@ -280,7 +280,7 @@ async function depoisDoLogin() {
 // ---- Mesas: criar, entrar por convite e convidar ----
 function mesasHTML() {
   const a = Acc.cur(), lista = Mesas.minhas();
-  const rede = Net.on ? (Net.lan ? 'Rede ligada: quem estiver no mesmo Wi-Fi abre <b>' + esc(Net.urls[0] || '') + '</b> e entra com o convite.' : 'Servidor ligado só neste computador. Para convidar o celular pelo Wi-Fi, reinicie com <code>node server/narrador.js --lan</code>.') : 'Modo arquivo: as mesas ficam só neste navegador. Para jogar com outros aparelhos, rode <code>node server/narrador.js --lan</code> e abra o endereço que ele mostrar.';
+  const rede = Net.sb ? 'Mesas salvas no Supabase: qualquer aparelho entra pelo convite.' : Net.on ? (Net.lan ? 'Rede ligada: quem estiver no mesmo Wi-Fi abre <b>' + esc(Net.urls[0] || '') + '</b> e entra com o convite.' : 'Servidor ligado só neste computador. Para convidar o celular pelo Wi-Fi, reinicie com <code>node server/narrador.js --lan</code>.') : avisoSemRede();
   const cartao = m => `<div class="home-card"><div style="flex:1;min-width:0"><b>${esc(m.nome)}</b> ${m.owner === myAcc ? '<span class="tag marinha">sua mesa</span>' : ''}<div class="note">${m.membros.length} pessoa(s) · convite <b class="codigo">${m.codigo}</b></div></div><button class="btn" data-open="${m.id}">Abrir</button><button class="btn wood sm" data-conv="${m.id}">Convidar</button></div>`;
   return `<div class="card"><h1>Olá, ${esc(a.user)}</h1><div class="tagline">Escolha uma mesa ou entre numa por convite</div>
   <div class="home-list">${lista.map(cartao).join('') || '<div class="note" style="text-align:center">Você ainda não está em nenhuma mesa. Crie uma ou use um convite.</div>'}</div>
@@ -295,7 +295,7 @@ function bindMesas() {
   document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => abrir(b.dataset.open));
   document.querySelectorAll('[data-conv]').forEach(b => b.onclick = () => conviteModal(G.mesas[b.dataset.conv]));
   $('mNova').onclick = () => { const m = Mesas.criar($('mNome').value); abrir(m.id).then(() => conviteModal(m)); };
-  $('mEntrar').onclick = async () => { await puxarConvite($('mCod').value); const m = Mesas.entrar($('mCod').value); if (typeof m === 'string') { $('mErr').textContent = m; return; } abrir(m.id); };
+  $('mEntrar').onclick = async () => { await puxarConvite($('mCod').value); const m = Mesas.entrar($('mCod').value); if (typeof m === 'string') { $('mErr').textContent = m + (!Net.on && typeof SB !== 'undefined' && SB.configurado ? ' (O Supabase não está conectado, por isso só as mesas deste navegador existem: ' + (SB.dica || SB.erro || 'veja o aviso acima') + ')' : ''); return; } abrir(m.id); };
   $('mCod').onkeydown = e => { if (e.key === 'Enter') $('mEntrar').click(); };
   $('mNome').onkeydown = e => { if (e.key === 'Enter') $('mNova').click(); };
   $('hIa').onclick = iaModal;
@@ -305,7 +305,7 @@ function bindMesas() {
 function conviteModal(m) {
   if (!m) return;
   const ov = $('overlay'), link = Mesas.link(m), voltar = () => { if (scene === 'play') { ov.className = ''; ov.innerHTML = ''; } else setScene(scene); };
-  const dica = Net.on && Net.lan ? 'O link usa o endereço do seu Wi-Fi: o celular precisa estar na mesma rede.' : Net.on ? 'O servidor está só neste computador. Para o celular entrar, reinicie com <code>node server/narrador.js --lan</code> e gere o convite de novo.' : 'No modo arquivo, o link só funciona neste navegador. Rode <code>node server/narrador.js --lan</code> para convidar outros aparelhos.';
+  const dica = Net.sb ? 'As mesas estão salvas no Supabase: quem abrir este link, ou digitar o código, em qualquer aparelho entra na mesa.' : Net.on && Net.lan ? 'O link usa o endereço do seu Wi-Fi: o celular precisa estar na mesma rede.' : Net.on ? 'O servidor está só neste computador. Para o celular entrar, reinicie com <code>node server/narrador.js --lan</code> e gere o convite de novo.' : '' + avisoSemRede() + '';
   ov.innerHTML = `<div class="card small"><h1 style="font-size:30px">Convidar para ${esc(m.nome)}</h1><div class="tagline">Passe o código ou o link</div>
   <div class="convite-cod">${m.codigo}</div>
   <div class="field"><label>Link do convite</label><div class="row"><input type="text" id="cvLink" readonly value="${esc(link)}" style="flex:1"><button class="btn sm wood" id="cvCopia">Copiar</button></div><div class="note">${dica}</div></div>
@@ -370,6 +370,11 @@ function bindRoleta() {
   };
 }
 
+// Sem servidor nem Supabase, as mesas ficam só neste navegador. Se o Supabase foi configurado mas não conectou, diz por quê e o que fazer.
+function avisoSemRede() {
+  if (typeof SB !== 'undefined' && SB.configurado) return '<b style="color:var(--danger)">O Supabase está configurado, mas não conectou' + (SB.erro ? ': ' + esc(SB.erro) : '') + '.</b> ' + esc(SB.dica || 'Confira a configuração do projeto.') + ' Enquanto isso, as mesas ficam só neste navegador e ninguém entra pelo convite de outro aparelho.';
+  return 'Modo arquivo: as mesas ficam só neste navegador. Para jogar com outros aparelhos, rode <code>node server/narrador.js --lan</code> e abra o endereço que ele mostrar.';
+}
 // ---- Criação de personagem: js/criar.js (os sete passos do Livro do Jogador) ----
 function startCreate() { crState = Criar.novo(); setScene('create'); }
 function createHTML() { return Criar.html(); }
