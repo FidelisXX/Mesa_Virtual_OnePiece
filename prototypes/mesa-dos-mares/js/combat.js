@@ -104,6 +104,7 @@ const Combat = (() => {
     if (dist > reach) { toast('Fora de alcance: o ataque alcança ' + reach + ' quadrado(s) e o alvo está a ' + dist + '. Arraste seu token para perto.'); return; }
     if (c.st < atk.custo) { toast('Energia insuficiente: o ataque custa ' + atk.custo + '.'); return; }
     c.st -= atk.custo; commit('chars', c.id, c); syncPc(c);
+    if (atk.img && typeof Fx !== 'undefined') Fx.cast(currentView(), c.nome, atk);
     const cl = CLASSES[c.classe], race = RACES[c.raca] || {}, ch = currentView(), def = defOfToken(t);
     const r = rolarD20(attr(c, cl.atk) + Math.floor(c.lv / 5), modo || 'normal'); r.label = atk.nome + ' (' + cl.nome + ')'; r.vs = { nome: t.nome, def };
     postRollTo(ch, c.nome, r, { fac: c.faccao });

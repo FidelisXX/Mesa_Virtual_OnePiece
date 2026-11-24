@@ -94,6 +94,7 @@ const Chat = (() => {
       const alvo = db.chars[m.alvo] ? db.chars[m.alvo].nome : '?';
       return `<div class="m sus" style="font-family:${fonte}"><span class="sus-tag">sussurro · ${esc(m.nome)} para ${esc(alvo)}</span>${format(m.txt, m)}</div>`;
     }
+    if (m.tipo === 'tecnica') return `<div class="m acao tecnica" style="font-family:${fonte}"><span class="who">${esc(m.nome)}</span> usa <b>${esc(m.txt)}</b>${m.img ? `<img class="tec-img" src="${esc(m.img)}" alt="">` : ''}</div>`;
     if (m.tipo === 'rolagem') return rollHTML(m);
     const grouped = prev && prev.uid === m.uid && prev.npc === m.npc && (prev.tipo === 'fala' || prev.tipo === 'grito') && m.ts - prev.ts < tune.groupMinutes * 60000;
     const body = m.tipo === 'grito' ? `<div class="grito" style="color:${cor}">${format(m.txt.toUpperCase(), m)}</div>` : `<div class="fala-txt" style="font-family:${fonte}">${format(m.txt, m)}</div>`;

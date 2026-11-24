@@ -37,6 +37,8 @@
       <div class="tp-r"><button data-hit="KeyQ" aria-label="Disparar canhões">Canhão</button><button data-hit="KeyE" aria-label="Disparo especial">Especial</button><button data-hit="KeyR" aria-label="Reparar">Reparar</button></div>
     </div>
     <button id="fabCall" class="only-mobile" hidden aria-label="Chamar o narrador">✨ Narrador <span class="pts" id="fabCount">0</span></button>
+    <div id="fxStage"></div>
+    <div id="trilhaBox" aria-hidden="true"></div>
     <div id="diceStage"></div>
     <div id="toasts"></div>
   </div>
@@ -49,7 +51,7 @@
       <button data-t="ficha"><span class="ic">📜</span>Ficha</button>
       <button data-t="tec"><span class="ic">⚔</span>Técnicas</button>
       <button data-t="mesa"><span class="ic">👥</span>Mesa</button>
-      <button class="tbtn" id="wideBtn" title="Mais espaço para a narração">Foco</button><button class="tbtn" id="themeBtn" title="Tema escuro ou claro">Tema</button><button class="tbtn" id="iaBtn" title="Chave da API e servidor do narrador de IA">IA</button>
+      <button class="tbtn" id="musicBtn" title="Trilha sonora da mesa">♪</button><button class="tbtn" id="wideBtn" title="Mais espaço para a narração">Foco</button><button class="tbtn" id="themeBtn" title="Tema escuro ou claro">Tema</button><button class="tbtn" id="iaBtn" title="Chave da API e servidor do narrador de IA">IA</button>
     </div>
 
     <section class="panel on" id="p-chat">
@@ -121,6 +123,8 @@
 <script src="js/island.js"></script>
 <script src="js/naval.js"></script>
 <script src="js/chat.js"></script>
+<script src="js/akuma.js"></script>
+<script src="js/midia.js"></script>
 <script>
 'use strict';
 // ---- Built to be checked: passo fixo, relógio injetável, window.game, cenas play e figures ----
@@ -510,7 +514,7 @@ function renderSheet() {
     <div class="row"><label class="btn wood sm" for="shFile">Trocar imagem</label><input type="file" id="shFile" accept="image/*"></div>
     <h3>Nível ${c.lv}${max ? ' (máximo)' : ''}</h3>${max ? bar('xp', 1, 1, 'Topo do mundo') : bar('xp', c.xp, xpNext(c.lv), c.xp + ' / ' + xpNext(c.lv) + ' XP')}
     ${bar('hp', c.hp, c.hpMax, 'Vida ' + c.hp + ' / ' + c.hpMax)}${bar('st', c.st, c.stMax, 'Energia ' + c.st + ' / ' + c.stMax)}
-    <div class="note">Defesa <b>${defOf(c)}</b> · Ataque com <b>${cl.atk}</b> · <b>${race.nome}:</b> ${esc(race.esp)}<br><b>${prof.nome}:</b> ${esc(prof.desc)}</div>
+    <div class="note">Defesa <b>${defOf(c)}</b> · Ataque com <b>${cl.atk}</b> · <b>${race.nome}:</b> ${esc(race.esp)}<br><b>${prof.nome}:</b> ${esc(prof.desc)}${c.akuma ? `<br><b>Akuma no Mi:</b> ${esc(c.akuma.n)} · ${esc(c.akuma.p)}` : ''}</div><div class="row"><button class="btn sm wood" id="shAkuma">Catálogo de Akuma no Mi</button></div>
     <h3>Atributos ${c.pts ? '<span class="pts">' + c.pts + ' pontos para distribuir</span>' : ''}</h3>
     <div class="row"><select id="shModo"><option value="normal">Normal</option><option value="vantagem">Vantagem</option><option value="desvantagem">Desvantagem</option></select>
       <select id="shCd"><option value="0">Sem CD</option><option value="${tune.cdFacil}">Fácil (${tune.cdFacil})</option><option value="${tune.cdMedia}">Média (${tune.cdMedia})</option><option value="${tune.cdDificil}">Difícil (${tune.cdDificil})</option></select></div>
@@ -526,6 +530,7 @@ function renderSheet() {
   el.querySelectorAll('[data-test]').forEach(b => b.onclick = () => Chat.teste(b.dataset.test, testCd, testMode));
   el.querySelectorAll('[data-up]').forEach(b => b.onclick = () => { if (c.pts > 0) { c.attrs[b.dataset.up]++; c.pts--; refreshChar(c, false); sheetDirty = true; } });
   $('shGoTec').onclick = () => setTab('tec');
+  if ($('shAkuma')) $('shAkuma').onclick = () => Akuma.modal();
   if ($('shTrain')) $('shTrain').onclick = () => { Train.start(c); sheetDirty = true; };
   if ($('shTrainStop')) $('shTrainStop').onclick = () => { Train.stop(c); sheetDirty = true; };
   $('shFile').onchange = e => processUpload(e.target.files[0], tune.tokenImgSize, url => { c.img = url; commit('chars', c.id, c); syncPc(c); sheetDirty = true; });
@@ -574,18 +579,40 @@ function renderChips() {
 }
 
 // ---- Criador de ataques: dano inicial + efeitos comprados com Energia ----
+// GIF: guarda o arquivo como está (para não perder a animação), até 500 KB; imagem comum: reduz para caber
+function imagemDaTecnica(file, cb) {
+  if (!/^image\//.test(file.type)) { toast('Escolha um arquivo de imagem ou GIF.'); return; }
+  const fr = new FileReader();
+  if (file.type === 'image/gif') {
+    if (file.size > 500 * 1024) { toast('GIF grande demais (máx. 500 KB). Use um link do GIF.'); return; }
+    fr.onload = () => cb(fr.result); fr.readAsDataURL(file); return;
+  }
+  fr.onload = () => {
+    const im = new Image();
+    im.onload = () => {
+      const k = Math.min(1, 420 / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.max(1, Math.round(im.width * k)); c.height = Math.max(1, Math.round(im.height * k));
+      c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); let url = c.toDataURL('image/webp', 0.85); if (!/^data:image\/webp/.test(url)) url = c.toDataURL('image/jpeg', 0.85); cb(url);
+    };
+    im.onerror = () => toast('Não consegui abrir essa imagem.'); im.src = fr.result;
+  };
+  fr.readAsDataURL(file);
+}
 function atkEditor(old) {
-  const c = me(), st = { nome: old ? old.nome : '', fx: old ? old.fx.slice() : [] }, ov = $('overlay');
+  const c = me(), st = { nome: old ? old.nome : '', fx: old ? old.fx.slice() : [], img: old && old.img ? old.img : '' }, ov = $('overlay');
   const draw = () => {
     const custo = atkCost(c, st.fx), cap = atkCap(c), ok = custo <= cap && st.nome.trim();
     ov.innerHTML = `<div class="card small"><h1 style="font-size:32px">${old ? 'Editar' : 'Criar'} técnica</h1><div class="tagline">Dano inicial ${atkDice(c, [])} + ${attr(c, CLASSES[c.classe].atk)}. Cada efeito custa Energia.</div>
     <div class="field"><label>Nome da técnica</label><input type="text" id="akNome" maxlength="28" value="${esc(st.nome)}" placeholder="Ex.: Furacão de Lâminas"></div>
+    <div class="field"><label>Imagem ou GIF que aparece na cena quando você usa (opcional)</label><div class="row"><input type="text" id="akImgUrl" placeholder="Link de uma imagem ou GIF (https://…)" value="${/^data:/.test(st.img) ? '' : esc(st.img)}" style="flex:1;min-width:140px"><label class="btn wood sm" for="akImgFile">Arquivo…</label><input type="file" id="akImgFile" accept="image/*" hidden></div>${st.img ? `<div class="row"><img src="${esc(st.img)}" class="tec-prev" alt=""><button class="btn sm wood" id="akImgClear">Tirar</button></div>` : ''}</div>
     ${Object.entries(FX).map(([k, f]) => { const n = countFx(st.fx, k); return `<div class="fx"><div style="flex:1"><b>${f.nome}</b> <span class="note">custo ${fxCost(c, k)} · ${f.desc}</span></div><button class="btn sm wood" data-fx="${k}" data-d="-1">−</button><span class="val">${n}</span><button class="btn sm wood" data-fx="${k}" data-d="1" ${n >= f.max ? 'disabled' : ''}>+</button></div>`; }).join('')}
     <div class="note" style="margin-top:8px">Dano: <b>${atkDice(c, st.fx)}+${attr(c, CLASSES[c.classe].atk) + ((RACES[c.raca].dmg) || 0)}</b> · alcance <b>${atkReach(c, st.fx)}</b> · custo total <b style="color:${custo > cap ? 'var(--no)' : 'inherit'}">${custo} / ${cap}</b> de Energia por uso${RACES[c.raca].electro ? ' (Electro: atordoar mais barato)' : ''}.</div>
     <div class="actions"><button class="btn wood" id="akCancel">Cancelar</button>${old ? '<button class="btn red" id="akDel">Apagar</button>' : ''}<button class="btn" id="akSave" ${ok ? '' : 'disabled'}>Guardar</button></div></div>`;
     ov.querySelectorAll('[data-fx]').forEach(b => b.onclick = () => { const k = b.dataset.fx, d = +b.dataset.d; if (d > 0 && countFx(st.fx, k) < FX[k].max) st.fx.push(k); if (d < 0) { const i = st.fx.indexOf(k); if (i >= 0) st.fx.splice(i, 1); } draw(); });
     $('akNome').oninput = e => { st.nome = e.target.value; $('akSave').disabled = !(atkCost(c, st.fx) <= atkCap(c) && st.nome.trim()); };
-    $('akCancel').onclick = close; $('akSave').onclick = () => { const a = { id: old ? old.id : 'a' + uid(), nome: st.nome.trim(), fx: st.fx, custo: atkCost(c, st.fx) }; c.ataques = c.ataques || []; if (old) c.ataques[c.ataques.findIndex(x => x.id === old.id)] = a; else c.ataques.push(a); commit('chars', c.id, c); sheetDirty = true; close(); toast('Técnica guardada: ' + a.nome); };
+    $('akImgUrl').onchange = e => { const u = e.target.value.trim(); if (!u) st.img = ''; else if (Fx.okUrl(u) && !/^data:/i.test(u)) st.img = u; else { toast('Use um link que comece com https://'); } draw(); };
+    $('akImgFile').onchange = e => { const f = e.target.files[0]; if (!f) return; imagemDaTecnica(f, url => { st.img = url; draw(); }); };
+    if ($('akImgClear')) $('akImgClear').onclick = () => { st.img = ''; draw(); };
+    $('akCancel').onclick = close; $('akSave').onclick = () => { const a = { id: old ? old.id : 'a' + uid(), nome: st.nome.trim(), fx: st.fx, custo: atkCost(c, st.fx), img: st.img || null }; c.ataques = c.ataques || []; if (old) c.ataques[c.ataques.findIndex(x => x.id === old.id)] = a; else c.ataques.push(a); commit('chars', c.id, c); sheetDirty = true; close(); toast('Técnica guardada: ' + a.nome); };
     if ($('akDel')) $('akDel').onclick = () => { c.ataques = c.ataques.filter(x => x.id !== old.id); commit('chars', c.id, c); sheetDirty = true; close(); };
   };
   const close = () => { ov.className = ''; ov.innerHTML = ''; };
@@ -604,6 +631,7 @@ function renderMesa() {
   const c = me(), el = $('mesaDyn'), v = currentView(); if (!c) { el.innerHTML = ''; return; }
   let h = '';
   const ship = c.gm ? (isDeck(v) ? db.ships[v.slice(6)] : null) : shipOf(c);
+  h += '<div class="row"><button class="btn sm wood" id="musBtn">♪ Trilha sonora</button><button class="btn sm wood" id="akBtn">Akuma no Mi</button></div>';
   if (c.gm) {
     h += `<h3>Mestre</h3><div class="row"><select id="gmGo" style="flex:1">${gmPlaces().map(([k, n]) => `<option value="${k}" ${k === v ? 'selected' : ''} ${k.startsWith('g:') ? 'disabled' : ''}>${esc(n)}${k.startsWith('g:') ? '' : (Chat.unread(k) && k !== v ? ' (' + Chat.unread(k) + ' novas)' : '')}</option>`).join('')}</select></div>
       <div class="row"><label><input type="checkbox" id="gmAuto" ${db.world.auto ? 'checked' : ''}> Mestre automático (narra, sorteia eventos e arma lutas)</label></div>`;
@@ -666,6 +694,8 @@ function renderMesa() {
   on('[data-ms]', b => b.onclick = () => Combat.accept(b.dataset.ms));
   on('[data-buy]', b => b.onclick = () => Shop.buy(b.dataset.buy));
   on('[data-loja]', b => b.onclick = () => lojaModal(b.dataset.loja));
+  if ($('musBtn')) $('musBtn').onclick = () => Trilha.modal();
+  if ($('akBtn')) $('akBtn').onclick = () => Akuma.modal();
   if ($('tkLoja')) $('tkLoja').onchange = e => { const t = db.tokens[Island.sel]; if (!t) return; t.loja = e.target.value || null; commit('tokens', t.id, t); mesaDirty = true; };
   on('[data-ev]', b => b.onclick = () => {
     const s = ship; if (!s || !s.travel) return; const k = b.dataset.ev, d = $('evDiff') && $('evDiff').value || undefined;
@@ -754,6 +784,7 @@ function bindPanels() {
   $('wideBtn').onclick = () => { setSide(null); const w = document.body.classList.toggle('wide'); try { localStorage.setItem('mdm-wide', w ? '1' : '0'); } catch (e) { /* tudo bem */ } };
   $('btnCarta').onclick = () => { if (me().gm) { worldOpen = true; World.sel = null; worldSig = ''; } else { chartOpen = true; Travel.sel = null; } mesaDirty = true; };
   $('btnCentro').onclick = () => Island.fit(currentView());
+  $('musicBtn').onclick = () => Trilha.modal();
   $('chatBgFile').onchange = e => { Chat.setBg(e.target.files[0]); e.target.value = ''; };
   $('chatBgClear').onclick = () => Chat.clearBg();
 }
@@ -967,7 +998,7 @@ function mobileUi() {
   const k = (pad ? 'p' : '') + (fab ? 'f' : ''); if (k !== mobShown) { mobShown = k; $('tpad').hidden = !pad; $('fabCall').hidden = !fab; }
   if (fab) $('fabCount').textContent = $('callCount').textContent;
 }
-function drawFrame() { scenes[scene].draw(); mobileUi(); }
+function drawFrame() { scenes[scene].draw(); mobileUi(); if (scene === 'play') { try { Trilha.sync(); } catch (e) { /* a trilha nunca derruba o jogo */ } } }
 function frame() { tick(); requestAnimationFrame(frame); }
 function timer() { if (document.visibilityState === 'visible' && clock.now() - last > 0.1) tick(); }
 

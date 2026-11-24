@@ -71,6 +71,7 @@ Fácil, moderado ou difícil conforme o nível do grupo: o primeiro evento na vi
 - [x] Mesas com convite (código de 6 letras e link): várias pessoas, em computador ou celular, jogam juntas, com chat, fichas e tokens em tempo real pelo servidor local (`--lan`)
 - [x] Mundo do narrador: ao entrar como Mestre ele começa vendo os quatro mares com todas as ilhas e quem está em cada uma; abre o mapa de uma ilha ou leva um jogador para lá
 - [x] Ilhas povoadas: moradores e lojistas (mercado, estaleiro, curandeiro, taverna) em toda ilha; clicar no lojista abre o balcão e a compra sai da carteira
+- [x] Mídia da mesa: catálogo de Akuma no Mi (lista parcial), imagem/GIF nas técnicas e trilha sonora compartilhada
 - [x] Versão para celular: abas embaixo (Cena, Chat, Ficha, Técnicas, Mesa), chat em primeiro plano, mapa em tela cheia com pinça e arrasto, direcional de toque na luta 3D e botão flutuante do narrador
 
 ## Your systems
@@ -99,7 +100,7 @@ Fácil, moderado ou difícil conforme o nível do grupo: o primeiro evento na vi
 - Hospedagem: preparada para o Vercel (vercel.json, api/, VERCEL.md), falta o primeiro deploy.
 - Login real (Supabase Auth): as contas ainda são locais; o banco e o tempo real do Supabase já têm o código pronto (supabase/schema.sql, js/supabase.js), falta um projeto para testar. A IA Gemini entra por um servidor local opcional que guarda a chave
 - Haki e a Grand Line: grow it
-- Trilha sonora do YouTube e bestiário: add it as a feature
+- Bestiário: add it as a feature
 - Sigilo real de rolagens secretas: needs a server
 - Abordagem (abordo) nas batalhas navais, com o convés virando mesa de ilha: add it as a feature
 - Todas as ilhas de One Piece: o catálogo começa por um punhado de ilhas por mar (as inventadas ficam marcadas "original"): add it as a feature
