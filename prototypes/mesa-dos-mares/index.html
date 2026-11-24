@@ -623,7 +623,9 @@ function renderMesa() {
     if (!c.gm && ship && ship.at === v) {
       h += `<div class="row"><button class="btn sm" id="actTrain">${c.treino ? 'Parar o treino' : 'Treinar'}</button>${c.faccao === 'pirata' ? '<button class="btn sm red" id="actSaque">Saquear a ilha</button>' : ''}<button class="btn sm wood" id="actMestre">Pedir cena ao mestre automático</button></div>`;
       if (c.faccao === 'marinha') h += `<div class="note">Missões da Marinha${c.missao && db.missions[c.missao] && !db.missions[c.missao].done ? ' (uma em andamento)' : ''}:</div><div class="row">${Object.entries(Combat.MISSIONS).map(([k, m]) => `<button class="btn sm" data-ms="${k}" title="${esc(m.desc)}">${m.nome}</button>`).join('')}</div>`;
-      h += `<h3>Comércio</h3><div class="note">Seus Berries: <b>${berry(c.berries || 0)}</b></div>` + Shop.items(c, ship, v).map(it => `<div class="ord"><div style="flex:1"><b>${it.nome}</b><div class="note">${esc(it.nota)}</div></div><span class="ini" style="font-size:16px">${berry(it.pr)}</span><button class="btn sm" data-buy="${it.k}" ${it.ok && (c.berries || 0) >= it.pr ? '' : 'disabled'}>Comprar</button></div>`).join('');
+      { const lojas = Island.tokensOn(v).filter(x => x.loja && LOJAS[x.loja]);
+        h += `<h3>Comércio</h3><div class="note">Seus Berries: <b>${berry(c.berries || 0)}</b></div>` + (lojas.length ? '<div class="note">Clique num lojista no mapa (selo $) ou abra por aqui:</div>' + lojas.map(x => `<div class="ord"><div style="flex:1"><b>${esc(x.nome)}</b><div class="note">${esc(LOJAS[x.loja].nome)}</div></div><button class="btn sm" data-loja="${x.id}">Abrir</button></div>`).join('')
+          : Shop.items(c, ship, v).map(it => `<div class="ord"><div style="flex:1"><b>${it.nome}</b><div class="note">${esc(it.nota)}</div></div><span class="ini" style="font-size:16px">${berry(it.pr)}</span><button class="btn sm" data-buy="${it.k}" ${it.ok && (c.berries || 0) >= it.pr ? '' : 'disabled'}>Comprar</button></div>`).join('')); }
     }
     if (c.gm) {
       const cf = db.islandCfg[v] || {}, tool = Island.editTool;
@@ -638,6 +640,7 @@ function renderMesa() {
       if (t.nota) h += `<div class="note">${esc(t.nota)}${t.perfil ? ' <i>(' + esc(t.perfil) + ')</i>' : ''}</div>`;
       if (cc && !cc.gm) h += `<div class="note">${esc(RACES[cc.raca].nome)} · ${esc(CLASSES[cc.classe].nome)} · ${esc(titulo(cc))}</div>`;
       if (isGM() && t.hpMax) h += `<div class="row"><button class="btn sm wood" data-d="1">Vida −1</button><button class="btn sm wood" data-d="-1">Vida +1</button><button class="btn sm wood" data-d="5">−5</button><button class="btn sm wood" data-pub="1">${t.pub ? 'Esconder barras' : 'Mostrar barras'}</button>${t.owner === 'gm' ? '<button class="btn sm" data-npc="1">NPC age</button>' : ''}</div>`;
+      if (isGM() && !t.pc) h += `<div class="row"><label class="note">Loja: <select id="tkLoja"><option value="">nenhuma</option>${Object.entries(LOJAS).map(([k, l]) => `<option value="${k}" ${t.loja === k ? 'selected' : ''}>${l.nome}</option>`).join('')}</select></label></div>`;
       if (canEdit && !t.pc) h += `<div class="row"><button class="btn sm red" data-del="${t.id}">Remover token</button></div>`;
     }
     const cb = db.combat[v];
@@ -662,6 +665,8 @@ function renderMesa() {
   if ($('actMestre')) $('actMestre').onclick = () => { const sh = shipOf(c), cl = Master.cls(sh), r = Master.ask({ ilha: ISLAND[v], nivelMedio: cl.lvMed, faccao: c.faccao }); Master.say(v, r.texto + ' (' + { facil: 'luta fácil', moderada: 'luta moderada', dificil: 'luta difícil' }[r.dificuldade] + ')'); r.encontro.forEach(e => Combat.spawnNpc(v, e.kind, e.lv)); };
   on('[data-ms]', b => b.onclick = () => Combat.accept(b.dataset.ms));
   on('[data-buy]', b => b.onclick = () => Shop.buy(b.dataset.buy));
+  on('[data-loja]', b => b.onclick = () => lojaModal(b.dataset.loja));
+  if ($('tkLoja')) $('tkLoja').onchange = e => { const t = db.tokens[Island.sel]; if (!t) return; t.loja = e.target.value || null; commit('tokens', t.id, t); mesaDirty = true; };
   on('[data-ev]', b => b.onclick = () => {
     const s = ship; if (!s || !s.travel) return; const k = b.dataset.ev, d = $('evDiff') && $('evDiff').value || undefined;
     if (k === 'random') Events.random(s);
@@ -669,7 +674,7 @@ function renderMesa() {
     if (k === 'turn') { Travel.pause(s); Naval.start({ keys: [s.key], enemy: d === 'facil' ? 'pescador' : 'patrulha', count: d === 'dificil' ? 2 : 1, lv: Master.cls(s).lvMed }); }
   });
   if ($('evClima')) $('evClima').onchange = e => { if (e.target.value && ship && ship.travel) Events.clima(ship, e.target.value); };
-  const cfgNow = () => Object.assign({}, db.islandCfg[v] || {}), aplicaCfg = patch => { commit('islandCfg', v, Object.assign(cfgNow(), patch)); mesaDirty = true; Island.fit(v); };
+  const cfgNow = () => Object.assign({}, db.islandCfg[v] || {}), aplicaCfg = patch => { commit('islandCfg', v, Object.assign(cfgNow(), patch)); Island.populate(v, true); mesaDirty = true; Island.fit(v); };
   if ($('genGo')) $('genGo').onclick = () => { aplicaCfg({ tema: $('genTema').value, seed: String(Math.floor(rng() * 1e6)), manual: null }); sysMsg(v, 'O Mestre remodela a ilha: o mapa ganha um novo desenho.'); };
   [['genCols', 'cols'], ['genRows', 'rows'], ['genTerra', 'terra'], ['genCasas', 'casas'], ['genArv', 'arvores']].forEach(([id, k]) => {
     const el = $(id); if (!el) return;
@@ -678,7 +683,7 @@ function renderMesa() {
   on('[data-tool]', b => b.onclick = () => { Island.editTool = Island.editTool === b.dataset.tool ? null : b.dataset.tool; mesaDirty = true; });
   if ($('genFim')) $('genFim').onclick = () => { Island.editTool = null; mesaDirty = true; };
   if ($('genLimpa')) $('genLimpa').onclick = () => aplicaCfg({ manual: { houses: [], trees: [] } });
-  if ($('genReset')) $('genReset').onclick = () => { commit('islandCfg', v, null); Island.fit(v); mesaDirty = true; };
+  if ($('genReset')) $('genReset').onclick = () => { commit('islandCfg', v, null); Island.populate(v, true); Island.fit(v); mesaDirty = true; };
   on('[data-d]', b => b.onclick = () => Combat.damage(db.tokens[Island.sel], +b.dataset.d, { side: 'neutro', nome: 'Mestre' }));
   on('[data-pub]', b => b.onclick = () => { const t = db.tokens[Island.sel]; t.pub = !t.pub; commit('tokens', t.id, t); });
   on('[data-npc]', b => b.onclick = () => { const t = db.tokens[Island.sel]; if (t) Combat.npcAct(t); });
@@ -695,6 +700,25 @@ function cargosHTML(c) {
   h += `<div class="ord"><b>${esc(nome(db.cargos.frota) || FROTA_NOME)}</b><span class="note">Almirante de Frota</span>${db.cargos.frota === c.id ? '<span class="tag marinha">você</span>' : `<button class="btn sm" data-challenge="3" ${rk >= RANK_ALM && c.rep >= rankRep(RANK_FROTA) ? '' : 'disabled'}>Desafiar</button>`}</div>`;
   return h + '<div class="note">Para desafiar um almirante, esteja numa ilha com base da Marinha, com patente de Vice-Almirante e a reputação exigida. O desafio é uma luta contra o ocupante do cargo.</div>';
 }
+// O balcão de um lojista: só os itens dele; o que se compra sai da carteira na hora (Shop.buy)
+function lojaModal(tid) {
+  const t = db.tokens[tid]; if (!t || !t.loja || !LOJAS[t.loja]) return;
+  const def = LOJAS[t.loja], ov = $('overlay');
+  const fechar = () => { ov.className = ''; ov.innerHTML = ''; };
+  const render = () => {
+    const c = me(), s = c && !c.gm ? shipOf(c) : null, aqui = !!(s && s.at === t.isl);
+    const itens = aqui ? Shop.items(c, s, t.isl).filter(it => def.itens.includes(it.k)) : [];
+    ov.innerHTML = `<div class="card small"><h1 style="font-size:28px">${esc(t.nome)}</h1><div class="tagline">${esc(def.nome)} · ${esc(ISLAND[t.isl].nome)}${c && !c.gm ? ' · Seus Berries: <b>' + berry(c.berries || 0) + '</b>' : ''}</div>
+      <div class="note" style="text-align:center;font-style:italic;margin-bottom:10px">“${esc(def.fala)}”</div>` +
+      (itens.length ? itens.map(it => `<div class="ord"><div style="flex:1"><b>${esc(it.nome)}</b><div class="note">${esc(it.nota)}</div></div><span class="ini" style="font-size:16px">${berry(it.pr)}</span><button class="btn sm" data-buy="${it.k}" ${it.ok && (c.berries || 0) >= it.pr ? '' : 'disabled'}>Comprar</button></div>`).join('')
+        : `<div class="note">${c && c.gm ? 'Você é o mestre: os jogadores com o navio atracado aqui compram neste balcão (' + def.itens.length + ' tipo(s) de item).' : 'Para comprar, o seu navio precisa estar atracado nesta ilha.'}</div>`) +
+      '<div class="actions"><button class="btn" id="lojaFecha">Sair da loja</button></div></div>';
+    ov.className = 'on'; $('lojaFecha').onclick = fechar;
+    ov.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => { Shop.buy(b.dataset.buy); render(); });
+  };
+  render();
+}
+Shop.open = lojaModal;
 function gmGo(p) {
   const c = me(); if (p.startsWith('g:')) return; c.view = p; chartOpen = false; worldOpen = false; Island.sel = null; dirty.msgs = true; mesaDirty = true; setTimeout(() => { const l = $('chatList'); l.scrollTop = l.scrollHeight; }, 0);
 }
@@ -844,7 +868,7 @@ const scenes = {
       if (Date.now() - Ia.last > 15000) Ia.check();
       if (seaOK && mode === 'fight') { Sea.update(dt, 'fight'); Fight3D.update(dt); }
       if (mode === 'naval') Naval.update(dt);
-      if (mode === 'island' && !c.gm) Island.ensureMyToken(state.view);
+      if (mode === 'island') { Island.populate(state.view); if (!c.gm) Island.ensureMyToken(state.view); }
       if (mode === 'island' && pressed('KeyF')) focusFoe();
       if (mode === 'island' && !c.gm) for (let i = 1; i <= 9; i++) if (pressed('Digit' + i)) useTec(i - 1);
       // pena cumprida?

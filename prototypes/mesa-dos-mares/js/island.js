@@ -104,6 +104,7 @@ const Island = (() => {
         const t = db.tokens[drag.id];
         if (t) { t.x = Math.round(t.x); t.y = Math.round(t.y); commit('tokens', t.id, t); tone(220, 0.06, 'square', 0.12); }
       }
+      else if (drag && !drag.moved) { const t = db.tokens[drag.id]; if (t && t.loja && typeof Shop !== 'undefined' && Shop.open) Shop.open(t.id); } // clicar num lojista abre o balcão
       drag = null; pan = null;
     };
     cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
@@ -130,6 +131,25 @@ const Island = (() => {
     }
     return { x: 12, y: 12 };
   }
+  // Toda ilha nasce com moradores e lojas: o lojista fica perto de uma casa, e clicar nele abre o balcão.
+  // Ids e lugares saem da semente da ilha, então todo aparelho que povoar primeiro chega ao mesmo resultado.
+  function populate(id, force) {
+    if (!isIsland(id) || !db.world) return;
+    const pop = db.world.pop || {}; if (pop[id] && !force) return;
+    if (force) Object.values(db.tokens).filter(t => t.isl === id && t.res).forEach(t => commit('tokens', t.id, null));
+    const I = IS(id), def = MORADORES[I.tema] || MORADORES.vila, L = islandMap(I, tune.cellPx).L, R = artRng(hashStr('res' + id + (I.seed || '')));
+    const casas = L.houses.filter(b => ['casa', 'bar', 'praca', 'cozinha', 'moinho'].includes(b.tipo)).slice();
+    for (let i = casas.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [casas[i], casas[j]] = [casas[j], casas[i]]; }
+    const nomes = NOMES_NPC.slice(); for (let i = nomes.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [nomes[i], nomes[j]] = [nomes[j], nomes[i]]; }
+    const lista = def.lojas.map(loja => ({ loja })).concat(Array.from({ length: def.gente }, () => ({ loja: null })));
+    lista.forEach((q, i) => {
+      const b = casas.length ? casas[i % casas.length] : { x: L.cols / 2 - 1, y: L.rows / 2 - 1, w: 2, h: 2 }, tid = 'res-' + id + '-' + i;
+      const p = freeSpot(id, Math.round(b.x + b.w / 2) + (i >= casas.length ? 1 : 0), Math.round(b.y + b.h) + 1), nome = nomes[i % nomes.length];
+      const kind = q.loja === 'taverna' ? 'cozinha' : q.loja ? 'aldeao' : def.tipo;
+      commit('tokens', tid, { id: tid, isl: id, owner: 'gm', kind, nome: q.loja ? nome + ' (' + LOJAS[q.loja].nome + ')' : nome, img: null, x: p.x, y: p.y, hp: 0, hpMax: 0, st: 0, stMax: 0, lv: 1, tam: 1, pub: true, seed: Math.abs(hashStr(tid)), status: {}, res: true, loja: q.loja || null });
+    });
+    db.world.pop = Object.assign({}, db.world.pop, { [id]: true }); commit('world', null, db.world);
+  }
   // Meu personagem ganha um token na ilha onde chegou (uma vez por ilha).
   function ensureMyToken(id) {
     const c = me(); if (!c || c.gm || !isIsland(id)) return;
@@ -140,6 +160,12 @@ const Island = (() => {
   }
   function addToken(id, row) { const p = freeSpot(id), tid = 'tk-' + uid(); const t = Object.assign({ id: tid, isl: id, x: p.x, y: p.y, seed: Math.abs(hashStr(tid)) }, row); commit('tokens', tid, t); sel = tid; uiSelChanged(); return t; }
 
+  // selo dourado de quem vende alguma coisa
+  function shopBadge(g, x, y, size) {
+    const s = size * 0.3, cx = x + s * 0.6, cy = y + s * 0.6; g.save();
+    g.fillStyle = '#e0a21a'; g.strokeStyle = INK; g.lineWidth = Math.max(1, s * 0.1); g.beginPath(); g.arc(cx, cy, s * 0.55, 0, Math.PI * 2); g.fill(); g.stroke();
+    g.fillStyle = INK; g.font = '700 ' + Math.round(s * 0.75) + 'px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('$', cx, cy + s * 0.04); g.restore();
+  }
   // pequenos selos de status em cima do token
   function statusIcons(g, t, x, y, size) {
     const st = t.status || {}, keys = ['veneno', 'queimar', 'atordoar', 'prender'].filter(k => st[k] > 0); if (!keys.length) return;
@@ -167,10 +193,10 @@ const Island = (() => {
     // tokens: NPCs embaixo dos jogadores
     const cb = db.combat[id], turnId = cb && cb.on ? cb.order[cb.turn] : null;
     tokensOn(id).sort(drawOrder).forEach(t => {
-      const z = t.tam || 1; drawToken(g, t, t.x * cell, t.y * cell, cell * z, { sel: t.id === sel, turn: t.id === turnId, bars: canSeeBars(t), label: true }); statusIcons(g, t, t.x * cell, t.y * cell, cell * z);
+      const z = t.tam || 1; drawToken(g, t, t.x * cell, t.y * cell, cell * z, { sel: t.id === sel, turn: t.id === turnId, bars: canSeeBars(t), label: true }); statusIcons(g, t, t.x * cell, t.y * cell, cell * z); if (t.loja) shopBadge(g, t.x * cell, t.y * cell, cell * z);
     });
     g.restore();
   }
 
-  return { attach, draw, ensureMyToken, addToken, tokensOn, canMove, freeSpot, get sel() { return sel; }, set sel(v) { sel = v; }, get editTool() { return editTool; }, set editTool(v) { editTool = v || null; dirty.tokens = true; uiSelChanged(); }, fit: id => { cam(id).fit = true; dirty.tokens = true; } };
+  return { attach, draw, populate, ensureMyToken, addToken, tokensOn, canMove, freeSpot, get sel() { return sel; }, set sel(v) { sel = v; }, get editTool() { return editTool; }, set editTool(v) { editTool = v || null; dirty.tokens = true; uiSelChanged(); }, fit: id => { cam(id).fit = true; dirty.tokens = true; } };
 })();

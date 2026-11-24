@@ -85,6 +85,21 @@ const NPC_KINDS = {
   tenryu:    { nome: 'Tenryubito',         lv: 1,  mul: 0.8, cor: '#d8c08a' },
   almirante: { nome: 'Almirante',          lv: 90, mul: 2.0, cor: '#1f3f7a' },
 };
+// Lojas das ilhas: cada comerciante vende um grupo das coisas de Shop.items (a chave k)
+const LOJAS = {
+  mercador:   { nome: 'Mercado',   itens: ['comida', 'refeicao'],            fala: 'Provisões frescas! Comida boa para a viagem, pelo preço justo.' },
+  estaleiro:  { nome: 'Estaleiro', itens: ['reparo', 'canhao', 'velas'],      fala: 'Casco rachado? Velas rasgadas? Traga o navio que eu cuido.' },
+  curandeiro: { nome: 'Curandeiro', itens: ['curativo'],                      fala: 'Senta aí que eu remendo esses cortes.' },
+  taverna:    { nome: 'Taverna',   itens: ['refeicao', 'comida'],            fala: 'Prato quente e uma caneca. O que vai ser?' },
+};
+// Quem mora e quem vende em cada tipo de ilha (o mestre pode mudar tudo depois)
+const MORADORES = {
+  vila:   { lojas: ['mercador', 'estaleiro', 'taverna'],               gente: 3, tipo: 'aldeao' },
+  cidade: { lojas: ['mercador', 'estaleiro', 'curandeiro', 'taverna'], gente: 6, tipo: 'aldeao' },
+  base:   { lojas: ['mercador', 'curandeiro'],                         gente: 4, tipo: 'marujo' },
+  navio:  { lojas: ['taverna'],                                        gente: 3, tipo: 'cozinha' },
+};
+const NOMES_NPC = ['Marta', 'Tomás', 'Dona Lia', 'Seu Bento', 'Nana', 'Zeca', 'Irene', 'Otávio', 'Lúcia', 'Tião', 'Rosa', 'Gino', 'Bruna', 'Caetano', 'Dora', 'Mateus', 'Sol', 'Ícaro', 'Vera', 'Pedro'];
 const npcHp = (kind, lv) => Math.round((10 + lv * 6) * ((NPC_KINDS[kind] || {}).mul || 1));
 const npcAtk = lv => 2 + Math.floor(lv / 2);
 const npcDef = lv => 10 + Math.floor(lv / 3);
