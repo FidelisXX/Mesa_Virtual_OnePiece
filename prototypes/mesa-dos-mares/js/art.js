@@ -212,11 +212,14 @@ function drawCompass(g, x, y, r, rot = 0) {
 // ---- Mapa da ilha em pergaminho (pré-renderizado) ----
 const mapCache = {};
 function islandLayout(isl) {
-  const cols = 26, rows = 18, R = artRng(hashStr(isl.id + (isl.seed || '')));
+  // O mestre pode mudar o tamanho do mapa, o da terra, quantas casas e árvores, e até desenhar à mão (isl.manual)
+  const lim = (v, a, b, d) => (v == null || v === '' || isNaN(+v) ? d : Math.max(a, Math.min(b, Math.round(+v))));
+  const cols = lim(isl.cols, 14, 70, 26), rows = lim(isl.rows, 10, 50, 18), terra = Math.max(0.5, Math.min(1.3, +isl.terra || 1));
+  const sx = cols / 26, sy = rows / 18, R = artRng(hashStr(isl.id + (isl.seed || '')));
   const L = { cols, rows, R, houses: [], trees: [], special: isl.tema };
   const cx = cols / 2, cy = rows * 0.46;
   // costa: blob radial com ruído
-  const pts = [], n = 48, base = isl.tema === 'navio' ? 0 : Math.min(cols, rows) * 0.42;
+  const pts = [], n = 48, base = isl.tema === 'navio' ? 0 : Math.min(cols, rows) * 0.42 * terra;
   const ph = [R() * 6, R() * 6, R() * 6];
   for (let i = 0; i < n; i++) {
     const a = i / n * Math.PI * 2;
@@ -225,34 +228,36 @@ function islandLayout(isl) {
   }
   L.coast = pts;
   if (isl.tema === 'navio') { // casco do restaurante-navio, visto de cima
-    L.coast = [[3, 8.5], [6, 4], [20, 4], [23.5, 6], [25, 8.5], [23.5, 11], [20, 13], [6, 13]];
+    L.coast = [[3, 8.5], [6, 4], [20, 4], [23.5, 6], [25, 8.5], [23.5, 11], [20, 13], [6, 13]].map(p => [p[0] * sx, p[1] * sy]);
   }
   L.inside = (x, y) => { let c = false; const p = L.coast; for (let i = 0, j = p.length - 1; i < p.length; j = i++) { if ((p[i][1] > y) !== (p[j][1] > y) && x < (p[j][0] - p[i][0]) * (y - p[i][1]) / (p[j][1] - p[i][1]) + p[i][0]) c = !c; } return c; };
   const free = (x, y, w, h) => L.inside(x, y) && L.inside(x + w, y) && L.inside(x, y + h) && L.inside(x + w, y + h) &&
     !L.houses.some(b => x < b.x + b.w + 0.6 && x + w + 0.6 > b.x && y < b.y + b.h + 0.6 && y + h + 0.6 > b.y);
   const add = (x, y, w, h, tipo) => { if (free(x, y, w, h)) { L.houses.push({ x, y, w, h, tipo }); return true; } return false; };
-  if (isl.tema === 'vila') { add(16, 3.5, 3, 3, 'bar'); add(5, 4, 2, 2, 'moinho'); }
-  if (isl.tema === 'base') { add(10, 2.5, 7, 5, 'base'); }
-  if (isl.tema === 'cidade') { add(11.5, 6.5, 3, 3, 'praca'); }
+  if (isl.tema === 'vila') { add(16 * sx, 3.5 * sy, 3, 3, 'bar'); add(5 * sx, 4 * sy, 2, 2, 'moinho'); }
+  if (isl.tema === 'base') { add(10 * sx, 2.5 * sy, 7, 5, 'base'); }
+  if (isl.tema === 'cidade') { add(11.5 * sx, 6.5 * sy, 3, 3, 'praca'); }
   if (isl.tema === 'navio') {
-    L.houses.push({ x: 18, y: 6, w: 4, h: 5, tipo: 'cozinha' });
-    for (let i = 0; i < 6; i++) L.houses.push({ x: 7 + (i % 3) * 3.5, y: 6 + Math.floor(i / 3) * 3.5, w: 1.6, h: 1.6, tipo: 'mesa' });
+    L.houses.push({ x: 18 * sx, y: 6 * sy, w: 4, h: 5, tipo: 'cozinha' });
+    for (let i = 0; i < 6; i++) L.houses.push({ x: (7 + (i % 3) * 3.5) * sx, y: (6 + Math.floor(i / 3) * 3.5) * sy, w: 1.6, h: 1.6, tipo: 'mesa' });
   } else {
-    const want = isl.tema === 'cidade' ? 26 : isl.tema === 'base' ? 12 : 9;
+    const want = isl.casas != null && isl.casas !== '' ? lim(isl.casas, 0, 80, 9) + L.houses.length : Math.round((isl.tema === 'cidade' ? 26 : isl.tema === 'base' ? 12 : 9) * sx * sy);
     for (let k = 0; k < 400 && L.houses.length < want; k++) {
       const w = 1.5 + Math.floor(R() * 2), h = 1.5 + Math.floor(R() * 2);
       add(Math.floor(R() * (cols - w)) + 0.5, Math.floor(R() * (rows - h)) + 0.5, w, h, 'casa');
     }
-    const nt = isl.tema === 'vila' ? 40 : isl.tema === 'cidade' ? 10 : 22;
+    const nt = isl.arvores != null && isl.arvores !== '' ? lim(isl.arvores, 0, 160, 22) : Math.round((isl.tema === 'vila' ? 40 : isl.tema === 'cidade' ? 10 : 22) * sx * sy);
     for (let k = 0; k < 600 && L.trees.length < nt; k++) {
       const x = R() * cols, y = R() * rows;
-      if (L.inside(x, y) && !L.houses.some(b => x > b.x - 0.6 && x < b.x + b.w + 0.6 && y > b.y - 0.6 && y < b.y + b.h + 0.6) && !(Math.abs(x - 13) < 1.5 && y > rows * 0.55)) L.trees.push([x, y, 0.45 + R() * 0.35]);
+      if (L.inside(x, y) && !L.houses.some(b => x > b.x - 0.6 && x < b.x + b.w + 0.6 && y > b.y - 0.6 && y < b.y + b.h + 0.6) && !(Math.abs(x - cols / 2) < 1.5 && y > rows * 0.55)) L.trees.push([x, y, 0.45 + R() * 0.35]);
     }
   }
+  // desenhado à mão: o que o mestre pôs substitui o que o gerador sorteou
+  if (isl.manual && Array.isArray(isl.manual.houses) && Array.isArray(isl.manual.trees)) { L.houses = isl.manual.houses.map(b => Object.assign({}, b)); L.trees = isl.manual.trees.map(t => t.slice()); }
   return L;
 }
 function islandMap(isl, cell) {
-  const key = isl.id + (isl.seed || '') + (isl.tema || '') + ':' + cell;
+  const key = isl.id + ':' + cell + ':' + hashStr(JSON.stringify([isl.seed, isl.tema, isl.cols, isl.rows, isl.terra, isl.casas, isl.arvores, isl.manual]));
   if (mapCache[key]) return mapCache[key];
   const L = islandLayout(isl), W = L.cols * cell, H = L.rows * cell;
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const g = cv.getContext('2d');
@@ -287,7 +292,7 @@ function islandMap(isl, cell) {
     }
   }
   // cais ao sul
-  const dx = 12.3 * cell, dTop = (L.special === 'navio' ? 13 : 13.2) * cell;
+  const dx = (L.cols / 2 - 0.7) * cell, dTop = (L.special === 'navio' ? 13 : 13.2) / 18 * L.rows * cell;
   g.fillStyle = '#b38755'; g.strokeStyle = INK; g.lineWidth = cell * 0.04;
   g.fillRect(dx, dTop, cell * 1.4, H - dTop - cell * 0.6); g.strokeRect(dx, dTop, cell * 1.4, H - dTop - cell * 0.6);
   for (let y = dTop; y < H - cell * 0.6; y += cell * 0.3) { g.beginPath(); g.moveTo(dx, y); g.lineTo(dx + cell * 1.4, y); g.stroke(); }

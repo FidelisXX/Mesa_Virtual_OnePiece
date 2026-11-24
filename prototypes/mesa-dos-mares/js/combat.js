@@ -25,7 +25,7 @@ const Combat = (() => {
   const charOf = t => (t.owner !== 'gm' ? db.chars[t.owner] : null);
   const sideOfKind = k => (k === 'marujo' || k === 'oficial' || k === 'almirante' ? 'marinha' : (k === 'bandido' || k === 'rival' ? 'pirata' : 'neutro'));
   const sideOfToken = t => { const c = charOf(t); return c ? c.faccao : sideOfKind(t.kind); };
-  const defOfToken = t => { const c = charOf(t); return c ? defOf(c) : npcDef(t.lv || 1); };
+  const defOfToken = t => { const c = charOf(t); return c ? defOf(c) : npcDef(t.lv || 1) + (t.defB || 0); };
   const myTok = isl => Object.values(db.tokens).find(t => t.isl === isl && t.owner === myId && t.pc);
 
   // ---- Criar NPC com o nível manda nos números ----
@@ -33,6 +33,23 @@ const Combat = (() => {
     const k = NPC_KINDS[kind], p = Island.freeSpot(isl, 15, 6), id = 'tk-' + uid(), hp = npcHp(kind, lv);
     const t = Object.assign({ id, isl, owner: 'gm', kind, nome: k.nome, img: null, x: p.x, y: p.y, hp, hpMax: hp, st: 0, stMax: 0, lv, tam: 1, pub: true, seed: Math.abs(hashStr(id)), status: {} }, extra || {});
     commit('tokens', id, t); return t;
+  }
+
+  // ---- Perfil de combate de um NPC: a vida, o ataque e a defesa mudam, sempre em cima do nível ----
+  const PERFIL = { equilibrado: [1, 0, 0], tanque: [1.6, -1, 3], brutamontes: [1.3, 3, 0], agil: [0.8, 1, 2], atirador: [0.8, 2, -1], fraco: [0.6, -1, -2], chefe: [2.2, 2, 2] };
+  function perfilExtra(kind, lv, perfil, nota) {
+    const p = PERFIL[perfil] || PERFIL.equilibrado, hp = Math.max(1, Math.round(npcHp(kind, lv) * p[0])), esc = 1 + lv / 25;
+    return { hp, hpMax: hp, atkB: Math.round(p[1] * esc), defB: Math.round(p[2] * esc), perfil: PERFIL[perfil] ? perfil : 'equilibrado', nota: nota || '' };
+  }
+  // Sem IA: lê as palavras da descrição e escolhe o tipo, o perfil e o nome
+  function fichaLocal(desc) {
+    const d = String(desc || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''), has = re => re.test(d);
+    const tipo = has(/oficial|comandante|tenente|coronel|vice-almirante/) ? 'oficial' : has(/marinh|soldado|marujo|guarda/) ? 'marujo' : has(/cozinh|chef|cook/) ? 'cozinha'
+      : has(/rival|cacador de recompensa|capita|pirata famoso/) ? 'rival' : has(/pirata|bandido|ladr|saque|assalt|bruto/) ? 'bandido' : 'aldeao';
+    const perfil = has(/chefe|capita|comandante|lorde|lider|boss|lenda/) ? 'chefe' : has(/escudo|armadura|tanque|resistente|couraca/) ? 'tanque' : has(/gigante|forte|brutal|musculos|machado|marreta|bruto/) ? 'brutamontes'
+      : has(/rapid|agil|ladino|ladra|ladrao|sorrateir|assassin/) ? 'agil' : has(/pistola|rifle|atirador|sniper|arco|besta|canhao/) ? 'atirador' : has(/fraco|crianca|velh|doente|medroso/) ? 'fraco' : 'equilibrado';
+    const m = String(desc).match(/"([^"]{2,24})"/) || String(desc).match(/chamad[oa]\s+([A-ZÀ-Ú][\wÀ-ú]+(?:\s(?:d[aeo]s?\s)?[A-ZÀ-Ú][\wÀ-ú]+)*)/) || String(desc).match(/\b(?:Capit[aã]o|Capit[aã]|Dr\.?|Mestre|Velho|Velha)\s+([A-ZÀ-Ú][\wÀ-ú]+)/);
+    return { nome: m ? m[1].trim().slice(0, 24) : '', tipo, perfil, nota: String(desc).trim().slice(0, 160) };
   }
 
   // ---- Dano e nocaute ----
@@ -181,7 +198,7 @@ const Combat = (() => {
     }
     if (cheb(t, tg) > reach) { sysMsg(isl, t.nome + ' avança.'); return; }
     const c = charOf(tg), def = defOfToken(tg), lv = t.lv || 1;
-    const r = rolarD20(npcAtk(lv), 'normal'); r.label = 'Ataque de ' + t.nome; r.vs = { nome: tg.nome, def }; postRollTo(isl, t.nome, r, { npc: t.id });
+    const r = rolarD20(npcAtk(lv) + (t.atkB || 0), 'normal'); r.label = 'Ataque de ' + t.nome; r.vs = { nome: tg.nome, def }; postRollTo(isl, t.nome, r, { npc: t.id });
     if (r.nat === 1 || (r.nat !== 20 && r.total < def)) { sysMsg(isl, t.nome + ' erra ' + tg.nome + '.'); return; }
     const n = 1 + Math.floor(lv / 6), f = (r.nat === 20 ? n * 2 : n) + 'd6+' + Math.floor(lv / 4), d = parseRolagem(f, null);
     d.label = 'Dano em ' + tg.nome; postRollTo(isl, t.nome, d, { npc: t.id });
@@ -253,5 +270,5 @@ const Combat = (() => {
     }
   }
 
-  return { challenge, spawnNpc, damage, useAttack, start, next, end, npcAct, saquear, accept, MISSIONS, charOf, myTok, defOfToken, sideOfKind, cheb, getTarget };
+  return { challenge, perfilExtra, fichaLocal, spawnNpc, damage, useAttack, start, next, end, npcAct, saquear, accept, MISSIONS, charOf, myTok, defOfToken, sideOfKind, cheb, getTarget };
 })();

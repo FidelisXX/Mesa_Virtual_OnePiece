@@ -7,12 +7,14 @@
   "rewrites": [
     { "source": "/saude", "destination": "/api/saude" },
     { "source": "/narrar", "destination": "/api/narrar" },
+    { "source": "/ficha", "destination": "/api/ficha" },
     { "source": "/chave", "destination": "/api/chave" },
     { "source": "/teste", "destination": "/api/chave" },
     { "source": "/modelos", "destination": "/api/chave" }
   ],
   "functions": {
-    "api/narrar.js": { "maxDuration": 60 }
+    "api/narrar.js": { "maxDuration": 60 },
+    "api/ficha.js": { "maxDuration": 30 }
   },
   "headers": [
     {

@@ -318,3 +318,11 @@ h3 { margin: 16px 0 6px; font-size: 12px; text-transform: uppercase; letter-spac
 #resizer::after { content: ""; position: absolute; left: 5px; top: 50%; width: 3px; height: 54px; margin-top: -27px; border-radius: 3px; background: var(--border); transition: background .12s, height .12s; }
 #resizer:hover::after, #resizer.drag::after { background: var(--accent); height: 80px; margin-top: -40px; }
 body.in-title #resizer, body.in-create #resizer, body.mobile #resizer { display: none; }
+
+/* ---- Gerador de ilha e ficha de NPC do mestre ---- */
+.gen-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 8px 0; }
+.gen-grid label { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--muted); }
+.gen-grid input { width: 100%; }
+#tkDesc { resize: vertical; min-height: 44px; flex: 1 1 100%; width: 100%; }
+#tkLv { flex: none; }
+#tkKind { flex: 1 1 120px; min-width: 0; }

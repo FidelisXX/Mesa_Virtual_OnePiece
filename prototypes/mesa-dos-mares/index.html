@@ -87,10 +87,12 @@
         <div id="tkForm">
           <h3>Novo token</h3>
           <div class="row">
-            <input type="text" id="tkNome" placeholder="Nome do token" maxlength="24" style="flex:1;min-width:120px">
+            <input type="text" id="tkNome" placeholder="Nome do token" maxlength="24" style="flex:1;min-width:90px">
             <select id="tkKind" class="gm-only"></select>
-            <input type="number" id="tkLv" class="gm-only" value="5" min="1" max="100" style="width:64px" title="Nível do NPC">
+            <input type="number" id="tkLv" class="gm-only" value="5" min="1" max="999" step="1" style="width:84px" title="Nível do NPC: livre, de 1 a 999">
           </div>
+          <div class="row gm-only"><textarea id="tkDesc" rows="2" maxlength="400" placeholder="Descreva o personagem (ex.: capitã pirata ruiva, cruel, com sabre e pistola) e gere a ficha pelo nível"></textarea></div>
+          <div class="row gm-only"><button class="btn sm wood" id="tkGerar">Gerar ficha pela descrição</button><span class="note" id="tkGerNota"></span></div>
           <div class="row">
             <label class="btn wood sm" for="tkFile">Imagem…</label><input type="file" id="tkFile" accept="image/*">
             <img id="tkPrev" class="pic sm" alt="" hidden>
@@ -214,7 +216,7 @@ const berryTxt = n => berry(n || 0);
 // ======================================================================================
 // Cenas e telas cheias: login, conta, roleta, criação, pausa
 // ======================================================================================
-let scene, state, crState = null, pendingTokImg = null, seaOK = true;
+let scene, state, crState = null, pendingTokImg = null, pendingFicha = null, seaOK = true;
 const tabId = (() => { let t = sessionStorage.getItem('mdm-tab'); if (!t) { t = uid(); sessionStorage.setItem('mdm-tab', t); } return t; })();
 function reset() {
   seed = Number(params.get('seed')) || (CONFIG.seed ^ hashStr(tabId));
@@ -623,10 +625,17 @@ function renderMesa() {
       if (c.faccao === 'marinha') h += `<div class="note">Missões da Marinha${c.missao && db.missions[c.missao] && !db.missions[c.missao].done ? ' (uma em andamento)' : ''}:</div><div class="row">${Object.entries(Combat.MISSIONS).map(([k, m]) => `<button class="btn sm" data-ms="${k}" title="${esc(m.desc)}">${m.nome}</button>`).join('')}</div>`;
       h += `<h3>Comércio</h3><div class="note">Seus Berries: <b>${berry(c.berries || 0)}</b></div>` + Shop.items(c, ship, v).map(it => `<div class="ord"><div style="flex:1"><b>${it.nome}</b><div class="note">${esc(it.nota)}</div></div><span class="ini" style="font-size:16px">${berry(it.pr)}</span><button class="btn sm" data-buy="${it.k}" ${it.ok && (c.berries || 0) >= it.pr ? '' : 'disabled'}>Comprar</button></div>`).join('');
     }
-    if (c.gm) h += `<h3>Gerador de ilha</h3><div class="row"><select id="genTema">${['vila', 'cidade', 'base', 'navio'].map(k => `<option ${((db.islandCfg[v] || {}).tema || isl.tema) === k ? 'selected' : ''}>${k}</option>`).join('')}</select><button class="btn sm" id="genGo">Gerar novo mapa</button><button class="btn sm wood" id="genReset">Voltar ao original</button></div>`;
+    if (c.gm) {
+      const cf = db.islandCfg[v] || {}, tool = Island.editTool;
+      h += `<h3>Gerador de ilha</h3><div class="row"><select id="genTema">${['vila', 'cidade', 'base', 'navio'].map(k => `<option ${(cf.tema || isl.tema) === k ? 'selected' : ''}>${k}</option>`).join('')}</select><button class="btn sm" id="genGo">Gerar novo mapa</button><button class="btn sm wood" id="genReset">Voltar ao original</button></div>
+      <div class="gen-grid"><label>Largura<input type="number" id="genCols" min="14" max="70" value="${cf.cols || 26}"></label><label>Altura<input type="number" id="genRows" min="10" max="50" value="${cf.rows || 18}"></label><label>Terra %<input type="number" id="genTerra" min="50" max="130" step="5" value="${Math.round((cf.terra || 1) * 100)}"></label><label>Casas<input type="number" id="genCasas" min="0" max="80" placeholder="auto" value="${cf.casas == null ? '' : cf.casas}"></label><label>Árvores<input type="number" id="genArv" min="0" max="160" placeholder="auto" value="${cf.arvores == null ? '' : cf.arvores}"></label></div>
+      <div class="note">Desenhar o mapa: escolha a ferramenta e clique no mapa. Mudar casas ou árvores refaz o que foi desenhado à mão.</div>
+      <div class="row">${[['casa', 'Casa'], ['casaG', 'Casa grande'], ['arvore', 'Árvore'], ['apagar', 'Borracha']].map(([k, nm]) => `<button class="btn sm ${tool === k ? '' : 'wood'}" data-tool="${k}">${nm}</button>`).join('')}<button class="btn sm" id="genFim" ${tool ? '' : 'hidden'}>Concluir</button><button class="btn sm red" id="genLimpa">Limpar o mapa</button></div>`;
+    }
     if (t && t.isl === v) {
       const canEdit = isGM() || (mine && !t.pc), cc = Combat.charOf(t);
       h += `<h3>Token selecionado</h3><div class="ord"><img class="pic sm" src="${Chat.tokenPortrait(t)}" alt=""><b>${esc(t.nome)}${t.lv ? ' <small>nv ' + t.lv + '</small>' : ''}</b>${t.hpMax ? `<span>${t.hp}/${t.hpMax}</span>` : ''}</div>`;
+      if (t.nota) h += `<div class="note">${esc(t.nota)}${t.perfil ? ' <i>(' + esc(t.perfil) + ')</i>' : ''}</div>`;
       if (cc && !cc.gm) h += `<div class="note">${esc(RACES[cc.raca].nome)} · ${esc(CLASSES[cc.classe].nome)} · ${esc(titulo(cc))}</div>`;
       if (isGM() && t.hpMax) h += `<div class="row"><button class="btn sm wood" data-d="1">Vida −1</button><button class="btn sm wood" data-d="-1">Vida +1</button><button class="btn sm wood" data-d="5">−5</button><button class="btn sm wood" data-pub="1">${t.pub ? 'Esconder barras' : 'Mostrar barras'}</button>${t.owner === 'gm' ? '<button class="btn sm" data-npc="1">NPC age</button>' : ''}</div>`;
       if (canEdit && !t.pc) h += `<div class="row"><button class="btn sm red" data-del="${t.id}">Remover token</button></div>`;
@@ -660,7 +669,15 @@ function renderMesa() {
     if (k === 'turn') { Travel.pause(s); Naval.start({ keys: [s.key], enemy: d === 'facil' ? 'pescador' : 'patrulha', count: d === 'dificil' ? 2 : 1, lv: Master.cls(s).lvMed }); }
   });
   if ($('evClima')) $('evClima').onchange = e => { if (e.target.value && ship && ship.travel) Events.clima(ship, e.target.value); };
-  if ($('genGo')) $('genGo').onclick = () => { commit('islandCfg', v, { tema: $('genTema').value, seed: String(Math.floor(rng() * 1e6)) }); mesaDirty = true; Island.fit(v); sysMsg(v, 'O Mestre remodela a ilha: o mapa ganha um novo desenho.'); };
+  const cfgNow = () => Object.assign({}, db.islandCfg[v] || {}), aplicaCfg = patch => { commit('islandCfg', v, Object.assign(cfgNow(), patch)); mesaDirty = true; Island.fit(v); };
+  if ($('genGo')) $('genGo').onclick = () => { aplicaCfg({ tema: $('genTema').value, seed: String(Math.floor(rng() * 1e6)), manual: null }); sysMsg(v, 'O Mestre remodela a ilha: o mapa ganha um novo desenho.'); };
+  [['genCols', 'cols'], ['genRows', 'rows'], ['genTerra', 'terra'], ['genCasas', 'casas'], ['genArv', 'arvores']].forEach(([id, k]) => {
+    const el = $(id); if (!el) return;
+    el.onchange = () => { let val = el.value === '' ? null : +el.value; if (k === 'terra' && val != null) val = val / 100; aplicaCfg(k === 'casas' || k === 'arvores' ? { [k]: val, manual: null } : { [k]: val }); };
+  });
+  on('[data-tool]', b => b.onclick = () => { Island.editTool = Island.editTool === b.dataset.tool ? null : b.dataset.tool; mesaDirty = true; });
+  if ($('genFim')) $('genFim').onclick = () => { Island.editTool = null; mesaDirty = true; };
+  if ($('genLimpa')) $('genLimpa').onclick = () => aplicaCfg({ manual: { houses: [], trees: [] } });
   if ($('genReset')) $('genReset').onclick = () => { commit('islandCfg', v, null); Island.fit(v); mesaDirty = true; };
   on('[data-d]', b => b.onclick = () => Combat.damage(db.tokens[Island.sel], +b.dataset.d, { side: 'neutro', nome: 'Mestre' }));
   on('[data-pub]', b => b.onclick = () => { const t = db.tokens[Island.sel]; t.pub = !t.pub; commit('tokens', t.id, t); });
@@ -688,11 +705,24 @@ function bindPanels() {
   $('tkFile').onchange = e => processUpload(e.target.files[0], tune.tokenImgSize, url => { pendingTokImg = url; $('tkPrev').src = url; $('tkPrev').hidden = false; });
   $('tkAdd').onclick = () => {
     const c = me(), v = currentView(); if (!c || !isIsland(v)) return;
-    const k = $('tkKind').value, kd = NPC_KINDS[k], lv = clamp(+$('tkLv').value || kd.lv, 1, 100);
+    const k = $('tkKind').value, kd = NPC_KINDS[k], lv = clamp(Math.round(+$('tkLv').value) || kd.lv, 1, 999);
     const nome = $('tkNome').value.trim() || (c.gm ? kd.nome : 'Token de ' + c.nome);
-    if (c.gm) Combat.spawnNpc(v, k, lv, { nome, img: pendingTokImg });
+    if (c.gm) { const f = pendingFicha; Combat.spawnNpc(v, k, lv, Object.assign({ nome, img: pendingTokImg }, f ? Combat.perfilExtra(k, lv, f.perfil, f.nota) : {})); pendingFicha = null; $('tkGerNota').textContent = ''; $('tkDesc').value = ''; }
     else Island.addToken(v, { owner: myId, nome, img: pendingTokImg, hp: 0, hpMax: 0, st: 0, stMax: 0, pub: true, status: {} });
     $('tkNome').value = ''; pendingTokImg = null; $('tkPrev').hidden = true; $('tkFile').value = ''; tone(520, 0.08, 'triangle', 0.2);
+  };
+  $('tkGerar').onclick = async () => {
+    const desc = $('tkDesc').value.trim(), lv = clamp(Math.round(+$('tkLv').value) || 1, 1, 999); if (!desc) { toast('Descreva o personagem primeiro.'); return; }
+    const b = $('tkGerar'); b.disabled = true; b.textContent = 'Gerando…';
+    try { await Ia.check(); } catch (e) { /* segue sem a IA */ }
+    let f = null, via = 'pela descrição (sem IA)';
+    if (Ia.on && !Ia.mock) { try { f = await Ia.ficha({ descricao: desc, nivel: lv }); via = 'pela IA'; } catch (e) { toast('A IA não respondeu (' + e.message + '); usei as palavras da descrição.'); } }
+    if (!f) f = Combat.fichaLocal(desc);
+    pendingFicha = { perfil: f.perfil, nota: f.nota };
+    if (f.nome) $('tkNome').value = f.nome; $('tkKind').value = NPC_KINDS[f.tipo] ? f.tipo : 'bandido';
+    const st = Combat.perfilExtra($('tkKind').value, lv, f.perfil, f.nota);
+    $('tkGerNota').textContent = 'Nível ' + lv + ' · ' + f.perfil + ' · Vida ' + st.hpMax + ' · Ataque +' + (npcAtk(lv) + st.atkB) + ' · Defesa ' + (npcDef(lv) + st.defB) + ' (' + via + ')';
+    b.disabled = false; b.textContent = 'Gerar ficha pela descrição';
   };
   $('tkKind').innerHTML = Object.entries(NPC_KINDS).map(([k, n]) => `<option value="${k}">${n.nome} (nv ${n.lv})</option>`).join('');
   $('iaBtn').onclick = iaModal; $('callCfg').onclick = iaModal;
@@ -730,7 +760,7 @@ function updateHud() {
   Naval.hud($('navalHud')); Fight3D.hud($('fightHud'));
   const isl = mode === 'island'; $('islandHud').hidden = !isl; $('islandHelp').hidden = !isl; renderHotbar(isl && !c.gm); renderChips();
   if (isl) {
-    $('islName').innerHTML = `<b>${esc(chanName(v))}</b>`; $('btnCarta').textContent = c.gm ? 'Mundo' : 'Carta náutica';
+    $('islName').innerHTML = `<b>${esc(chanName(v))}</b>` + (Island.editTool ? ' <small>· desenhando: ' + ({ casa: 'casa', casaG: 'casa grande', arvore: 'árvore', apagar: 'borracha' }[Island.editTool]) + '</small>' : ''); $('btnCarta').textContent = c.gm ? 'Mundo' : 'Carta náutica';
     const cb = db.combat[v], tp = $('turnPlate');
     if (cb && cb.on) { const t = db.tokens[cb.order[cb.turn]]; tp.hidden = false; tp.innerHTML = `Rodada ${cb.round} · vez de <b>${t ? esc(t.nome) : '?'}</b>`; } else tp.hidden = true;
   }

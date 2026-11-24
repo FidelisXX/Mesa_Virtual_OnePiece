@@ -9,7 +9,26 @@ const Island = (() => {
   // a ilha com o que o gerador do mestre mudou (semente e tema)
   const IS = id => Object.assign({}, ISLAND[id], (db.islandCfg && db.islandCfg[id]) || {});
   let sel = null, drag = null, pan = null, isl = null, cv = null, spaceDown = false;
-  let tmoveClock = 0;
+  let tmoveClock = 0, editTool = null;
+  // ---- O mestre desenha a ilha: casa, casa grande, árvore ou borracha. O que ele põe substitui o que o gerador sorteou. ----
+  function editAt(w) {
+    const id = isl, cell = tune.cellPx, x = w.x / cell, y = w.y / cell, L = islandMap(IS(id), cell).L, cfg = Object.assign({}, db.islandCfg[id] || {});
+    if (!cfg.manual) cfg.manual = { houses: L.houses.map(b => Object.assign({}, b)), trees: L.trees.map(t => t.slice()) };
+    const m = cfg.manual;
+    if (editTool === 'apagar') {
+      const hi = m.houses.findIndex(b => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h);
+      if (hi >= 0) m.houses.splice(hi, 1);
+      else { let bi = -1, bd = 0.9; m.trees.forEach((t, i) => { const d = Math.hypot(t[0] - x, t[1] - y); if (d < bd) { bd = d; bi = i; } }); if (bi < 0) return; m.trees.splice(bi, 1); }
+    } else if (editTool === 'arvore') {
+      if (!L.inside(x, y)) { toast('Árvore só em terra.'); return; }
+      m.trees.push([+x.toFixed(2), +y.toFixed(2), +(0.45 + rng() * 0.35).toFixed(2)]);
+    } else {
+      const bw = editTool === 'casaG' ? 3 : 2, bx = Math.round(x - bw / 2), by = Math.round(y - bw / 2);
+      if (!(L.inside(bx, by) && L.inside(bx + bw, by) && L.inside(bx, by + bw) && L.inside(bx + bw, by + bw))) { toast('A casa precisa caber em terra.'); return; }
+      m.houses.push({ x: bx, y: by, w: bw, h: bw, tipo: 'casa' });
+    }
+    commit('islandCfg', id, cfg); dirty.tokens = true; tone(300, 0.05, 'square', 0.1);
+  }
 
   function cam(id) {
     if (!cams[id]) {
@@ -49,6 +68,7 @@ const Island = (() => {
       pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pts.size === 2) { drag = null; pan = null; const c = cam(isl), s = two(); pinch = { d: s.d, z: c.z, mx: s.mx, my: s.my, cx: c.x, cy: c.y }; return; }
       if (pts.size > 2) return;
+      if (editTool && isGM() && e.button === 0 && !spaceDown) { editAt(toWorld(e)); return; }
       const w = toWorld(e), t = (e.button === 0 && !spaceDown) ? hitToken(w) : null;
       if (t) {
         sel = t.id; dirty.tokens = true; uiSelChanged();
@@ -100,8 +120,8 @@ const Island = (() => {
 
   // Um lugar vazio perto do cais para um token novo.
   function freeSpot(id, cx, cy) {
-    cx = cx == null ? 12 : cx; cy = cy == null ? 13 : cy;
     const occ = new Set(tokensOn(id).map(t => t.x + ',' + t.y)), L = islandMap(IS(id), tune.cellPx).L;
+    cx = cx == null ? Math.round(L.cols / 2 - 1) : cx; cy = cy == null ? Math.round(L.rows * 0.72) : cy;
     for (let r = 0; r < 12; r++) for (let dx = -r; dx <= r; dx++) for (let dy = -r; dy <= r; dy++) {
       if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
       const x = cx + dx, y = cy + dy;
@@ -152,5 +172,5 @@ const Island = (() => {
     g.restore();
   }
 
-  return { attach, draw, ensureMyToken, addToken, tokensOn, canMove, freeSpot, get sel() { return sel; }, set sel(v) { sel = v; }, fit: id => { cam(id).fit = true; dirty.tokens = true; } };
+  return { attach, draw, ensureMyToken, addToken, tokensOn, canMove, freeSpot, get sel() { return sel; }, set sel(v) { sel = v; }, get editTool() { return editTool; }, set editTool(v) { editTool = v || null; dirty.tokens = true; uiSelChanged(); }, fit: id => { cam(id).fit = true; dirty.tokens = true; } };
 })();

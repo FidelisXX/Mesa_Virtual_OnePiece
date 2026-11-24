@@ -65,18 +65,15 @@ module.exports = function criar(cfg) {
     } catch (e) { return []; }
   }
 
-  async function narrar(ctx) {
-    if (cfg.MOCK) { // resposta de teste, sem chave e sem custo
-      const nomes = [...new Set((ctx.novas || []).map(n => n.quem))];
-      return { narracao: '[teste sem IA] O mestre lê ' + nomes.join(' e ') + ' e a cena responde: o vento muda, e alguém por perto repara em vocês.', testes: nomes.slice(0, 2).map(n => ({ jogador: n, atributo: 'CAR', cd: 15, motivo: 'o clima da cena pede' })), luta: null, uso: 0 };
-    }
+  // Uma chamada ao Gemini que devolve JSON, com a troca de modelo quando ele some, lota ou demora
+  async function chamar(sistema, pedido, maxTok, temp) {
     if (!cfg.KEY) throw new Error('GEMINI_API_KEY não configurada (crie server/.env)');
-    // Narrar é uma tarefa curta: pouco "pensamento" interno deixa a resposta rápida e dentro do limite de tokens.
+    // Tarefa curta: pouco "pensamento" interno deixa a resposta rápida e dentro do limite de tokens.
     // O campo muda de nome entre as famílias (2.x: thinkingBudget; 3.x: thinkingLevel); se a API recusar, repete sem ele.
     const corpoPara = (modelo, pensar) => JSON.stringify({
-      systemInstruction: { parts: [{ text: SISTEMA }] },
-      contents: [{ role: 'user', parts: [{ text: montarPedido(ctx) }] }],
-      generationConfig: Object.assign({ responseMimeType: 'application/json', temperature: 0.9, maxOutputTokens: 1400 },
+      systemInstruction: { parts: [{ text: sistema }] },
+      contents: [{ role: 'user', parts: [{ text: pedido }] }],
+      generationConfig: Object.assign({ responseMimeType: 'application/json', temperature: temp == null ? 0.9 : temp, maxOutputTokens: maxTok || 1400 },
         pensar ? { thinkingConfig: /(^|-)3\./.test(modelo) ? { thinkingLevel: 'low' } : { thinkingBudget: 0 } } : {}),
     });
     // Uma tentativa com um modelo, com o seu próprio limite de tempo (a API às vezes demora quando está cheia)
@@ -112,9 +109,35 @@ module.exports = function criar(cfg) {
     const data = res.data, txt = (((data.candidates || [])[0] || {}).content || {}).parts;
     const texto = Array.isArray(txt) ? txt.map(p => p.text || '').join('') : '';
     if (!texto) throw new Error('resposta vazia' + (data.promptFeedback ? ' (bloqueada pelo filtro)' : ''));
-    const out = limpar(extrairJson(texto)); out.uso = (data.usageMetadata && data.usageMetadata.totalTokenCount) || 0; out.modelo = usado;
+    return { json: extrairJson(texto), uso: (data.usageMetadata && data.usageMetadata.totalTokenCount) || 0, modelo: usado };
+  }
+
+  async function narrar(ctx) {
+    if (cfg.MOCK) { // resposta de teste, sem chave e sem custo
+      const nomes = [...new Set((ctx.novas || []).map(n => n.quem))];
+      return { narracao: '[teste sem IA] O mestre lê ' + nomes.join(' e ') + ' e a cena responde: o vento muda, e alguém por perto repara em vocês.', testes: nomes.slice(0, 2).map(n => ({ jogador: n, atributo: 'CAR', cd: 15, motivo: 'o clima da cena pede' })), luta: null, uso: 0 };
+    }
+    const x = await chamar(SISTEMA, montarPedido(ctx), 1400, 0.9);
+    const out = limpar(x.json); out.uso = x.uso; out.modelo = x.modelo;
     if (!out.narracao) throw new Error('narração vazia');
     return out;
   }
-  return { narrar, descobrirModelo, MAX_BODY, TIMEOUT_MS };
+
+  // ---- Gerador de ficha de NPC: o mestre descreve, a IA escolhe tipo, perfil, nome e uma nota; os números vêm do nível, no jogo ----
+  const PERFIS = ['equilibrado', 'tanque', 'brutamontes', 'agil', 'atirador', 'fraco', 'chefe'];
+  const SISTEMA_FICHA = [
+    'Você ajuda o Mestre de uma mesa de RPG de One Piece (quatro mares iniciais) a criar um NPC a partir de uma descrição curta.',
+    'Escolha: um nome (se a descrição não der um, invente um que combine), o "tipo" mais próximo entre ' + TIPOS.join(', ') + ',',
+    'e o "perfil" de combate entre ' + PERFIS.join(', ') + ' (tanque = aguenta muito, brutamontes = bate forte, agil = esquiva, atirador = ataca de longe, fraco = frágil, chefe = muito acima dos comuns).',
+    'Escreva uma "nota" de uma frase com a aparência e o jeito do NPC, em português do Brasil.',
+    'Responda SOMENTE com JSON: {"nome": "...", "tipo": "...", "perfil": "...", "nota": "..."}',
+  ].join('\n');
+  async function gerarFicha(body) {
+    const descricao = lim(body && body.descricao, 400).trim(), nivel = Math.max(1, Math.min(999, Math.round(+(body && body.nivel) || 1)));
+    if (!descricao) throw new Error('descreva o personagem');
+    if (cfg.MOCK) return { nome: 'NPC de teste', tipo: 'bandido', perfil: 'equilibrado', nota: '[teste sem IA] ' + descricao.slice(0, 80), uso: 0 };
+    const x = await chamar(SISTEMA_FICHA, 'NÍVEL: ' + nivel + '\nDESCRIÇÃO: ' + descricao, 400, 0.8), j = x.json || {};
+    return { nome: lim(j.nome, 24).trim(), tipo: TIPOS.includes(j.tipo) ? j.tipo : 'bandido', perfil: PERFIS.includes(j.perfil) ? j.perfil : 'equilibrado', nota: lim(j.nota, 200).trim(), uso: x.uso, modelo: x.modelo };
+  }
+  return { narrar, gerarFicha, descobrirModelo, MAX_BODY, TIMEOUT_MS };
 };

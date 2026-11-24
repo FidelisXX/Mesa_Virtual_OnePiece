@@ -276,12 +276,19 @@ const Ia = (() => {
     const r = await fetch(base() + '/chave', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo), signal: AbortSignal.timeout(6000) });
     const j = await r.json(); if (!r.ok) throw new Error(j.erro || 'HTTP ' + r.status); return j;
   }
+  // O mestre descreve um NPC e a IA devolve nome, tipo, perfil e nota
+  async function ficha(corpo) {
+    const h = { 'Content-Type': 'application/json' };
+    if (typeof Net !== 'undefined' && Net.sb) { try { h.Authorization = 'Bearer ' + await SB.token(); h['x-mesa'] = myMesa || ''; } catch (e) { /* sem sessão: o servidor recusa */ } }
+    const r = await fetch(base() + '/ficha', { method: 'POST', headers: h, body: JSON.stringify(corpo), signal: AbortSignal.timeout(40000) });
+    const j = await r.json(); if (!r.ok) throw new Error(j.erro || 'HTTP ' + r.status); return j;
+  }
   // Uma chamada mínima ao Gemini, para ver se a chave, o modelo e a rede funcionam de verdade
   async function testar() {
     const r = await fetch(base() + '/teste', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', signal: AbortSignal.timeout(30000) });
     return r.json();
   }
-  return { check, narrar, salvar, testar, base, setBase, get on() { return on; }, get modelo() { return modelo; }, get mock() { return mock; }, get erro() { return erro; }, get last() { return last; } };
+  return { check, narrar, ficha, salvar, testar, base, setBase, get on() { return on; }, get modelo() { return modelo; }, get mock() { return mock; }, get erro() { return erro; }, get last() { return last; } };
 })();
 
 // ======================================================================================
