@@ -438,6 +438,10 @@ const Shop = (() => {
       { k: 'curativo', nome: 'Curativo (metade da Vida)', pr: price(isl, tune.priceHeal), nota: 'Vida ' + c.hp + '/' + c.hpMax, ok: c.hp < c.hpMax },
       { k: 'refeicao', nome: 'Refeição (metade da Energia)', pr: price(isl, tune.priceFood * 3), nota: 'Energia ' + c.st + '/' + c.stMax, ok: c.st < c.stMax },
       { k: 'canhao', nome: 'Canhão extra em cada bordo', pr: price(isl, tune.priceCannon), nota: 'Canhões por bordo: ' + s.canhoes + '/' + tune.cannonMax, ok: s.canhoes < tune.cannonMax },
+      { k: 'rum', nome: 'Rum da casa (1/4 da Energia)', pr: price(isl, tune.priceFood * 2), nota: 'Energia ' + c.st + '/' + c.stMax, ok: c.st < c.stMax },
+      { k: 'bandagem', nome: 'Bandagem (1/4 da Vida)', pr: price(isl, Math.round(tune.priceHeal / 2)), nota: 'Vida ' + c.hp + '/' + c.hpMax, ok: c.hp < c.hpMax },
+      { k: 'remedio', nome: 'Remédio forte (cura toda a Vida)', pr: price(isl, tune.priceHeal * 2), nota: 'Vida ' + c.hp + '/' + c.hpMax, ok: c.hp < c.hpMax },
+      { k: 'kit', nome: 'Kit de reparo rápido (+5 de casco)', pr: Math.round(price(isl, tune.priceRepair) * 5 * carp), nota: 'Casco ' + s.casco + '/' + s.cascoMax, ok: falta > 0 },
       { k: 'velas', nome: 'Velas melhores (viagem mais curta)', pr: price(isl, tune.priceSails), nota: 'Nível ' + (s.velas || 0) + '/' + tune.sailsMax, ok: (s.velas || 0) < tune.sailsMax },
     ];
   };
@@ -450,6 +454,10 @@ const Shop = (() => {
     if (k === 'curativo') c.hp = Math.min(c.hpMax, c.hp + Math.ceil(c.hpMax / 2));
     if (k === 'refeicao') c.st = Math.min(c.stMax, c.st + Math.ceil(c.stMax / 2));
     if (k === 'canhao') s.canhoes++;
+    if (k === 'rum') c.st = Math.min(c.stMax, c.st + Math.ceil(c.stMax / 4));
+    if (k === 'bandagem') c.hp = Math.min(c.hpMax, c.hp + Math.ceil(c.hpMax / 4));
+    if (k === 'remedio') c.hp = c.hpMax;
+    if (k === 'kit') s.casco = Math.min(s.cascoMax, s.casco + 5);
     if (k === 'velas') s.velas = (s.velas || 0) + 1;
     commit('ships', s.key, s); commit('chars', c.id, c); syncPc(c);
     sysMsg(s.at, c.nome + ' compra: ' + it.nome + ' (−' + berry(it.pr) + ' Berries).'); tone(520, 0.08, 'triangle', 0.2); sheetDirty = true; mesaDirty = true;

@@ -653,7 +653,7 @@ function renderMesa() {
       if (c.faccao === 'marinha') h += `<div class="note">Missões da Marinha${c.missao && db.missions[c.missao] && !db.missions[c.missao].done ? ' (uma em andamento)' : ''}:</div><div class="row">${Object.entries(Combat.MISSIONS).map(([k, m]) => `<button class="btn sm" data-ms="${k}" title="${esc(m.desc)}">${m.nome}</button>`).join('')}</div>`;
       { const lojas = Island.tokensOn(v).filter(x => x.loja && LOJAS[x.loja]);
         h += `<h3>Comércio</h3><div class="note">Seus Berries: <b>${berry(c.berries || 0)}</b></div>` + (lojas.length ? '<div class="note">Clique num lojista no mapa (selo $) ou abra por aqui:</div>' + lojas.map(x => `<div class="ord"><div style="flex:1"><b>${esc(x.nome)}</b><div class="note">${esc(LOJAS[x.loja].nome)}</div></div><button class="btn sm" data-loja="${x.id}">Abrir</button></div>`).join('')
-          : Shop.items(c, ship, v).map(it => `<div class="ord"><div style="flex:1"><b>${it.nome}</b><div class="note">${esc(it.nota)}</div></div><span class="ini" style="font-size:16px">${berry(it.pr)}</span><button class="btn sm" data-buy="${it.k}" ${it.ok && (c.berries || 0) >= it.pr ? '' : 'disabled'}>Comprar</button></div>`).join('')); }
+          : Shop.items(c, ship, v).map(it => `<div class="ord"><div style="flex:1"><b>${it.nome}</b><div class="note">${esc(it.nota)}</div></div><span class="ini" style="font-size:16px">${berry(it.pr)}</span><button class="btn sm" data-buy="${it.k}" ${real && it.ok && (c.berries || 0) >= it.pr ? '' : 'disabled'}>${real && (c.berries || 0) < it.pr && it.ok ? 'Sem Berries' : 'Comprar'}</button></div>`).join('')); }
     }
     if (c.gm) {
       const cf = db.islandCfg[v] || {}, tool = Island.editTool;
@@ -737,10 +737,13 @@ function lojaModal(tid) {
   const fechar = () => { ov.className = ''; ov.innerHTML = ''; };
   const render = () => {
     const c = me(), s = c && !c.gm ? shipOf(c) : null, aqui = !!(s && s.at === t.isl);
-    const itens = aqui ? Shop.items(c, s, t.isl).filter(it => def.itens.includes(it.k)) : [];
+    const real = aqui && !!c && !c.gm;   // só quem tem o navio atracado aqui compra de verdade; os outros veem a vitrine
+    const cc = real ? c : { hp: 0, hpMax: 10, st: 0, stMax: 10, berries: 0 }, ss = real ? s : { key: '-', comida: 0, casco: 0, cascoMax: 10, canhoes: 0, velas: 0 };
+    const itens = Shop.items(cc, ss, t.isl).filter(it => def.itens.includes(it.k));
+    const aviso = real ? '' : (c && c.gm ? 'Vitrine do balcão (você é o mestre): os jogadores com o navio atracado aqui compram estes itens.' : 'Vitrine: para comprar, o seu navio precisa estar atracado nesta ilha.');
     ov.innerHTML = `<div class="card small"><h1 style="font-size:28px">${esc(t.nome)}</h1><div class="tagline">${esc(def.nome)} · ${esc(ISLAND[t.isl].nome)}${c && !c.gm ? ' · Seus Berries: <b>' + berry(c.berries || 0) + '</b>' : ''}</div>
-      <div class="note" style="text-align:center;font-style:italic;margin-bottom:10px">“${esc(def.fala)}”</div>` +
-      (itens.length ? itens.map(it => `<div class="ord"><div style="flex:1"><b>${esc(it.nome)}</b><div class="note">${esc(it.nota)}</div></div><span class="ini" style="font-size:16px">${berry(it.pr)}</span><button class="btn sm" data-buy="${it.k}" ${it.ok && (c.berries || 0) >= it.pr ? '' : 'disabled'}>Comprar</button></div>`).join('')
+      <div class="note" style="text-align:center;font-style:italic;margin-bottom:10px">“${esc(def.fala)}”</div>${aviso ? `<div class="note" style="text-align:center;margin-bottom:8px"><b>${aviso}</b></div>` : ''}` +
+      (itens.length ? itens.map(it => `<div class="ord"><div style="flex:1"><b>${esc(it.nome)}</b><div class="note">${esc(real ? it.nota : "")}</div></div><span class="ini" style="font-size:16px">${berry(it.pr)}</span><button class="btn sm" data-buy="${it.k}" ${it.ok && (c.berries || 0) >= it.pr ? '' : 'disabled'}>Comprar</button></div>`).join('')
         : `<div class="note">${c && c.gm ? 'Você é o mestre: os jogadores com o navio atracado aqui compram neste balcão (' + def.itens.length + ' tipo(s) de item).' : 'Para comprar, o seu navio precisa estar atracado nesta ilha.'}</div>`) +
       '<div class="actions"><button class="btn" id="lojaFecha">Sair da loja</button></div></div>';
     ov.className = 'on'; $('lojaFecha').onclick = fechar;

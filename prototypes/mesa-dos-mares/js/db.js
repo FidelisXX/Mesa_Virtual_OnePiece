@@ -87,10 +87,10 @@ const NPC_KINDS = {
 };
 // Lojas das ilhas: cada comerciante vende um grupo das coisas de Shop.items (a chave k)
 const LOJAS = {
-  mercador:   { nome: 'Mercado',   itens: ['comida', 'refeicao'],            fala: 'Provisões frescas! Comida boa para a viagem, pelo preço justo.' },
-  estaleiro:  { nome: 'Estaleiro', itens: ['reparo', 'canhao', 'velas'],      fala: 'Casco rachado? Velas rasgadas? Traga o navio que eu cuido.' },
-  curandeiro: { nome: 'Curandeiro', itens: ['curativo'],                      fala: 'Senta aí que eu remendo esses cortes.' },
-  taverna:    { nome: 'Taverna',   itens: ['refeicao', 'comida'],            fala: 'Prato quente e uma caneca. O que vai ser?' },
+  mercador:   { nome: 'Mercado',   itens: ['comida', 'refeicao', 'rum', 'bandagem'], fala: 'Provisões frescas! Comida boa para a viagem, pelo preço justo.' },
+  estaleiro:  { nome: 'Estaleiro', itens: ['reparo', 'kit', 'canhao', 'velas'], fala: 'Casco rachado? Velas rasgadas? Traga o navio que eu cuido.' },
+  curandeiro: { nome: 'Curandeiro', itens: ['curativo', 'bandagem', 'remedio'], fala: 'Senta aí que eu remendo esses cortes.' },
+  taverna:    { nome: 'Taverna',   itens: ['refeicao', 'comida', 'rum'], fala: 'Prato quente e uma caneca. O que vai ser?' },
 };
 // Quem mora e quem vende em cada tipo de ilha (o mestre pode mudar tudo depois)
 const MORADORES = {
