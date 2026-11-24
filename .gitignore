@@ -8,3 +8,6 @@ node_modules/
 
 # chaves do projeto Supabase (a anon key e publica, mas o endereco e seu)
 **/supabase-config.js
+
+# build do Vercel
+**/dist/

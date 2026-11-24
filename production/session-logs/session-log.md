@@ -134,3 +134,14 @@ prototypes/mesa-dos-mares/js/db.js
 prototypes/mesa-dos-mares/js/world.js
 ---
 
+## Session End: 20261124_084620
+### Uncommitted Changes
+.gitignore
+design/game-brief.md
+prototypes/mesa-dos-mares/brief.md
+prototypes/mesa-dos-mares/evidence/changes.tsv
+prototypes/mesa-dos-mares/js/supabase.js
+prototypes/mesa-dos-mares/js/world.js
+prototypes/mesa-dos-mares/server/narrador.js
+---
+

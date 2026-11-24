@@ -266,7 +266,9 @@ const Ia = (() => {
     return on;
   }
   async function narrar(ctx) {
-    const r = await fetch(base() + '/narrar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ctx), signal: AbortSignal.timeout(90000) });
+    const h = { 'Content-Type': 'application/json' };
+    if (typeof Net !== 'undefined' && Net.sb) { try { h.Authorization = 'Bearer ' + await SB.token(); h['x-mesa'] = myMesa || ''; } catch (e) { /* sem sessão: o servidor recusa */ } }
+    const r = await fetch(base() + '/narrar', { method: 'POST', headers: h, body: JSON.stringify(ctx), signal: AbortSignal.timeout(90000) });
     const j = await r.json(); if (!r.ok) throw new Error(j.erro || 'HTTP ' + r.status); return j;
   }
   // A chave vai do jogo só para o servidor local (que a guarda na memória e, se pedido, em server/.env); ela nunca é guardada no navegador

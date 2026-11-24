@@ -95,6 +95,7 @@ Fácil, moderado ou difícil conforme o nível do grupo: o primeiro evento na vi
 
 ## Out of scope
 - Online pela internet (fora da sua rede Wi-Fi): needs a host; built instead: mesas com convite pela rede local (`node server/narrador.js --lan`), no computador, celular ou outra aba
+- Hospedagem: preparada para o Vercel (vercel.json, api/, VERCEL.md), falta o primeiro deploy.
 - Login real (Supabase Auth): as contas ainda são locais; o banco e o tempo real do Supabase já têm o código pronto (supabase/schema.sql, js/supabase.js), falta um projeto para testar. A IA Gemini entra por um servidor local opcional que guarda a chave
 - Haki e a Grand Line: grow it
 - Trilha sonora do YouTube e bestiário: add it as a feature

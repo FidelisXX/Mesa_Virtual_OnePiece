@@ -98,5 +98,8 @@ const SB = (() => {
   }
   async function sairMesa(id) { const r = await cli.rpc('sair_mesa', { p_mesa: id }); if (r.error) throw r.error; }
 
-  return { iniciar, estado, enviar, assinar, entrarCodigo, sairMesa, get on() { return on; }, get siteUrl() { const c = cfg(); return (c && c.siteUrl) || ''; } };
+  // O token da sessão: o narrador hospedado o usa para conferir, no Supabase, que quem chama é membro da mesa
+  async function token() { const s = await cli.auth.getSession(); return (s.data && s.data.session && s.data.session.access_token) || ''; }
+
+  return { iniciar, estado, enviar, assinar, entrarCodigo, sairMesa, token, get on() { return on; }, get siteUrl() { const c = cfg(); return (c && c.siteUrl) || ''; } };
 })();
