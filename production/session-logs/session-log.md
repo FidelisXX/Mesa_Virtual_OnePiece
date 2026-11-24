@@ -241,3 +241,17 @@ production/session-logs/agent-audit.log
 production/session-logs/session-log.md
 ---
 
+## Session End: 20261124_175211
+### Commits
+c016e34 iteration 21: added aviso do motivo quando o Supabase nao conecta
+05d3be0 Atualização
+f459472 iteration 20: added fila de turnos, ping, metragem ao arrastar e turnos automaticos com narracao de combate
+459bd86 iteration 19: added narrador IA ou humano por ilha com abertura e missao, IA mais resistente e botao de informacao nas tecnicas
+4838c3a iteration 18: added narrador de IA pelo Guia do Narrador do OP RPG
+9b66c62 iteration 17: added regras do OP RPG (criacao de ficha em 7 passos, ficha nova, niveis 1-20)
+e070251 iteration 16: added lista de itens no balcao e mais estoque nas lojas
+12f9ac4 iteration 15: added catalogo de Akuma no Mi, imagem/GIF nas tecnicas e trilha sonora
+1315273 iteration 14: added moradores e lojas nas ilhas, com compra no balcao
+ae6b17f iteration 13: added mapa editavel, nivel livre e gerador de ficha de NPC
+---
+
