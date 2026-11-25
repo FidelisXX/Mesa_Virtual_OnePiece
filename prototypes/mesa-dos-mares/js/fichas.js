@@ -84,6 +84,33 @@ const Fichas = (() => {
     return saida;
   }
 
+  // ---- Entregar a um jogador: a ficha vira um personagem jogável na conta dele (a ficha do Mestre continua guardada) ----
+  const jogadores = () => { const m = Mesas.atual(); return (m ? m.membros : []).filter(k => k !== myAcc).map(k => ({ k, nome: (G.accounts[k] && G.accounts[k].user) || k })); };
+  function entregar(f, acc, mar, prof) {
+    const est = ESTILOS[f.classe], id = uid(), faccao = f.lado === 'marinha' ? 'marinha' : 'pirata';
+    const c = { id, acc, v: 2, nome: f.nome, faccao, raca: f.raca, raca1: '', raca2: '', variante: '', rara: '', falha: '', classe: f.classe, prim: f.prim || est.prim[0], hb: [est.inata[0]], prof, antecedente: '',
+      attrs: Object.assign({}, f.attrs), pericias: [], sonho: '', caminho: null, sing: '', honra: '', aparencia: f.nota || '', equip: [est.equip], mar, img: f.img || null, cor: Object.keys(CORES)[0], fonte: 'pirata',
+      lv: f.lv, xp: 0, pts: Math.max(0, livres(f)), rep: 0, recompensa: 0, berries: 0,
+      ataques: f.ataques.map(a => Object.assign({}, a, { id: 'a' + uid(), fx: a.fx.slice() })), treino: null, prisao: null, missao: null };
+    ensureShip(faccao, mar); c.hpMax = hpMaxOf(c); c.hp = c.hpMax; c.stMax = stMaxOf(c); c.st = c.stMax;
+    commit('chars', id, c);
+    f.entregue = (f.entregue || []).concat([{ acc, nome: (G.accounts[acc] && G.accounts[acc].user) || acc, ts: Date.now() }]); grava();
+    sysMsg(chanOf(c), c.nome + ' (' + RACES[c.raca].nome + ', ' + CLASSES[c.classe].nome + ') chega à tripulação.');
+    return c;
+  }
+  function entregaModal(f) {
+    const ov = $('overlay'), js = jogadores(), fecha = () => { ov.className = ''; ov.innerHTML = ''; };
+    if (!js.length) { toast('Nenhum jogador na mesa ainda. Convide alguém pelo código da mesa (menu de pausa).'); return; }
+    ov.innerHTML = `<div class="card small"><h1 style="font-size:30px">Entregar ${esc(f.nome)}</h1><div class="tagline">A ficha vira um personagem jogável na conta do jogador. Você continua com a ficha.</div>
+      <div class="field"><label>Jogador</label><select id="enJog">${js.map(j => `<option value="${esc(j.k)}">${esc(j.nome)}</option>`).join('')}</select></div>
+      <div class="field"><label>Mar onde ele começa</label><select id="enMar">${Object.entries(SEAS).map(([k, s]) => `<option value="${k}">${esc(s.nome)}</option>`).join('')}</select></div>
+      <div class="field"><label>Profissão</label><select id="enProf">${Object.entries(PROFISSOES).map(([k, p]) => `<option value="${k}">${esc(p.nome)}</option>`).join('')}</select></div>
+      <div class="note">Sobem junto: nível ${f.lv}, atributos, ${f.ataques.length} técnica(s), ${Math.max(0, livres(f))} ponto(s) livre(s)${f.img ? ' e a imagem' : ''}. Perícias, sonho e antecedente ficam em branco; o jogador (ou você, na aba Ficha) completa. O jogador escolhe o personagem na tela inicial ou em "Trocar de personagem".</div>
+      <div class="actions"><button class="btn wood" id="enNao">Cancelar</button><button class="btn" id="enOk">Entregar</button></div></div>`;
+    ov.className = 'on'; $('enNao').onclick = fecha;
+    $('enOk').onclick = () => { const jog = $('enJog'), nome = jog.options[jog.selectedIndex].text, c = entregar(f, jog.value, $('enMar').value, $('enProf').value); fecha(); toast(c.nome + ' foi entregue a ' + nome + '.'); };
+  }
+
   // ---- A aba ----
   const sg = n => (n >= 0 ? '+' : '') + n;
   function listaHTML() {
@@ -101,7 +128,8 @@ const Fichas = (() => {
   function editorHTML(f) {
     const d = derivados(f), liv = livres(f), est = ESTILOS[f.classe], lim = limite(f), cap = atkCap(f);
     const sel_ = (id, opts, cur) => `<select id="${id}">${opts.map(([k, n]) => `<option value="${k}" ${k === cur ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>`;
-    return `<div class="row"><button class="btn sm wood" id="fcVolta">← Fichas</button><button class="btn sm wood" id="fcDup">Duplicar</button><button class="btn sm red" id="fcDel">Apagar</button></div>
+    return `<div class="row"><button class="btn sm wood" id="fcVolta">← Fichas</button><button class="btn sm wood" id="fcDup">Duplicar</button><button class="btn sm" id="fcEntrega">Entregar a um jogador</button><button class="btn sm red" id="fcDel">Apagar</button></div>
+    ${(f.entregue || []).length ? '<div class="note">Entregue a: ' + f.entregue.map(e => '<b>' + esc(e.nome) + '</b>').join(', ') + '.</div>' : ''}
     <div class="sheet-top">${f.img ? `<img class="pic" src="${esc(f.img)}" alt="" style="width:64px;height:64px;object-fit:cover">` : ''}<div style="flex:1"><div class="gm-edit">
       <label class="gm-f"><span>Nome</span><input type="text" id="fcNome" maxlength="30" value="${esc(f.nome)}"></label>
       <label class="gm-f"><span>Nível (1 a ${tune.maxLv})</span><input type="number" id="fcLv" min="1" max="${tune.maxLv}" value="${f.lv}"></label>
@@ -146,6 +174,7 @@ const Fichas = (() => {
     el.innerHTML = editorHTML(f);
     const salva = () => { grava(); };
     $$('fcVolta').onclick = () => { sel = ''; dirty = true; };
+    $$('fcEntrega').onclick = () => entregaModal(f);
     $$('fcDup').onclick = () => { sel = duplicar(f).id; dirty = true; toast('Ficha duplicada.'); };
     $$('fcDel').onclick = () => { if (confirm('Apagar a ficha "' + f.nome + '"? Os tokens já postos no mapa continuam.')) apagar(f); };
     $$('fcNome').onchange = e => { const v = e.target.value.trim().slice(0, 30); if (v) f.nome = v; salva(); };
@@ -166,6 +195,6 @@ const Fichas = (() => {
     if ($$('fcCena')) $$('fcCena').onclick = () => { qtd = clamp(Math.round(+$$('fcQtd').value) || 1, 1, 8); const v = currentView(); if (!isIsland(v)) return; emCena(f, v, qtd); toast(f.nome + (qtd > 1 ? ' ×' + qtd : '') + ' em cena.'); };
   }
 
-  return { render, criar, duplicar, apagar, novaPasta, apagaPasta, renomeiaPasta, emCena, derivados, distribuir, mexe, ajusta, pontosTotal, gastos, livres, lista, todas, pastas,
+  return { render, criar, duplicar, apagar, novaPasta, apagaPasta, renomeiaPasta, emCena, entregar, derivados, distribuir, mexe, ajusta, pontosTotal, gastos, livres, lista, todas, pastas,
     get dirty() { return dirty; }, set dirty(v) { dirty = v; }, get sel() { return sel; }, set sel(v) { sel = v; dirty = true; } };
 })();
