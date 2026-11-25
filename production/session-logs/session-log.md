@@ -296,3 +296,22 @@ production/session-logs/session-cost.md
 production/session-logs/session-log.md
 ---
 
+## Session End: 20261125_100151
+### Commits
+2f447e5 akuma
+238649f iteration 23: added Mercado Negro de Akuma no Mi (165 frutas do Livro das Akuma, compra com Berries)
+9a6ba46 iteration 22: added permissoes (GRANT) das tabelas no schema do Supabase
+---
+
+## Session End: 20261125_110323
+### Commits
+bd62f54 iteration 24: added login pelo Supabase Auth (conta vale em qualquer aparelho)
+2f447e5 akuma
+238649f iteration 23: added Mercado Negro de Akuma no Mi (165 frutas do Livro das Akuma, compra com Berries)
+9a6ba46 iteration 22: added permissoes (GRANT) das tabelas no schema do Supabase
+### Uncommitted Changes
+production/session-logs/.session-end.hash
+production/session-logs/session-cost.md
+production/session-logs/session-log.md
+---
+
