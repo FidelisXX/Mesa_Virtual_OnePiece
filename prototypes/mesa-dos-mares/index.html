@@ -478,6 +478,7 @@ function renderSheet() {
     <div class="row"><label class="btn wood sm" for="shFile">Trocar imagem</label><input type="file" id="shFile" accept="image/*"></div>
     <h3>Nível ${c.lv}${max ? ' (máximo)' : ''} · ${estagioDe(c.lv)}</h3>${max ? bar('xp', 1, 1, 'Topo do mundo') : bar('xp', c.xp, xpNext(c.lv), c.xp + ' / ' + xpNext(c.lv) + ' PE')}
     ${bar('hp', c.hp, c.hpMax, 'Vida ' + c.hp + ' / ' + c.hpMax)}${bar('st', c.st, c.stMax, 'Pontos de Poder ' + c.st + ' / ' + c.stMax)}
+    ${gmMode ? '' : `<div class="row aj-vida"><label class="note">Vida <input type="number" id="shQtd" min="1" value="1" style="width:72px"></label><button class="btn sm wood" id="shHpMenos">− Tirar</button><button class="btn sm wood" id="shHpMais">+ Curar</button></div>${max ? '' : '<div class="row aj-xp"><label class="note">PE ganho <input type="number" id="shXpQtd" min="1" placeholder="0" style="width:96px"></label><button class="btn sm" id="shXpAdd">Adicionar PE</button></div>'}`}
     <div class="stats"><div><b>${defOf(c)}</b><span>CR</span></div><div><b>+${bp}</b><span>Proficiência</span></div><div><b>${sg(attr(c, 'DES'))}</b><span>Iniciativa</span></div><div><b>${race.desloc || 9} m</b><span>Deslocamento</span></div><div><b>${10 * attrVal(c, 'FOR')} kg</b><span>Carga</span></div></div>
     <h3>Atributos ${c.pts ? '<span class="pts">' + c.pts + ' ponto(s) para distribuir</span>' : ''}</h3>
     <div class="row" style="${gmMode ? 'display:none' : ''}"><select id="shModo"><option value="normal">Normal</option><option value="vantagem">Vantagem</option><option value="desvantagem">Desvantagem</option></select>
@@ -506,6 +507,14 @@ function renderSheet() {
   el.querySelectorAll('[data-up]').forEach(b => b.onclick = () => { const k = b.dataset.up; if (c.pts > 0 && (c.attrs[k] || 10) < attrLimite(c.lv)) { c.attrs[k] = (c.attrs[k] || 10) + 1; c.pts--; refreshChar(c, false); sheetDirty = true; } });
   if ($('shGoTec')) $('shGoTec').onclick = () => setTab('tec');
   if (gmMode) { el._ligaMestre(); ligaEditorGM(el, c); }
+  if ($('shHpMenos')) {
+    const mexe = d => { const q = Math.round(+$('shQtd').value); if (!(q > 0)) { toast('Digite quanto de Vida.'); return; } c.hp = clamp(c.hp + d * q, 0, c.hpMax); commit('chars', c.id, c); syncPc(c); sheetDirty = true; mesaDirty = true; };
+    $('shHpMenos').onclick = () => mexe(-1); $('shHpMais').onclick = () => mexe(1);
+  }
+  if ($('shXpAdd')) $('shXpAdd').onclick = () => {
+    const q = Math.round(+$('shXpQtd').value); if (!(q > 0)) { toast('Digite quantos PE você ganhou.'); return; }
+    const antes = c.lv; addXp(c, q, true, true); syncPc(c); sheetDirty = true; mesaDirty = true; toast('+' + q + ' PE' + (c.lv > antes ? ' · nível ' + c.lv + '!' : ''));
+  };
   if ($('shAkuma')) $('shAkuma').onclick = () => Akuma.modal(gmMode ? c.id : undefined);
   if ($('shTrain') && !gmMode) $('shTrain').onclick = () => { Train.start(c); sheetDirty = true; };
   if ($('shTrainStop') && !gmMode) $('shTrainStop').onclick = () => { Train.stop(c); sheetDirty = true; };
