@@ -1,7 +1,7 @@
 # Session Subagent Cost
 
 **Session:** `ad948e6c-ef21-450f-ae1d-5e8fdcb582e6`  
-**Updated:** 20261124_175539
+**Updated:** 20261125_093115
 
 Subagent spawns this session: **12**
 

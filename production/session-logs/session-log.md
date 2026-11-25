@@ -270,3 +270,29 @@ e070251 iteration 16: added lista de itens no balcao e mais estoque nas lojas
 ae6b17f iteration 13: added mapa editavel, nivel livre e gerador de ficha de NPC
 ---
 
+## Session End: 20261125_082130
+### Commits
+9a6ba46 iteration 22: added permissoes (GRANT) das tabelas no schema do Supabase
+---
+
+## Session End: 20261125_085206
+### Commits
+9a6ba46 iteration 22: added permissoes (GRANT) das tabelas no schema do Supabase
+### Uncommitted Changes
+production/session-logs/.session-end.hash
+production/session-logs/compaction-log.txt
+production/session-logs/session-cost.md
+production/session-logs/session-log.md
+---
+
+## Session End: 20261125_093115
+### Commits
+238649f iteration 23: added Mercado Negro de Akuma no Mi (165 frutas do Livro das Akuma, compra com Berries)
+9a6ba46 iteration 22: added permissoes (GRANT) das tabelas no schema do Supabase
+### Uncommitted Changes
+production/session-logs/.session-end.hash
+production/session-logs/compaction-log.txt
+production/session-logs/session-cost.md
+production/session-logs/session-log.md
+---
+
