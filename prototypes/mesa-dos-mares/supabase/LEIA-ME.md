@@ -14,6 +14,9 @@
 ## 3. Para o celular entrar
 O Supabase guarda os dados, mas **o jogo (HTML/JS) precisa estar numa página que o celular abra**. Opções: hospedar a pasta do jogo (Netlify, Vercel, GitHub Pages, Cloudflare Pages) e pôr o endereço em `siteUrl`. A chave da IA (Gemini) continua só no `server/narrador.js`; hospedado, o narrador de IA precisa de um servidor ou de uma Edge Function (próximo passo).
 
+## Se aparecer "permission denied for table mesas"
+O Supabase não libera sozinho, para a API, as tabelas criadas no SQL Editor. Rode de novo o `schema.sql` (a versão atual já traz os `GRANT`): pode rodar quantas vezes quiser. Só o bloco "Permissões das tabelas" já resolve.
+
 ## Como os dados ficam
 | Tabela | O que guarda |
 |---|---|

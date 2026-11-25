@@ -99,6 +99,15 @@ create policy linhas_mudar  on public.linhas for update using (public.eh_membro(
 create policy linhas_apagar on public.linhas for delete using (public.eh_membro(mesa_id));
 -- mesas e mesa_membros só mudam pelas funções acima: não há política de insert/update direto.
 
+-- ---------- Permissões das tabelas ----------
+-- Projetos novos do Supabase NÃO liberam para a API as tabelas criadas no SQL Editor: sem estes GRANTs o jogo recebe
+-- "permission denied for table mesas". A RLS acima continua decidindo quem vê o quê; aqui só se abre a porta para quem entrou.
+grant usage on schema public to anon, authenticated;
+revoke all on public.mesas, public.mesa_membros, public.linhas from anon;
+grant select, delete on public.mesas to authenticated;
+grant select on public.mesa_membros to authenticated;
+grant select, insert, update, delete on public.linhas to authenticated;
+
 revoke all on function public.salvar_mesa(text, text, text, jsonb) from public, anon;
 revoke all on function public.entrar_mesa(text) from public, anon;
 revoke all on function public.sair_mesa(text) from public, anon;

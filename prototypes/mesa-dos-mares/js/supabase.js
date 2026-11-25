@@ -106,6 +106,7 @@ const SB = (() => {
   // O que fazer, em português, para cada defeito conhecido
   const DICAS = [
     [/anonymous sign-?ins? (are|is) disabled/i, 'No Supabase, abra Authentication → Sign In / Providers, ligue "Anonymous Sign-Ins" e salve.'],
+    [/permission denied for (table|schema)/i, 'Faltam as permissões das tabelas: no Supabase, abra o SQL Editor, cole de novo o arquivo supabase/schema.sql (a versão atualizada) e clique em Run.'],
     [/could not find the table|relation .* does not exist|schema cache/i, 'As tabelas ainda não existem: no Supabase, abra o SQL Editor, cole o arquivo supabase/schema.sql e clique em Run.'],
     [/invalid api key|apikey|jwt/i, 'A chave do Supabase está errada: confira SUPABASE_ANON_KEY no Vercel (só a chave pública).'],
     [/failed to fetch|networkerror|load failed/i, 'Não deu para falar com o Supabase: confira a internet e a SUPABASE_URL.'],
