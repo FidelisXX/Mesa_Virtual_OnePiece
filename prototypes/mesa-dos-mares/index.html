@@ -221,7 +221,7 @@ function stageMode() {
   return 'chart';
 }
 const chartKey = () => { const c = me(), v = currentView(); return c && c.gm ? (isDeck(v) ? v.slice(6) : Object.keys(db.ships)[0]) : shipKey(c); };
-function uiSelChanged() { mesaDirty = true; }
+function uiSelChanged() { mesaDirty = true; tecDirty = true; }
 const berryTxt = n => berry(n || 0);
 
 // ======================================================================================
@@ -551,7 +551,7 @@ function ligaEditorGM(el, c) {
 // ---- Aba Técnicas: lista, uso e criação ----
 function renderTecs() {
   const c = me(), el = $('tecs'); if (!c) { el.innerHTML = ''; return; }
-  if (c.gm) { el.innerHTML = '<div class="note">O Mestre não usa técnicas. Os NPCs lutam com a força do nível deles.</div>'; return; }
+  if (c.gm) { el.innerHTML = gmTecsHTML(); ligaGmTecs(el); return; }
   const cl = CLASSES[c.classe], race = RACES[c.raca], list = [BASIC, ...(c.ataques || [])];
   el.innerHTML = `<button class="btn tec-cta" id="tecNew" ${(c.ataques || []).length >= tune.atkMax ? 'disabled' : ''}>+ Criar técnica</button>
   <div class="note">Uma técnica é o seu golpe: dano inicial <b>${atkDice(c, [])}+${attr(c, atkAttr(c))}</b> mais efeitos que você compra com Pontos de Poder. Custo máximo por técnica: <b>${atkCap(c)}</b> PP (sobe com o nível). PP agora: <b>${c.st}/${c.stMax}</b>. Limite: ${tune.atkMax} técnicas.</div>
@@ -560,6 +560,25 @@ function renderTecs() {
   $('tecNew').onclick = () => atkEditor(null);
   el.querySelectorAll('[data-use]').forEach(b => b.onclick = () => Combat.useAttack(b.dataset.use === 'basico' ? BASIC : c.ataques.find(a => a.id === b.dataset.use), testMode));
   el.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => atkEditor(c.ataques.find(a => a.id === b.dataset.edit)));
+}
+// Aba Técnicas do Mestre: os golpes do token de ficha que está selecionado no mapa
+let gmAlvo = '';   // '' = o mais próximo
+function gmTecsHTML() {
+  const v = currentView(), t = db.tokens[Island.sel];
+  if (!isIsland(v)) return '<div class="note">Vá a uma ilha e selecione no mapa um token de ficha para usar os golpes dele.</div>';
+  if (!t || t.isl !== v) return '<div class="note">Selecione no mapa um token que veio de uma ficha para usar os golpes dele. Para pôr uma ficha no mapa: aba <b>Fichas</b> → Pôr em cena.</div>';
+  if (!t.ficha) return `<h3>${esc(t.nome)}</h3><div class="note">Este token não vem de uma ficha, então não tem técnicas. Ele age pelo botão <b>NPC age</b> da aba Mesa.</div>`;
+  const f = t.ficha, cl = CLASSES[f.classe] || CLASSES.lutador, mod = attr(f, atkAttr(f)) + ((RACES[f.raca] || {}).dmg || 0);
+  const alvos = Object.values(db.tokens).filter(o => o.isl === v && o.id !== t.id && o.hpMax > 0 && o.hp > 0);
+  if (gmAlvo && !alvos.some(o => o.id === gmAlvo)) gmAlvo = '';
+  return `<div class="ord"><img class="pic sm" src="${Chat.tokenPortrait(t)}" alt=""><b>${esc(t.nome)} <small>nv ${t.lv}</small></b><span>Vida ${t.hp}/${t.hpMax} · PP ${t.st}/${t.stMax}</span></div>
+  <div class="row"><label class="note">Alvo <select id="gmAlvo"><option value="">O mais próximo</option>${alvos.map(o => `<option value="${o.id}" ${o.id === gmAlvo ? 'selected' : ''}>${esc(o.nome)} (${o.hp}/${o.hpMax})</option>`).join('')}</select></label></div>
+  <h3>Golpes de ${esc(t.nome)}</h3><div class="tec-list">${(t.tecs || []).map((a, i) => `<div class="tec"><div class="tec-h"><b>${esc(a.nome)}</b><span>custo ${a.custo}</span></div><div class="note">${atkDice(f, a.fx)}+${mod} · alcance ${atkReach(f, a.fx)}</div><div>${a.fx.length ? [...new Set(a.fx)].map(k => '<span class="chip-fx">' + FX[k].nome + (countFx(a.fx, k) > 1 ? ' ×' + countFx(a.fx, k) : '') + '</span>').join('') : '<span class="chip-fx">sem efeitos</span>'}</div><button class="btn sm red" data-gu="${i}" ${(t.st || 0) < a.custo ? 'disabled' : ''}>Usar</button></div>`).join('')}</div>`;
+}
+function ligaGmTecs(el) {
+  const t = db.tokens[Island.sel];
+  if ($('gmAlvo')) $('gmAlvo').onchange = e => { gmAlvo = e.target.value; };
+  el.querySelectorAll('[data-gu]').forEach(b => b.onclick = () => { if (t && Combat.gmUse(t, +b.dataset.gu, gmAlvo)) { tecDirty = true; mesaDirty = true; } });
 }
 function useTec(i) { const c = me(); if (!c || c.gm) return; const a = i === 0 ? BASIC : (c.ataques || [])[i - 1]; if (a) Combat.useAttack(a, testMode); }
 // barra de atalhos no mapa da ilha
@@ -1000,7 +1019,7 @@ function throttled(dt) {
     panelClock = 0;
     if (dirty.chars || dirty.ships || dirty.tokens) { Chat.head(); document.body.classList.toggle('gm', isGM()); }
     if (tab === 'ficha' && (sheetDirty || dirty.chars) && !typing()) { renderSheet(); sheetDirty = false; }
-    if (tab === 'tec' && (tecDirty || dirty.chars) && !typing()) { renderTecs(); tecDirty = false; }
+    if (tab === 'tec' && (tecDirty || dirty.chars || (isGM() && dirty.tokens)) && !typing()) { renderTecs(); tecDirty = false; }
     if (tab === 'fichas' && (Fichas.dirty || dirty.world) && !typing()) Fichas.render($('fichasEl'));
     if (tab === 'mesa' && (mesaDirty || dirty.tokens || dirty.combat || dirty.ships || dirty.chars || dirty.world || dirty.naval || dirty.cargos || dirty.missions) && !typing()) { renderMesa(); mesaDirty = false; }
     const un = Object.keys(db.chars).length ? gmPlacesKeys().filter(p => p !== currentView()).reduce((a, p) => a + Chat.unread(p), 0) : 0;

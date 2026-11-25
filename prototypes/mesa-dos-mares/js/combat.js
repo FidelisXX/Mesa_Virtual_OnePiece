@@ -218,6 +218,16 @@ const Combat = (() => {
     if (tec.fx.includes('prender') && !resist('Resistência (DES)', 'DES')) { tg.status.prender = tune.rootTurns; sysMsg(isl, tg.nome + ' fica preso!'); }
     damage(tg, d.total, { side: sideOfKind(t.kind), nome: t.nome });
   }
+  // O Mestre usa um golpe de um token de ficha (i = posição em t.tecs) contra o alvo escolhido, ou o mais próximo
+  function gmUse(t, i, alvoId) {
+    const tec = t && t.ficha && (t.tecs || [])[i]; if (!tec) return false;
+    const tg = alvoId ? db.tokens[alvoId] : tokensOn(t.isl).filter(o => o.id !== t.id && o.hpMax > 0 && o.hp > 0).sort((a, b) => cheb(t, a) - cheb(t, b))[0];
+    if (!tg || tg.hp <= 0) { toast('Sem alvo: escolha um token vivo.'); return false; }
+    const reach = atkReach(t.ficha, tec.fx), dist = cheb(t, tg);
+    if (dist > reach) { toast('Fora de alcance: o golpe alcança ' + reach + ' quadrado(s) e ' + tg.nome + ' está a ' + dist + '. Arraste o token para perto.'); return false; }
+    if ((t.st || 0) < tec.custo) { toast(t.nome + ' não tem PP: a técnica custa ' + tec.custo + '.'); return false; }
+    npcFicha(t, tg, tec); return true;
+  }
   function npcAct(t) {
     const isl = t.isl, foes = tokensOn(isl).filter(o => o.hp > 0 && o.hpMax > 0 && (o.owner !== 'gm' || (t.kind !== 'tenryu' && o.kind === 'tenryu')));
     if (!foes.length) return;
@@ -306,5 +316,5 @@ const Combat = (() => {
     }
   }
 
-  return { challenge, perfilExtra, fichaLocal, spawnNpc, damage, useAttack, start, next, end, npcAct, saquear, accept, MISSIONS, charOf, myTok, defOfToken, sideOfKind, cheb, getTarget };
+  return { challenge, perfilExtra, fichaLocal, spawnNpc, damage, useAttack, gmUse, start, next, end, npcAct, saquear, accept, MISSIONS, charOf, myTok, defOfToken, sideOfKind, cheb, getTarget };
 })();
