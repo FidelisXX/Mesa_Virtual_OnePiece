@@ -384,3 +384,7 @@ body.in-title #resizer, body.in-create #resizer, body.mobile #resizer { display:
 .to.sel { outline: 2px dashed var(--accent); outline-offset: 2px; }
 .to.ko { opacity: .45; filter: grayscale(1); }
 .ak-cat { color: #fff; min-width: 20px; text-align: center; font-weight: 800; } .ak-cat-S { background: #c9921a; } .ak-cat-A { background: #c4472f; } .ak-cat-B { background: #2a7bb8; } .ak-cat-C { background: #6b7a8a; }
+.gm-fichas { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.gm-edit { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin: 6px 0; }
+.gm-f { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--muted, #667); }
+.gm-f input { width: 100%; box-sizing: border-box; }

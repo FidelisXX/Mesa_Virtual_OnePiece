@@ -456,28 +456,33 @@ function setTab(t) {
 const bar = (cls, v, m, label) => `<div class="bar ${cls}"><i style="width:${clamp(m ? v / m * 100 : 0, 0, 100)}%"></i><span>${label || v + ' / ' + m}</span></div>`;
 let testMode = 'normal', testCd = 0, tecDirty = true;
 function fxTxt(c, fx) { return fx.length ? [...new Set(fx)].map(k => FX[k].nome + (countFx(fx, k) > 1 ? ' ×' + countFx(fx, k) : '')).join(', ') : 'sem efeitos'; }
+let gmVer = '';   // o jogador cuja ficha o Mestre está vendo
 function renderSheet() {
-  const c = me(), el = $('sheet'); if (!c) { el.innerHTML = ''; return; }
-  if (c.gm) {
-    el.innerHTML = `<div class="sheet-top">${imgTag(c, 'big')}<div><h2>${esc(c.nome)}</h2><div class="sub">Mestre da mesa</div></div></div>
-    <div class="note">O Mestre não tem ficha. Veja a aba <b>Mesa</b>: lugares, NPCs, combate, eventos do mar, gerador de ilha e o mestre automático.</div>
-    <h3>Dados do Mestre</h3><div class="row">${[4, 6, 8, 10, 12, 20].map(d => `<button class="btn sm wood" data-roll="1d${d}">d${d}</button>`).join('')}</div>`;
-    el.querySelectorAll('[data-roll]').forEach(b => b.onclick = () => Chat.rollFormula(b.dataset.roll)); return;
+  const eu = me(), el = $('sheet'); if (!eu) { el.innerHTML = ''; return; }
+  let c = eu, pre = '', gmMode = false;
+  if (eu.gm) {
+    const jog = Object.values(db.chars).filter(x => !x.gm && !isLegacy(x)); if (gmVer && !jog.some(x => x.id === gmVer)) gmVer = '';
+    pre = `<div class="sheet-top">${imgTag(eu, 'big')}<div><h2>${esc(eu.nome)}</h2><div class="sub">Mestre da mesa</div></div></div>
+      <h3>Fichas dos jogadores</h3>${jog.length ? '<div class="gm-fichas">' + jog.map(x => `<button class="btn sm ${x.id === gmVer ? '' : 'wood'}" data-gv="${x.id}">${esc(x.nome)} <small>nv ${x.lv}</small></button>`).join('') + '</div>' : '<div class="note">Nenhum jogador criou personagem nesta mesa ainda.</div>'}
+      <h3>Dados do Mestre</h3><div class="row">${[4, 6, 8, 10, 12, 20].map(d => `<button class="btn sm wood" data-roll="1d${d}">d${d}</button>`).join('')}</div>`;
+    const ligaMestre = () => { el.querySelectorAll('[data-roll]').forEach(b => b.onclick = () => Chat.rollFormula(b.dataset.roll)); el.querySelectorAll('[data-gv]').forEach(b => b.onclick = () => { gmVer = b.dataset.gv; sheetDirty = true; }); };
+    if (!gmVer) { el.innerHTML = pre + '<div class="note">Escolha um jogador acima para ver a ficha completa e mexer nela. O Mestre não tem ficha própria: veja a aba <b>Mesa</b> para lugares, NPCs, combate e eventos do mar.</div>'; ligaMestre(); return; }
+    c = db.chars[gmVer]; gmMode = true; el._ligaMestre = ligaMestre;
   }
   const race = RACES[c.raca], cl = CLASSES[c.classe], prof = PROFS[c.prof], max = c.lv >= tune.maxLv, ant = ANTECEDENTES[c.antecedente] || { nome: '—', car: '' };
   const vr = ((race.variantes || []).find(v => v.k === c.variante) || {}).nome, bp = bonusProf(c.lv), salv = (cl.salv || []);
   const pr = c.prisao ? `<div class="m sys" style="color:var(--no)">Preso em ${c.prisao.lugar === 'impel' ? 'Impel Down' : 'Enies Lobby'}: faltam ${Math.max(0, Math.ceil((c.prisao.ate - Date.now()) / 1000))} s.</div>` : '';
   const sg = n => (n >= 0 ? '+' : '') + n, pericia = p => bonusDe(c, p.k), prof_ = k => (c.pericias || []).includes(k);
-  el.innerHTML = `${pr}<div class="sheet-top">${imgTag(c, 'big')}<div style="flex:1"><h2>${esc(c.nome)}</h2><div class="sub"><span class="tag ${c.faccao}">${c.faccao === 'marinha' ? 'Marinha' : 'Pirata'}</span> ${esc(titulo(c))}</div>
+  el.innerHTML = `${pre}${gmMode ? '<div class="note" style="border-left:3px solid var(--ok, #1f9d8a)">Você está vendo a ficha de <b>' + esc(c.nome) + '</b> como Mestre: tudo aqui pode ser alterado.</div>' : ''}${pr}<div class="sheet-top">${imgTag(c, 'big')}<div style="flex:1"><h2>${esc(c.nome)}</h2><div class="sub"><span class="tag ${c.faccao}">${c.faccao === 'marinha' ? 'Marinha' : 'Pirata'}</span> ${esc(titulo(c))}</div>
       <div class="sub">${race.nome}${vr ? ' (' + esc(vr) + ')' : ''}${c.rara && VARIACOES_RARAS[c.rara] ? ' · ' + VARIACOES_RARAS[c.rara].nome : ''} · ${cl.nome} · ${prof.nome} · ${esc(ant.nome)}</div><div class="sub">${c.faccao === 'marinha' ? 'Reputação <b>' + c.rep + '</b>' : 'Recompensa <b>฿ ' + berry(c.recompensa || 0) + '</b> · Rep. <b>' + c.rep + '</b>'} · <b>฿ ${berry(c.berries || 0)}</b></div></div></div>
     <div class="row"><label class="btn wood sm" for="shFile">Trocar imagem</label><input type="file" id="shFile" accept="image/*"></div>
     <h3>Nível ${c.lv}${max ? ' (máximo)' : ''} · ${estagioDe(c.lv)}</h3>${max ? bar('xp', 1, 1, 'Topo do mundo') : bar('xp', c.xp, xpNext(c.lv), c.xp + ' / ' + xpNext(c.lv) + ' PE')}
     ${bar('hp', c.hp, c.hpMax, 'Vida ' + c.hp + ' / ' + c.hpMax)}${bar('st', c.st, c.stMax, 'Pontos de Poder ' + c.st + ' / ' + c.stMax)}
     <div class="stats"><div><b>${defOf(c)}</b><span>CR</span></div><div><b>+${bp}</b><span>Proficiência</span></div><div><b>${sg(attr(c, 'DES'))}</b><span>Iniciativa</span></div><div><b>${race.desloc || 9} m</b><span>Deslocamento</span></div><div><b>${10 * attrVal(c, 'FOR')} kg</b><span>Carga</span></div></div>
     <h3>Atributos ${c.pts ? '<span class="pts">' + c.pts + ' ponto(s) para distribuir</span>' : ''}</h3>
-    <div class="row"><select id="shModo"><option value="normal">Normal</option><option value="vantagem">Vantagem</option><option value="desvantagem">Desvantagem</option></select>
+    <div class="row" style="${gmMode ? 'display:none' : ''}"><select id="shModo"><option value="normal">Normal</option><option value="vantagem">Vantagem</option><option value="desvantagem">Desvantagem</option></select>
       <select id="shCd"><option value="0">Sem CD</option><option value="5">Muito fácil (5)</option><option value="10">Fácil (10)</option><option value="15">Moderada (15)</option><option value="20">Difícil (20)</option><option value="25">Muito difícil (25)</option><option value="30">Quase impossível (30)</option></select></div>
-    <div class="attr-grid">${ATRIBUTOS.map(a => `<div class="attr ${salv.includes(a.k) ? 'salv' : ''}" title="${esc(a.desc)}${salv.includes(a.k) ? ' · salvaguarda proficiente' : ''}"><span class="k">${a.k}</span><span class="v">${attrVal(c, a.k)} <small>(${sg(attr(c, a.k))})</small></span>${c.pts && attrVal(c, a.k) < attrLimite(c.lv) && (c.attrs[a.k] || 10) < attrLimite(c.lv) ? `<button class="btn sm wood" data-up="${a.k}">+</button>` : ''}<button class="btn sm" data-test="${a.k}">Testar</button></div>`).join('')}</div>
+    <div class="attr-grid">${ATRIBUTOS.map(a => `<div class="attr ${salv.includes(a.k) ? 'salv' : ''}" title="${esc(a.desc)}${salv.includes(a.k) ? ' · salvaguarda proficiente' : ''}"><span class="k">${a.k}</span><span class="v">${attrVal(c, a.k)} <small>(${sg(attr(c, a.k))})</small></span>${!gmMode && c.pts && attrVal(c, a.k) < attrLimite(c.lv) && (c.attrs[a.k] || 10) < attrLimite(c.lv) ? `<button class="btn sm wood" data-up="${a.k}">+</button>` : ''}${gmMode ? `<button class="btn sm wood" data-gattr="${a.k}" data-d="-1">−</button><button class="btn sm wood" data-gattr="${a.k}" data-d="1">+</button>` : `<button class="btn sm" data-test="${a.k}">Testar</button>`}</div>`).join('')}</div>
     ${careerBonus(c) ? `<div class="note">Bônus da carreira: <b>+${careerBonus(c)}</b> nos valores de atributo (${c.faccao === 'marinha' ? 'patente' : 'recompensa'}).</div>` : ''}
     <h3>Perícias</h3><div class="pericias">${PERICIAS.map(p => `<button class="per ${prof_(p.k) ? 'on' : ''}" data-per="${p.k}" title="${p.a}${prof_(p.k) ? ' · proficiente' : ''}"><span>${prof_(p.k) ? '●' : '○'} ${p.nome}</span><b>${sg(pericia(p))}</b></button>`).join('')}</div>
     <h3>Estilo de combate</h3><div class="note"><b>${cl.nome}</b> · Dado de Vida d${cl.dv} · salvaguardas ${(cl.salv || []).join(' e ')} · atributo primário <b>${atkAttr(c)}</b> · arma favorita: ${esc(cl.arma || '—')}<br>${(c.hb || []).map(k => '<b>' + esc((HABILIDADES[k] || { nome: k }).nome) + ':</b> ' + esc((HABILIDADES[k] || { t: '' }).t)).join('<br>')}</div>
@@ -485,23 +490,49 @@ function renderSheet() {
     <div class="row"><button class="btn sm wood" id="shAkuma">Mercado Negro (Akuma no Mi)</button></div>
     ${c.sonho || c.caminho || c.sing || c.honra || c.aparencia ? `<h3>Personagem</h3><div class="note">${c.sonho ? '<b>Sonho:</b> ' + esc(c.sonho) + '<br>' : ''}${c.caminho ? '<b>Caminho:</b> ' + (REALIZACOES[c.caminho.r] || '') + ' pelo ' + (FORMAS[c.caminho.f] || '') + '<br>' : ''}${c.sing ? '<b>Singularidades e Defeitos:</b> ' + esc(c.sing) + '<br>' : ''}${c.honra ? '<b>Código de Honra:</b> ' + esc(c.honra) + '<br>' : ''}${c.aparencia ? esc(c.aparencia) : ''}</div>` : ''}
     ${(c.equip || []).length ? `<h3>Equipamento</h3><div class="note">${c.equip.map(esc).join('<br>')}</div>` : ''}
-    <h3>Técnicas</h3><div class="row"><span class="note">Você tem <b>${(c.ataques || []).length + 1}</b> técnica(s).</span><button class="btn sm" id="shGoTec">Abrir e criar técnicas</button></div>
-    <h3>Treino</h3>${c.treino ? `<div class="note">Treinando há ${Math.round(Train.hours(c) * 60 / tune.trainSpeed)} min. Rende <b>${Train.pending(c) * tune.xpMul} PE</b> até agora${c.faccao === 'marinha' ? ' (treino guiado: +' + Math.round((tune.navyTrainMul - 1) * 100) + '%)' : ''}.</div><button class="btn sm" id="shTrainStop">Parar e coletar</button>` : `<div class="note">O personagem treina sozinho e rende ${Math.round(Train.rate(c) * tune.xpMul)} PE por hora${c.faccao === 'marinha' ? ' (com o bônus da Marinha)' : ''}, até ${tune.trainCapH} horas, mesmo com o jogo fechado.</div><button class="btn sm" id="shTrain" ${c.prisao ? 'disabled' : ''}>Começar a treinar</button>`}
+    <h3>Técnicas</h3><div class="row"><span class="note">${gmMode ? 'Tem' : 'Você tem'} <b>${(c.ataques || []).length + 1}</b> técnica(s).</span>${gmMode ? '' : '<button class="btn sm" id="shGoTec">Abrir e criar técnicas</button>'}</div>
+    ${gmMode ? gmEditorHTML(c) : ''}
+    <h3>Treino</h3>${gmMode ? '<div class="note">' + (c.treino ? 'Está treinando.' : 'Não está treinando.') + '</div>' : c.treino ? `<div class="note">Treinando há ${Math.round(Train.hours(c) * 60 / tune.trainSpeed)} min. Rende <b>${Train.pending(c) * tune.xpMul} PE</b> até agora${c.faccao === 'marinha' ? ' (treino guiado: +' + Math.round((tune.navyTrainMul - 1) * 100) + '%)' : ''}.</div><button class="btn sm" id="shTrainStop">Parar e coletar</button>` : `<div class="note">O personagem treina sozinho e rende ${Math.round(Train.rate(c) * tune.xpMul)} PE por hora${c.faccao === 'marinha' ? ' (com o bônus da Marinha)' : ''}, até ${tune.trainCapH} horas, mesmo com o jogo fechado.</div><button class="btn sm" id="shTrain" ${c.prisao ? 'disabled' : ''}>Começar a treinar</button>`}
     <h3>Estilo no chat</h3>
     <div class="row"><select id="shCor">${Object.keys(CORES).map(n => `<option value="${n}" ${c.cor === n ? 'selected' : ''}>${n}</option>`).join('')}</select><select id="shFonte">${Object.entries(FONTES).map(([k, f]) => `<option value="${k}" ${c.fonte === k ? 'selected' : ''}>${f.nome}</option>`).join('')}</select></div>
     <div class="sample"><span class="who" style="color:${tc(c.cor)};font-family:${FONTES[c.fonte].css}">${esc(c.nome)}</span> <span style="font-family:${FONTES[c.fonte].css}">— assim as suas falas aparecem.</span></div>`;
   $('shModo').value = testMode; $('shCd').value = String(testCd);
   $('shModo').onchange = e => { testMode = e.target.value; }; $('shCd').onchange = e => { testCd = +e.target.value; };
   el.querySelectorAll('[data-test]').forEach(b => b.onclick = () => Chat.teste(b.dataset.test, testCd, testMode));
-  el.querySelectorAll('[data-per]').forEach(b => b.onclick = () => Chat.teste(b.dataset.per, testCd, testMode));
+  el.querySelectorAll('[data-per]').forEach(b => b.onclick = () => {
+    if (!gmMode) { Chat.teste(b.dataset.per, testCd, testMode); return; }
+    const k = b.dataset.per, ps = new Set(c.pericias || []); if (ps.has(k)) ps.delete(k); else ps.add(k); c.pericias = [...ps]; commit('chars', c.id, c); sheetDirty = true;
+  });
   el.querySelectorAll('[data-up]').forEach(b => b.onclick = () => { const k = b.dataset.up; if (c.pts > 0 && (c.attrs[k] || 10) < attrLimite(c.lv)) { c.attrs[k] = (c.attrs[k] || 10) + 1; c.pts--; refreshChar(c, false); sheetDirty = true; } });
-  $('shGoTec').onclick = () => setTab('tec');
-  if ($('shAkuma')) $('shAkuma').onclick = () => Akuma.modal();
-  if ($('shTrain')) $('shTrain').onclick = () => { Train.start(c); sheetDirty = true; };
-  if ($('shTrainStop')) $('shTrainStop').onclick = () => { Train.stop(c); sheetDirty = true; };
+  if ($('shGoTec')) $('shGoTec').onclick = () => setTab('tec');
+  if (gmMode) { el._ligaMestre(); ligaEditorGM(el, c); }
+  if ($('shAkuma')) $('shAkuma').onclick = () => Akuma.modal(gmMode ? c.id : undefined);
+  if ($('shTrain') && !gmMode) $('shTrain').onclick = () => { Train.start(c); sheetDirty = true; };
+  if ($('shTrainStop') && !gmMode) $('shTrainStop').onclick = () => { Train.stop(c); sheetDirty = true; };
   $('shFile').onchange = e => processUpload(e.target.files[0], tune.tokenImgSize, url => { c.img = url; commit('chars', c.id, c); syncPc(c); sheetDirty = true; });
   $('shCor').onchange = e => { c.cor = e.target.value; commit('chars', c.id, c); sheetDirty = true; };
   $('shFonte').onchange = e => { c.fonte = e.target.value; commit('chars', c.id, c); sheetDirty = true; };
+}
+
+// ---- O Mestre mexe na ficha de um jogador ----
+const GM_CAMPOS = [['nome', 'Nome', 'text'], ['lv', 'Nível', 'number'], ['xp', 'PE (do nível)', 'number'], ['hp', 'Vida', 'number'], ['st', 'Pontos de Poder', 'number'], ['berries', 'Berries', 'number'], ['recompensa', 'Recompensa', 'number'], ['rep', 'Reputação', 'number'], ['pts', 'Pontos de atributo', 'number']];
+function gmEditorHTML(c) {
+  const campos = GM_CAMPOS.filter(([k]) => !(k === 'recompensa' && c.faccao === 'marinha'));
+  return `<h3>Manipular (Mestre)</h3><div class="gm-edit">${campos.map(([k, nm, tp]) => `<label class="gm-f"><span>${nm}</span><input type="${tp}" data-gf="${k}" value="${esc(c[k] == null ? (tp === 'number' ? 0 : '') : c[k])}" ${tp === 'number' ? 'min="0" step="1"' : 'maxlength="30"'}></label>`).join('')}</div>
+    <div class="note">Vida máxima ${c.hpMax} · Pontos de Poder máximos ${c.stMax} (mudam sozinhos com o nível e os atributos). Os atributos têm − e +, as perícias se ligam e desligam ao clicar. A Akuma no Mi se entrega pelo botão do Mercado Negro.</div>
+    <div class="row"><button class="btn sm wood" id="gmCura">Curar tudo</button><button class="btn sm wood" id="gmTiraAk" ${c.akuma ? '' : 'disabled'}>Tirar a Akuma no Mi</button></div>`;
+}
+function ligaEditorGM(el, c) {
+  const lim = { lv: [1, tune.maxLv], xp: [0, 1e12], hp: [0, 1e9], st: [0, 1e9], berries: [0, 1e13], recompensa: [0, 1e13], rep: [0, 1e9], pts: [0, 99] };
+  el.querySelectorAll('[data-gf]').forEach(i => i.onchange = () => {
+    const k = i.dataset.gf;
+    if (k === 'nome') { const v = i.value.trim().slice(0, 30); if (v) c.nome = v; }
+    else { const v = Math.round(+i.value); if (!isFinite(v)) { sheetDirty = true; return; } c[k] = clamp(v, lim[k][0], lim[k][1]); }
+    refreshChar(c, false); sheetDirty = true; mesaDirty = true;
+  });
+  el.querySelectorAll('[data-gattr]').forEach(b => b.onclick = () => { const k = b.dataset.gattr; c.attrs[k] = clamp((c.attrs[k] || 10) + (+b.dataset.d), 1, 30); refreshChar(c, false); sheetDirty = true; });
+  if ($('gmCura')) $('gmCura').onclick = () => { refreshChar(c, true); sheetDirty = true; toast(c.nome + ' foi curado.'); };
+  if ($('gmTiraAk')) $('gmTiraAk').onclick = () => { Akuma.tirar(c.id); sheetDirty = true; };
 }
 
 // ---- Aba Técnicas: lista, uso e criação ----

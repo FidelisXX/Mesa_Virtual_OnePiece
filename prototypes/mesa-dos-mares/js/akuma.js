@@ -45,8 +45,8 @@ const Akuma = (() => {
   }
 
   // O Mercado Negro: busca, filtros por categoria e tipo; o jogador compra, o mestre entrega
-  function modal() {
-    const ov = $('overlay'); let filtro = '', tipo = '', cat = '', soVenda = false, alvo = '', confirma = '', aviso = '';
+  function modal(alvoInicial) {
+    const ov = $('overlay'); let filtro = '', tipo = '', cat = '', soVenda = false, alvo = alvoInicial || '', confirma = '', aviso = '';
     const fechar = () => { ov.className = ''; ov.innerHTML = ''; };
     const desenha = () => {
       const c = me(), gm = !!(c && c.gm), jog = Object.values(db.chars).filter(x => !x.gm), todas = lista(), q = filtro.toLowerCase();
