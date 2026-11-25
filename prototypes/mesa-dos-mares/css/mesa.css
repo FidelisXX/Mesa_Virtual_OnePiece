@@ -398,3 +398,4 @@ body.in-title #resizer, body.in-create #resizer, body.mobile #resizer { display:
 .fc-pasta > summary::-webkit-details-marker { display: none; }
 .fc-pasta > summary span { flex: 1; }
 .fc-pasta > summary small { color: var(--muted); }
+.hot-who { display: flex; flex-direction: column; justify-content: center; padding: 0 8px; min-width: 90px; } .hot-who b { font-size: 14px; } .hot-who small { color: var(--muted); font-size: 12px; }

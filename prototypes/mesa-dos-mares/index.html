@@ -580,11 +580,21 @@ function ligaGmTecs(el) {
   if ($('gmAlvo')) $('gmAlvo').onchange = e => { gmAlvo = e.target.value; };
   el.querySelectorAll('[data-gu]').forEach(b => b.onclick = () => { if (t && Combat.gmUse(t, +b.dataset.gu, gmAlvo)) { tecDirty = true; mesaDirty = true; } });
 }
-function useTec(i) { const c = me(); if (!c || c.gm) return; const a = i === 0 ? BASIC : (c.ataques || [])[i - 1]; if (a) Combat.useAttack(a, testMode); }
+function useTec(i) {
+  const c = me(); if (!c) return;
+  if (c.gm) { const t = db.tokens[Island.sel]; if (t && t.ficha && t.isl === currentView() && Combat.gmUse(t, i, gmAlvo)) { tecDirty = true; mesaDirty = true; } return; }   // o Mestre usa os golpes do token de ficha selecionado
+  const a = i === 0 ? BASIC : (c.ataques || [])[i - 1]; if (a) Combat.useAttack(a, testMode); }
 // barra de atalhos no mapa da ilha
 let hotSig = '';
 function renderHotbar(show) {
-  const hb = $('hotbar'), c = me(); hb.hidden = !show; if (!show) { hotSig = ''; return; }
+  const hb = $('hotbar'), c = me(), gt = c && c.gm ? db.tokens[Island.sel] : null;
+  if (c && c.gm) show = !!(show && gt && gt.ficha && gt.isl === currentView());   // o Mestre vê a barra quando há um token de ficha selecionado
+  hb.hidden = !show; if (!show) { hotSig = ''; return; }
+  if (c.gm) {
+    const alvo = gmAlvo && db.tokens[gmAlvo] ? db.tokens[gmAlvo].nome : 'o mais próximo', sg = JSON.stringify([gt.id, (gt.tecs || []).map(a => [a.nome, a.custo]), gt.st, alvo]); if (sg === hotSig) return; hotSig = sg;
+    hb.innerHTML = '<span class="hot-who"><b>' + esc(gt.nome) + '</b><small>alvo: ' + esc(alvo) + '</small></span>' + (gt.tecs || []).map((a, i) => `<button class="hot" data-i="${i}" ${(gt.st || 0) < a.custo ? 'disabled' : ''}><span class="k">${i + 1}</span><b>${esc(a.nome)}</b><small>custo ${a.custo} · alcance ${atkReach(gt.ficha, a.fx)}</small></button>`).join('');
+    hb.querySelectorAll('[data-i]').forEach(b => b.onclick = () => useTec(+b.dataset.i)); return;
+  }
   const sig = JSON.stringify([(c.ataques || []).map(a => [a.id, a.nome, a.custo]), c.st, c.lv]); if (sig === hotSig) return; hotSig = sig;
   const list = [BASIC, ...(c.ataques || [])];
   hb.innerHTML = list.map((a, i) => `<button class="hot" data-i="${i}" ${c.st < a.custo ? 'disabled' : ''}><span class="k">${i + 1}</span><b>${esc(a.nome)}</b><small>custo ${a.custo} · alcance ${atkReach(c, a.fx)}</small></button>`).join('') + '<button class="hot new" id="hotNew">+ Nova técnica</button>';
@@ -885,7 +895,7 @@ function renderWorldHud(ch) {
 function updateHud() {
   const c = me(), mode = scene === 'play' && c ? stageMode() : 'none', v = c && currentView();
   Naval.hud($('navalHud')); Fight3D.hud($('fightHud'));
-  const isl = mode === 'island'; $('islandHud').hidden = !isl; $('islandHelp').hidden = !isl; renderHotbar(isl && !c.gm); renderChips();
+  const isl = mode === 'island'; $('islandHud').hidden = !isl; $('islandHelp').hidden = !isl; renderHotbar(isl); renderChips();
   if (isl) {
     $('islName').innerHTML = `<b>${esc(chanName(v))}</b>` + (Island.editTool ? ' <small>· desenhando: ' + ({ casa: 'casa', casaG: 'casa grande', arvore: 'árvore', apagar: 'borracha' }[Island.editTool]) + '</small>' : ''); $('btnCarta').textContent = c.gm ? 'Mundo' : 'Carta náutica';
     const cb = db.combat[v], tp = $('turnPlate');
@@ -988,7 +998,7 @@ const scenes = {
       if (mode === 'island') { Island.populate(state.view); if (!c.gm) { Island.ensureMyToken(state.view); perguntarNarrador(state.view); } }
       if (mode === 'island' && pressed('KeyF')) focusFoe();
       if (mode === 'island' && c.gm && (pressed('Delete') || pressed('Backspace'))) removeSelToken();
-      if (mode === 'island' && !c.gm) for (let i = 1; i <= 9; i++) if (pressed('Digit' + i)) useTec(i - 1);
+      if (mode === 'island') for (let i = 1; i <= 9; i++) if (pressed('Digit' + i)) useTec(i - 1);
       // pena cumprida?
       Object.values(db.chars).forEach(x => { if (x.prisao && Date.now() >= x.prisao.ate && (x.id === myId || isGM())) { releasePrison(x); sheetDirty = true; mesaDirty = true; } });
       Dice.update(dt); throttled(dt);
