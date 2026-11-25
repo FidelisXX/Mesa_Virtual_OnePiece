@@ -149,6 +149,12 @@ label.btn { display: inline-block; }
 #chatTools { padding: 8px 12px 0; background: var(--surface); }
 .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
 #modos button { padding: 3px 11px; font-size: 13px; background: var(--surface3); border: 1px solid var(--border); border-radius: 14px; color: var(--muted); }
+#comoBar { display: flex; align-items: center; gap: 8px; padding: 6px 8px; margin-bottom: 6px; border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 12px; background: var(--surface2); }
+#comoBar .como-t { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+#comoBar small { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+#comoBar select { border: 0; background: transparent; font-weight: 700; font-size: 15px; padding: 0; color: var(--text); max-width: 100%; }
+body.gm #modos button[data-k="narra"] { order: -1; } body.gm #modos button[data-k="sussurro"], body.gm #modos .mais-btn { order: 1; } body.gm #modos .mais { order: 2; display: none; } body.gm #modos.aberto .mais { display: inline-block; }
+#modos .mais-btn { padding: 3px 11px; font-size: 13px; background: transparent; border: 1px dashed var(--border); border-radius: 14px; color: var(--muted); }
 #modos button.on { background: var(--accent); color: var(--on-accent); border-color: transparent; font-weight: 650; }
 .gm-only { display: none; } body.gm .gm-only { display: inline-block; }
 .fb { min-width: 30px; height: 28px; padding: 0 8px; background: var(--surface3); border: 1px solid var(--border); border-radius: 8px; font-size: 14px; color: var(--text); }

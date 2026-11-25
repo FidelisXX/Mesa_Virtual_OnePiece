@@ -27,11 +27,11 @@ const FONTES = {
 };
 const MODOS = [
   { k: 'fala', nome: 'Fala', dica: 'Fala do personagem, com retrato' },
-  { k: 'acao', nome: 'Ação', dica: 'O que o personagem faz (/me). Falas entre "aspas" ganham destaque' },
+  { k: 'acao', nome: 'Ação', dica: 'O que o personagem faz (/me). Falas entre "aspas" ganham destaque', mais: true },
   { k: 'narra', nome: 'Narração', dica: 'Bloco de narração (só o Narrador)', gm: true },
-  { k: 'ooc', nome: 'OOC', dica: 'Fora do personagem: conversa de jogador' },
+  { k: 'ooc', nome: 'OOC', dica: 'Fora do personagem: conversa de jogador', mais: true },
   { k: 'sussurro', nome: 'Sussurro', dica: 'Só você, o alvo e o Narrador leem' },
-  { k: 'grito', nome: 'Grito', dica: 'BEM GRANDE e tremendo' },
+  { k: 'grito', nome: 'Grito', dica: 'BEM GRANDE e tremendo', mais: true },
 ];
 
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -39,7 +39,7 @@ const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLow
 const $ = id => document.getElementById(id);
 
 const Chat = (() => {
-  let modo = 'fala', comoNpc = '', lastCh = null, lastCount = -1;
+  let modo = 'fala', comoNpc = '', lastCh = null, lastCount = -1, gmIniciado = false;
   const lastSeen = {}; // canal → ts da última mensagem vista (contador do Narrador)
 
   // ---- Texto rico: escapa primeiro, depois aplica a marcação ----
@@ -154,12 +154,35 @@ const Chat = (() => {
     sel.innerHTML = here.filter(c => c.id !== myId).map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join('') || '<option value="">ninguém aqui</option>';
     if (cur) sel.value = cur;
     // narrador: falar como NPC
-    const como = $('comoNpc');
+    const como = $('comoNpc'), barra = $('comoBar');
     if (isGM()) {
+      if (!gmIniciado) { gmIniciado = true; setModo('narra'); }   // o Mestre começa narrando
       const toks = Island.tokensOn(ch).filter(t => t.owner === 'gm');
       como.innerHTML = '<option value="">Narrador</option>' + toks.map(t => `<option value="${t.id}">${esc(t.nome)}</option>`).join('');
-      como.value = toks.some(t => t.id === comoNpc) ? comoNpc : ''; como.hidden = false;
-    } else como.hidden = true;
+      if (!toks.some(t => t.id === comoNpc)) comoNpc = '';
+      como.value = comoNpc; barra.hidden = false; comoVisual();
+    } else barra.hidden = true;
+  }
+  // Quem está falando: o retrato, o nome e o botão para voltar ao Narrador
+  function comoVisual() {
+    const t = comoNpc && db.tokens[comoNpc], c = me(); if (!c) return;
+    $('comoImg').src = t ? tokenPortrait(t) : portraitURL(c); $('comoVolta').hidden = !t;
+    $('comoBar').style.borderLeftColor = t ? ((NPC_KINDS[t.kind] || {}).cor || '#5b4636') : '';
+    placeholder();
+  }
+  function placeholder() {
+    const t = comoNpc && db.tokens[comoNpc], quem = t ? t.nome : '';
+    $('chatInput').placeholder = { fala: quem ? 'Fale como ' + quem + '…' : 'Fale como seu personagem…', acao: quem ? 'Descreva o que ' + quem + ' faz…' : 'Descreva o que seu personagem faz…', narra: 'Narre a cena…', ooc: 'Conversa fora do personagem…', sussurro: 'Sussurre…', grito: 'GRITE!' }[modo];
+  }
+  function setComo(id) {
+    comoNpc = id && db.tokens[id] ? id : '';
+    if (modo === 'fala' || modo === 'narra') setModo(comoNpc ? 'fala' : 'narra');   // NPC fala; o Narrador narra
+    $('comoNpc').value = comoNpc; comoVisual(); preview();
+  }
+  // Selecionar um NPC no mapa passa a fala para ele
+  function seguir() {
+    if (!isGM()) return; const t = db.tokens[Island.sel];
+    if (t && t.owner === 'gm' && t.isl === currentView() && t.id !== comoNpc) setComo(t.id);
   }
   function unread(ch) { const last = lastSeen[ch] || 0; return db.msgs.filter(m => m.ch === ch && m.ts > last && m.uid !== myId).length; }
 
@@ -236,9 +259,10 @@ const Chat = (() => {
   }
   function setModo(k) {
     if (k === 'narra' && !isGM()) return;
-    modo = k; document.querySelectorAll('#modos button').forEach(b => b.classList.toggle('on', b.dataset.k === k));
+    modo = k; document.querySelectorAll('#modos button[data-k]').forEach(b => b.classList.toggle('on', b.dataset.k === k));
+    if (MODOS.find(m => m.k === k && m.mais)) $('modos').classList.add('aberto');
     $('susAlvo').hidden = k !== 'sussurro';
-    $('chatInput').placeholder = { fala: 'Fale como seu personagem…', acao: 'Descreva o que seu personagem faz…', narra: 'Narre a cena…', ooc: 'Conversa fora do personagem…', sussurro: 'Sussurre…', grito: 'GRITE!' }[k];
+    placeholder();
     preview();
   }
   function preview() {
@@ -261,8 +285,9 @@ const Chat = (() => {
 
   function init() {
     $('chatList').addEventListener('click', e => { const b = e.target.closest('[data-ask]'); if (b && me() && !me().gm) { if (b.dataset.who && b.dataset.who !== myId) { toast('Esse teste é de outro jogador.'); return; } b.disabled = true; teste(b.dataset.ask, +b.dataset.cd, 'normal', 'Teste pedido pelo mestre'); } });
-    $('modos').innerHTML = MODOS.map(m => `<button data-k="${m.k}" title="${esc(m.dica)}" class="${m.gm ? 'gm-only' : ''}">${m.nome}</button>`).join('');
-    $('modos').querySelectorAll('button').forEach(b => b.onclick = () => setModo(b.dataset.k));
+    $('modos').innerHTML = MODOS.map(m => `<button data-k="${m.k}" title="${esc(m.dica)}" class="${(m.gm ? 'gm-only ' : '') + (m.mais ? 'mais' : '')}">${m.nome}</button>`).join('') + '<button class="mais-btn gm-only" id="modosMais" title="Mais modos: Ação, OOC e Grito">⋯</button>';
+    $('modos').querySelectorAll('button[data-k]').forEach(b => b.onclick = () => setModo(b.dataset.k));
+    $('modosMais').onclick = () => $('modos').classList.toggle('aberto');
     const ta = $('chatInput');
     ta.addEventListener('keydown', e => {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
@@ -272,11 +297,12 @@ const Chat = (() => {
     });
     ta.addEventListener('input', () => { preview(); autosize(); mentionBar(); });
     $('chatSend').onclick = send;
-    $('comoNpc').onchange = e => { comoNpc = e.target.value; preview(); };
+    $('comoNpc').onchange = e => setComo(e.target.value);
+    $('comoVolta').onclick = () => setComo('');
     $('susAlvo').onchange = preview;
   }
 
-  return { init, render, head, setBg, clearBg, send, sysMsg, post, postRoll, teste, rollFormula, setModo, onNew, unread, format, get modo() { return modo; }, portraitFor, tokenPortrait };
+  return { init, render, head, seguir, setBg, clearBg, send, sysMsg, post, postRoll, teste, rollFormula, setModo, onNew, unread, format, get modo() { return modo; }, portraitFor, tokenPortrait };
 })();
 const sysMsg = (ch, txt) => Chat.sysMsg(ch, txt);
 

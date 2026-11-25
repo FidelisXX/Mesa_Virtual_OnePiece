@@ -68,10 +68,10 @@
       <div id="callBar"><button class="btn" id="callMaster"><span id="callLbl">Chamar o narrador</span> <span class="pts" id="callCount">0</span></button><button class="btn sm wood" id="callCfg" title="Chave da API do narrador de IA">Chave da IA</button><span class="note" id="callNote">Escreva à vontade, junto com a sua mesa. O narrador lê tudo de uma vez e responde.</span></div>
       <div id="actChips"></div>
       <div id="chatTools">
+        <div id="comoBar" hidden><img id="comoImg" class="pic xs" alt=""><span class="como-t"><small>Falando como</small><select id="comoNpc"></select></span><button class="btn sm wood" id="comoVolta" hidden>Voltar ao Narrador</button></div>
         <div class="row">
           <span id="modos" class="row" style="margin:0"></span>
           <select id="susAlvo" hidden></select>
-          <select id="comoNpc" hidden></select>
         </div>
       </div>
       <div id="chatBox">
@@ -221,7 +221,7 @@ function stageMode() {
   return 'chart';
 }
 const chartKey = () => { const c = me(), v = currentView(); return c && c.gm ? (isDeck(v) ? v.slice(6) : Object.keys(db.ships)[0]) : shipKey(c); };
-function uiSelChanged() { mesaDirty = true; tecDirty = true; }
+function uiSelChanged() { mesaDirty = true; tecDirty = true; Chat.seguir(); }
 const berryTxt = n => berry(n || 0);
 
 // ======================================================================================
