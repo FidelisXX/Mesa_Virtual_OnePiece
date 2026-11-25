@@ -51,6 +51,7 @@
       <button data-t="ficha"><span class="ic">📜</span>Ficha</button>
       <button data-t="tec"><span class="ic">⚔</span>Técnicas</button>
       <button data-t="mesa"><span class="ic">👥</span>Mesa</button>
+      <button data-t="fichas" class="gm-only"><span class="ic">🗂</span>Fichas</button>
       <button class="tbtn" id="musicBtn" title="Trilha sonora da mesa">♪</button><button class="tbtn" id="wideBtn" title="Mais espaço para a narração">Foco</button><button class="tbtn" id="themeBtn" title="Tema escuro ou claro">Tema</button><button class="tbtn" id="iaBtn" title="Chave da API e servidor do narrador de IA">IA</button>
     </div>
 
@@ -82,6 +83,8 @@
     <section class="panel" id="p-ficha"><div class="scroll" id="sheet"></div></section>
 
     <section class="panel" id="p-tec"><div class="scroll" id="tecs"></div></section>
+
+    <section class="panel" id="p-fichas"><div class="scroll" id="fichasEl"></div></section>
 
     <section class="panel" id="p-mesa">
       <div class="scroll">
@@ -127,6 +130,7 @@
 <script src="js/criar.js"></script>
 <script src="js/akuma-dados.js"></script>
 <script src="js/akuma.js"></script>
+<script src="js/fichas.js"></script>
 <script src="js/midia.js"></script>
 <script>
 'use strict';
@@ -449,8 +453,8 @@ function setTab(t) {
   const eraCena = document.body.classList.contains('cena');
   document.body.classList.toggle('cena', t === 'cena'); fit();
   if (eraCena !== (t === 'cena') && scene === 'play' && stageMode() === 'island') { const v = currentView(); if (v) Island.fit(v); } // o palco mudou de tamanho: reenquadra o mapa
-  ['chat', 'ficha', 'tec', 'mesa'].forEach(n => $('p-' + n).classList.toggle('on', n === t));
-  if (t === 'ficha') sheetDirty = true; if (t === 'mesa') mesaDirty = true; if (t === 'tec') tecDirty = true;
+  ['chat', 'ficha', 'tec', 'mesa', 'fichas'].forEach(n => $('p-' + n).classList.toggle('on', n === t));
+  if (t === 'ficha') sheetDirty = true; if (t === 'mesa') mesaDirty = true; if (t === 'tec') tecDirty = true; if (t === 'fichas') Fichas.dirty = true;
   if (t === 'chat') { dirty.msgs = true; setTimeout(() => { const l = $('chatList'); l.scrollTop = l.scrollHeight; }, 0); }
 }
 const bar = (cls, v, m, label) => `<div class="bar ${cls}"><i style="width:${clamp(m ? v / m * 100 : 0, 0, 100)}%"></i><span>${label || v + ' / ' + m}</span></div>`;
@@ -615,8 +619,8 @@ function infoTecnica(c) {
     <li><b>Imagem ou GIF.</b> Opcional: aparece na cena de quem está na ilha quando você usa a técnica.</li>
     <li><b>Para usar:</b> na aba Técnicas, na barra do mapa ou com as teclas 1 a 9. O alvo é o token selecionado.</li></ul></div>`;
 }
-function atkEditor(old) {
-  const c = me(), st = { nome: old ? old.nome : '', fx: old ? old.fx.slice() : [], img: old && old.img ? old.img : '' }, ov = $('overlay');
+function atkEditor(old, alvo, aoSalvar) {   // alvo e aoSalvar: o Mestre cria técnicas nas fichas dele
+  const c = alvo || me(), st = { nome: old ? old.nome : '', fx: old ? old.fx.slice() : [], img: old && old.img ? old.img : '' }, ov = $('overlay');
   const draw = () => {
     const custo = atkCost(c, st.fx), cap = atkCap(c), ok = custo <= cap && st.nome.trim();
     ov.innerHTML = `<div class="card small"><h1 style="font-size:32px">${old ? 'Editar' : 'Criar'} técnica <button class="info-btn ${st.info ? 'on' : ''}" id="akInfo" title="Como funciona a criação de técnicas" aria-label="Como funciona a criação de técnicas">i</button></h1><div class="tagline">Dano inicial ${atkDice(c, [])} + ${attr(c, atkAttr(c))}. Cada efeito custa Pontos de Poder (PP).</div>${st.info ? infoTecnica(c) : ''}
@@ -631,8 +635,8 @@ function atkEditor(old) {
     $('akImgFile').onchange = e => { const f = e.target.files[0]; if (!f) return; imagemDaTecnica(f, url => { st.img = url; draw(); }); };
     if ($('akImgClear')) $('akImgClear').onclick = () => { st.img = ''; draw(); };
     $('akInfo').onclick = () => { st.info = !st.info; draw(); };
-    $('akCancel').onclick = close; $('akSave').onclick = () => { const a = { id: old ? old.id : 'a' + uid(), nome: st.nome.trim(), fx: st.fx, custo: atkCost(c, st.fx), img: st.img || null }; c.ataques = c.ataques || []; if (old) c.ataques[c.ataques.findIndex(x => x.id === old.id)] = a; else c.ataques.push(a); commit('chars', c.id, c); sheetDirty = true; close(); toast('Técnica guardada: ' + a.nome); };
-    if ($('akDel')) $('akDel').onclick = () => { c.ataques = c.ataques.filter(x => x.id !== old.id); commit('chars', c.id, c); sheetDirty = true; close(); };
+    $('akCancel').onclick = close; $('akSave').onclick = () => { const a = { id: old ? old.id : 'a' + uid(), nome: st.nome.trim(), fx: st.fx, custo: atkCost(c, st.fx), img: st.img || null }; c.ataques = c.ataques || []; if (old) c.ataques[c.ataques.findIndex(x => x.id === old.id)] = a; else c.ataques.push(a); if (aoSalvar) aoSalvar(c); else commit('chars', c.id, c); sheetDirty = true; close(); toast('Técnica guardada: ' + a.nome); };
+    if ($('akDel')) $('akDel').onclick = () => { c.ataques = c.ataques.filter(x => x.id !== old.id); if (aoSalvar) aoSalvar(c); else commit('chars', c.id, c); sheetDirty = true; close(); };
   };
   const close = () => { ov.className = ''; ov.innerHTML = ''; };
   ov.className = 'on'; draw();
@@ -990,6 +994,7 @@ function throttled(dt) {
     if (dirty.chars || dirty.ships || dirty.tokens) { Chat.head(); document.body.classList.toggle('gm', isGM()); }
     if (tab === 'ficha' && (sheetDirty || dirty.chars) && !typing()) { renderSheet(); sheetDirty = false; }
     if (tab === 'tec' && (tecDirty || dirty.chars) && !typing()) { renderTecs(); tecDirty = false; }
+    if (tab === 'fichas' && (Fichas.dirty || dirty.world) && !typing()) Fichas.render($('fichasEl'));
     if (tab === 'mesa' && (mesaDirty || dirty.tokens || dirty.combat || dirty.ships || dirty.chars || dirty.world || dirty.naval || dirty.cargos || dirty.missions) && !typing()) { renderMesa(); mesaDirty = false; }
     const un = Object.keys(db.chars).length ? gmPlacesKeys().filter(p => p !== currentView()).reduce((a, p) => a + Chat.unread(p), 0) : 0;
     const bd = $('chatBadge'); bd.hidden = !(tab !== 'chat' && un); bd.textContent = un;

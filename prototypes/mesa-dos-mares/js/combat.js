@@ -144,6 +144,7 @@ const Combat = (() => {
     if (t.status.atordoar > 0) { t.status.atordoar--; skip = true; sysMsg(t.isl, t.nome + ' está atordoado e perde o turno.'); }
     if (t.status.prender > 0) t.status.prender--;
     const c = charOf(t); if (c && c.hp > 0) { c.st = Math.min(c.stMax, c.st + tune.stRegen); commit('chars', c.id, c); syncPc(c); }
+    else if (!c && t.stMax && t.hp > 0) t.st = Math.min(t.stMax, (t.st || 0) + tune.stRegen);
     commit('tokens', t.id, t); return skip || t.hp <= 0;
   }
   function start(isl) {
@@ -196,10 +197,32 @@ const Combat = (() => {
       if (db.combat[isl] && db.combat[isl].on) next();
     });
   }
+  // ---- NPC de ficha: ataca com a técnica escolhida, com as mesmas regras de um jogador ----
+  function escolheTec(t) {
+    const pode = (t.tecs || []).filter(a => (t.st || 0) >= a.custo).sort((a, b) => b.custo - a.custo)[0];
+    return pode || { nome: 'Golpe básico', custo: 0, fx: [] };
+  }
+  function npcFicha(t, tg, tec) {
+    const isl = t.isl, fc = t.ficha, cl = CLASSES[fc.classe] || CLASSES.lutador, race = RACES[fc.raca] || {}, def = defOfToken(tg);
+    t.st = Math.max(0, (t.st || 0) - tec.custo); commit('tokens', t.id, t);
+    const r = rolarD20(attr(fc, atkAttr(fc)) + bonusProf(fc.lv), 'normal'); r.label = tec.nome + ' (' + cl.nome + ')'; r.vs = { nome: tg.nome, def }; postRollTo(isl, t.nome, r, { npc: t.id });
+    if (r.nat === 1 || (r.nat !== 20 && r.total < def)) { sysMsg(isl, t.nome + ' erra ' + tg.nome + '.'); return; }
+    const crit = r.nat === 20, n = countFx(tec.fx, 'dano'), mod = attr(fc, atkAttr(fc)) + (race.dmg || 0);
+    const f = (crit ? 2 : 1) + 'd' + cl.dado + (n ? '+' + (n * (crit ? 2 : 1)) + 'd6' : '') + '+' + mod, d = parseRolagem(f, null);
+    d.label = 'Dano em ' + tg.nome + (crit ? ' (crítico)' : ''); d.formula = f.toLowerCase(); postRollTo(isl, t.nome, d, { npc: t.id });
+    tg.status = tg.status || {}; const tc = charOf(tg), cd = 8 + bonusProf(fc.lv) + attr(fc, atkAttr(fc));
+    const resist = (label, k) => { const rr = rolarD20(tc ? attr(tc, k) : Math.floor((tg.lv || 1) / 2), 'normal'); rr.label = label + ' de ' + tg.nome; rr.cd = cd; postRollTo(isl, tg.nome, rr, { npc: tc ? undefined : tg.id }); return rr.total >= cd; };
+    if (tec.fx.includes('veneno')) { tg.status.veneno = tune.poisonTurns; sysMsg(isl, tg.nome + ' foi envenenado!'); }
+    if (tec.fx.includes('queimar') && !(tc && (RACES[tc.raca] || {}).fireImmune)) { tg.status.queimar = tune.burnTurns; sysMsg(isl, tg.nome + ' está pegando fogo!'); }
+    if (tec.fx.includes('atordoar') && !resist('Resistência (CON)', 'CON')) { tg.status.atordoar = 1; sysMsg(isl, tg.nome + ' fica atordoado!'); }
+    if (tec.fx.includes('prender') && !resist('Resistência (DES)', 'DES')) { tg.status.prender = tune.rootTurns; sysMsg(isl, tg.nome + ' fica preso!'); }
+    damage(tg, d.total, { side: sideOfKind(t.kind), nome: t.nome });
+  }
   function npcAct(t) {
     const isl = t.isl, foes = tokensOn(isl).filter(o => o.hp > 0 && o.hpMax > 0 && (o.owner !== 'gm' || (t.kind !== 'tenryu' && o.kind === 'tenryu')));
     if (!foes.length) return;
-    let tg = foes.sort((a, b) => cheb(t, a) - cheb(t, b))[0], reach = t.kind === 'bandido' || t.kind === 'rival' ? 3 : 1;
+    const tec = t.ficha ? escolheTec(t) : null;   // ficha do Mestre: a técnica mais forte que os PP pagam
+    let tg = foes.sort((a, b) => cheb(t, a) - cheb(t, b))[0], reach = tec ? atkReach(t.ficha, tec.fx) : (t.kind === 'bandido' || t.kind === 'rival' ? 3 : 1);
     if (t.status && t.status.prender > 0) { /* preso: não anda */ }
     else {
       let steps = 3; while (steps-- > 0 && cheb(t, tg) > reach) {
@@ -209,6 +232,7 @@ const Combat = (() => {
       commit('tokens', t.id, t);
     }
     if (cheb(t, tg) > reach) { sysMsg(isl, t.nome + ' avança.'); return; }
+    if (tec) { npcFicha(t, tg, tec); return; }
     const c = charOf(tg), def = defOfToken(tg), lv = t.lv || 1;
     const r = rolarD20(npcAtk(lv) + (t.atkB || 0), 'normal'); r.label = 'Ataque de ' + t.nome; r.vs = { nome: tg.nome, def }; postRollTo(isl, t.nome, r, { npc: t.id });
     if (r.nat === 1 || (r.nat !== 20 && r.total < def)) { sysMsg(isl, t.nome + ' erra ' + tg.nome + '.'); return; }

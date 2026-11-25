@@ -74,6 +74,7 @@ label.btn { display: inline-block; }
 #tabs button[data-t] { flex: 1; padding: 9px 4px; font-size: 14px; font-weight: 650; background: transparent; color: var(--muted); border: 0; border-bottom: 2px solid transparent; position: relative; }
 #tabs button[data-t].on { color: var(--text); border-bottom-color: var(--accent); }
 #tabs button[data-t]:hover { color: var(--text); }
+#tabs button.gm-only { display: none; } body.gm #tabs button.gm-only { display: block; }
 #tabs .badge { position: absolute; right: 4px; top: 2px; background: var(--danger); color: #fff; border-radius: 10px; font-size: 11px; padding: 0 6px; }
 .tbtn { flex: none; margin: 0 0 4px 4px; padding: 4px 9px; font-size: 12px; background: var(--surface3); color: var(--muted); border: 1px solid var(--border); border-radius: 8px; }
 .tbtn:hover { color: var(--text); }
@@ -388,3 +389,12 @@ body.in-title #resizer, body.in-create #resizer, body.mobile #resizer { display:
 .gm-edit { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin: 6px 0; }
 .gm-f { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--muted, #667); }
 .gm-f input { width: 100%; box-sizing: border-box; }
+/* Fichas do Mestre */
+.fc-item { display: flex; gap: 10px; align-items: center; padding: 8px 10px; margin: 5px 0; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; cursor: pointer; }
+.fc-item:hover { border-color: var(--accent); }
+.fc-item .note { margin: 0; }
+.fc-pasta { margin: 8px 0; }
+.fc-pasta > summary { display: flex; gap: 8px; align-items: center; cursor: pointer; font-weight: 700; padding: 6px 0; list-style: none; }
+.fc-pasta > summary::-webkit-details-marker { display: none; }
+.fc-pasta > summary span { flex: 1; }
+.fc-pasta > summary small { color: var(--muted); }
