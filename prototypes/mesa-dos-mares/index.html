@@ -638,13 +638,21 @@ function imagemDaTecnica(file, cb) {
   };
   fr.readAsDataURL(file);
 }
+// Quanto o nível seguinte dá: PP máximos e o limite de custo por técnica (as regras: PP = 4 × nível; limite = base + nível ÷ atkCapLv)
+function maisPP(c) {
+  const lv = c.lv || 1, ate = lv >= tune.maxLv, proxLv = (Math.floor(lv / tune.atkCapLv) + 1) * tune.atkCapLv;
+  return { pp: stMaxOf(c), ate, ppProx: 4 * (lv + 1), lvLimite: proxLv <= tune.maxLv ? proxLv : 0, limiteProx: atkCap(c) + 1 };
+}
 // O "i" da criação de técnicas: o que é, quanto custa e como se usa
 function infoTecnica(c) {
   const f = k => fxCost(c, k);
   return `<div class="info-box"><b>Como funciona a criação de técnicas</b><ul>
     <li><b>O golpe-base.</b> Toda técnica parte do dano do seu estilo (<b>${atkDice(c, [])} + ${attr(c, atkAttr(c))}</b>). Sem efeitos ela custa só ${tune.atkBase} PP.</li>
     <li><b>Efeitos.</b> Você compra efeitos com Pontos de Poder: <b>+Dano</b> (${f('dano')} PP, até 3 vezes, +1d6 cada), <b>Veneno</b> (${f('veneno')}), <b>Queimar</b> (${f('queimar')}), <b>Atordoar</b> (${f('atordoar')}), <b>Prender</b> (${f('prender')}) e <b>+Alcance</b> (${f('alcance')} PP, até 2 vezes, +2 quadrados cada). O custo total é o que você gasta <i>cada vez</i> que usa a técnica.</li>
-    <li><b>Limite.</b> Uma técnica não pode custar mais que <b>${atkCap(c)} PP</b> (o limite sobe com o nível). Você tem <b>${c.stMax} PP</b> no total, que voltam no descanso; sem PP suficiente a técnica não dispara. Pode guardar até ${tune.atkMax} técnicas.</li>
+    <li><b>Limite.</b> Uma técnica não pode custar mais que <b>${atkCap(c)} PP</b> (o limite sobe com o nível). Você tem <b>${stMaxOf(c)} PP</b> no total, que voltam no descanso; sem PP suficiente a técnica não dispara. Pode guardar até ${tune.atkMax} técnicas.</li>
+    <li><b>Como ter mais PP.</b> Os PP máximos são <b>4 × o nível</b>: você tem <b>${maisPP(c).pp}</b> agora${maisPP(c).ate ? ' e já está no nível máximo' : ', e no nível ' + (c.lv + 1) + ' terá ' + maisPP(c).ppProx}. O teto só sobe com o nível: ganhe PE vencendo lutas, cumprindo missões e treinando${c.id && db.chars[c.id] ? ' (aba Ficha)' : ''}. Subir de nível também enche a Vida e os PP.</li>
+    <li><b>Como recuperar PP.</b> Voltam <b>${tune.stRegen}</b> no começo de cada turno de luta; a <b>refeição</b> (metade) e o <b>rum</b> (1/4) do comércio da ilha; o <b>Cozinheiro</b> a bordo devolve 1d6+1 a cada chegada numa ilha${hasHb(c, 'energia') ? '; e a sua habilidade <b>Gerenciamento de Energia</b> devolve 1d8 + proficiência (1x por descanso longo)' : ''}.</li>
+    <li><b>Técnicas mais fortes.</b> O custo máximo por técnica é <b>${atkCap(c)}</b> PP${maisPP(c).lvLimite ? ' e passa a ' + maisPP(c).limiteProx + ' no nível ' + maisPP(c).lvLimite : ''}.</li>
     <li><b>Como acerta.</b> d20 + seu modificador + proficiência contra a CR do alvo. No 20 natural é crítico (dano dobrado); no 1 natural erra sempre.</li>
     <li><b>Atordoar e Prender</b> dão ao alvo uma salvaguarda (CD = 8 + proficiência + seu atributo): se ele passar, o efeito não pega. Veneno e Queimar não têm salvaguarda.</li>
     <li><b>Imagem ou GIF.</b> Opcional: aparece na cena de quem está na ilha quando você usa a técnica.</li>
@@ -659,6 +667,7 @@ function atkEditor(old, alvo, aoSalvar) {   // alvo e aoSalvar: o Mestre cria t�
     <div class="field"><label>Imagem ou GIF que aparece na cena quando você usa (opcional)</label><div class="row"><input type="text" id="akImgUrl" placeholder="Link de uma imagem ou GIF (https://…)" value="${/^data:/.test(st.img) ? '' : esc(st.img)}" style="flex:1;min-width:140px"><label class="btn wood sm" for="akImgFile">Arquivo…</label><input type="file" id="akImgFile" accept="image/*" hidden></div>${st.img ? `<div class="row"><img src="${esc(st.img)}" class="tec-prev" alt=""><button class="btn sm wood" id="akImgClear">Tirar</button></div>` : ''}</div>
     ${Object.entries(FX).map(([k, f]) => { const n = countFx(st.fx, k); return `<div class="fx"><div style="flex:1"><b>${f.nome}</b> <span class="note">custo ${fxCost(c, k)} · ${f.desc}</span></div><button class="btn sm wood" data-fx="${k}" data-d="-1">−</button><span class="val">${n}</span><button class="btn sm wood" data-fx="${k}" data-d="1" ${n >= f.max ? 'disabled' : ''}>+</button></div>`; }).join('')}
     <div class="note" style="margin-top:8px">Dano: <b>${atkDice(c, st.fx)}+${attr(c, atkAttr(c)) + ((RACES[c.raca].dmg) || 0)}</b> · alcance <b>${atkReach(c, st.fx)}</b> · custo total <b style="color:${custo > cap ? 'var(--no)' : 'inherit'}">${custo} / ${cap}</b> PP por uso${RACES[c.raca].electro ? ' (Electro: atordoar mais barato)' : ''}.</div>
+    <div class="note" style="margin-top:4px">PP no total: <b>${maisPP(c).pp}</b> (4 × nível ${c.lv}). Para ter mais PP e técnicas mais fortes, suba de nível${maisPP(c).ate ? ' (você já está no máximo)' : ': no nível ' + (c.lv + 1) + ' são ' + maisPP(c).ppProx + ' PP' + (maisPP(c).lvLimite ? '; o limite por técnica sobe para ' + maisPP(c).limiteProx + ' no nível ' + maisPP(c).lvLimite : '')}. Veja o <b>i</b> para saber como recuperar PP.</div>
     <div class="actions"><button class="btn wood" id="akCancel">Cancelar</button>${old ? '<button class="btn red" id="akDel">Apagar</button>' : ''}<button class="btn" id="akSave" ${ok ? '' : 'disabled'}>Guardar</button></div></div>`;
     ov.querySelectorAll('[data-fx]').forEach(b => b.onclick = () => { const k = b.dataset.fx, d = +b.dataset.d; if (d > 0 && countFx(st.fx, k) < FX[k].max) st.fx.push(k); if (d < 0) { const i = st.fx.indexOf(k); if (i >= 0) st.fx.splice(i, 1); } draw(); });
     $('akNome').oninput = e => { st.nome = e.target.value; $('akSave').disabled = !(atkCost(c, st.fx) <= atkCap(c) && st.nome.trim()); };
