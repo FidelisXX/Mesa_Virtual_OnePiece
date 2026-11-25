@@ -417,7 +417,10 @@ body.in-title #resizer, body.in-create #resizer, body.mobile #resizer { display:
 .fc-item { display: flex; gap: 10px; align-items: center; padding: 8px 10px; margin: 5px 0; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; cursor: pointer; }
 .fc-item:hover { border-color: var(--accent); }
 .fc-item .note { margin: 0; }
-.fc-pasta { margin: 8px 0; }
+.fc-pasta { margin: 8px 0; border-radius: 12px; }
+.fc-pasta.alvo { outline: 2px dashed var(--accent); outline-offset: 2px; background: var(--surface2); }
+.fc-item[draggable] { cursor: grab; }
+.fc-item .fc-mv { flex: none; max-width: 120px; font-size: 12px; padding: 4px 6px; }
 .fc-pasta > summary { display: flex; gap: 8px; align-items: center; cursor: pointer; font-weight: 700; padding: 6px 0; list-style: none; }
 .fc-pasta > summary::-webkit-details-marker { display: none; }
 .fc-pasta > summary span { flex: 1; }

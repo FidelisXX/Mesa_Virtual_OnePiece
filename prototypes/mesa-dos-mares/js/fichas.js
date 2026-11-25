@@ -68,6 +68,11 @@ const Fichas = (() => {
   // ---- Pastas ----
   function novaPasta(nome) { nome = (nome || '').trim().slice(0, 30); if (!nome) return null; const p = { id: 'pa-' + uid(), nome }; pastas().push(p); grava(); return p; }
   function renomeiaPasta(p, nome) { nome = (nome || '').trim().slice(0, 30); if (nome) { p.nome = nome; grava(); } }
+  function mover(f, pastaId) {
+    if (!f || (f.pasta || '') === (pastaId || '')) return;
+    f.pasta = pastaId || ''; grava();
+    const p = pastas().find(x => x.id === pastaId); toast(f.nome + ' → ' + (p ? p.nome : 'Sem pasta'));
+  }
   function apagaPasta(p) { lista().forEach(f => { if (f.pasta === p.id) f.pasta = ''; }); db.world.pastas = pastas().filter(x => x.id !== p.id); grava(); }
 
   // ---- Pôr em cena: vira um token de NPC com a Vida, o ataque, a defesa e as técnicas da ficha ----
@@ -116,12 +121,12 @@ const Fichas = (() => {
   function listaHTML() {
     const fs = lista(), card = f => {
       const d = derivados(f);
-      return `<div class="fc-item" data-abre="${f.id}"><img class="pic sm" src="${esc(f.img || Chat.tokenPortrait({ id: f.id, kind: KIND_DO_LADO[f.lado] || 'bandido', seed: Math.abs(hashStr(f.id)), nome: f.nome }))}" alt=""><div style="flex:1"><b>${esc(f.nome)}</b> <small>nv ${f.lv}</small><div class="note">${esc(CLASSES[f.classe].nome)} · ${esc(RACES[f.raca].nome)} · ${LADOS[f.lado] || ''} · Vida ${d.hp} · ${f.ataques.length} técnica(s)${livres(f) > 0 ? ' · <b style="color:var(--no)">' + livres(f) + ' ponto(s) sobrando</b>' : ''}</div></div></div>`;
+      return `<div class="fc-item" draggable="true" data-abre="${f.id}"><img class="pic sm" src="${esc(f.img || Chat.tokenPortrait({ id: f.id, kind: KIND_DO_LADO[f.lado] || 'bandido', seed: Math.abs(hashStr(f.id)), nome: f.nome }))}" alt=""><div style="flex:1"><b>${esc(f.nome)}</b> <small>nv ${f.lv}</small><div class="note">${esc(CLASSES[f.classe].nome)} · ${esc(RACES[f.raca].nome)} · ${LADOS[f.lado] || ''} · Vida ${d.hp} · ${f.ataques.length} técnica(s)${livres(f) > 0 ? ' · <b style="color:var(--no)">' + livres(f) + ' ponto(s) sobrando</b>' : ''}</div></div><select class="fc-mv" data-mv="${f.id}" title="Mudar de pasta" aria-label="Mudar ${esc(f.nome)} de pasta"><option value="">Sem pasta</option>${pastas().map(p => `<option value="${p.id}" ${f.pasta === p.id ? 'selected' : ''}>${esc(p.nome)}</option>`).join('')}</select></div>`;
     };
     const grupo = (p, itens) => `<details class="fc-pasta" data-pasta="${p ? p.id : ''}" ${aberta[p ? p.id : ''] === false ? '' : 'open'}><summary><span>📁 ${p ? esc(p.nome) : 'Sem pasta'}</span> <small>${itens.length}</small>${p ? `<button class="btn sm wood" data-ren="${p.id}" title="Renomear a pasta">Renomear</button><button class="btn sm wood" data-delp="${p.id}" title="Apagar a pasta (as fichas ficam sem pasta)">Apagar</button>` : ''}</summary>${itens.length ? itens.map(card).join('') : '<div class="note">Vazia.</div>'}</details>`;
     let h = pastas().map(p => grupo(p, fs.filter(f => f.pasta === p.id))).join('');
     const soltas = fs.filter(f => !f.pasta || !pastas().some(p => p.id === f.pasta));
-    if (soltas.length || !pastas().length) h += grupo(null, soltas);
+    h += grupo(null, soltas);
     return h;
   }
 
@@ -166,6 +171,13 @@ const Fichas = (() => {
       $$('fcCria').onclick = cria; $$('fcNovoNome').onkeydown = e => { if (e.key === 'Enter') cria(); };
       $$('fcPastaCria').onclick = () => { if (novaPasta($$('fcPastaNome').value)) toast('Pasta criada.'); else toast('Dê um nome à pasta.'); };
       on('[data-abre]', b => b.onclick = () => { sel = b.dataset.abre; dirty = true; });
+      on('[data-mv]', s => { s.onclick = e => e.stopPropagation(); s.onchange = () => mover(todas()[s.dataset.mv], s.value); });   // o seletor não abre a ficha
+      on('.fc-item', c => { c.ondragstart = e => { e.dataTransfer.setData('text/plain', c.dataset.abre); e.dataTransfer.effectAllowed = 'move'; }; });
+      on('details[data-pasta]', d => {
+        d.ondragover = e => { e.preventDefault(); d.classList.add('alvo'); };
+        d.ondragleave = e => { if (!d.contains(e.relatedTarget)) d.classList.remove('alvo'); };
+        d.ondrop = e => { e.preventDefault(); d.classList.remove('alvo'); mover(todas()[e.dataTransfer.getData('text/plain')], d.dataset.pasta); };
+      });
       on('details[data-pasta]', d => d.ontoggle = () => { aberta[d.dataset.pasta] = d.open; });
       on('[data-ren]', b => b.onclick = e => { e.preventDefault(); const p = pastas().find(x => x.id === b.dataset.ren); const n = p && prompt('Novo nome da pasta:', p.nome); if (n) renomeiaPasta(p, n); });
       on('[data-delp]', b => b.onclick = e => { e.preventDefault(); const p = pastas().find(x => x.id === b.dataset.delp); if (p && confirm('Apagar a pasta "' + p.nome + '"? As fichas dela ficam sem pasta.')) apagaPasta(p); });
@@ -195,6 +207,6 @@ const Fichas = (() => {
     if ($$('fcCena')) $$('fcCena').onclick = () => { qtd = clamp(Math.round(+$$('fcQtd').value) || 1, 1, 8); const v = currentView(); if (!isIsland(v)) return; emCena(f, v, qtd); toast(f.nome + (qtd > 1 ? ' ×' + qtd : '') + ' em cena.'); };
   }
 
-  return { render, criar, duplicar, apagar, novaPasta, apagaPasta, renomeiaPasta, emCena, entregar, derivados, distribuir, mexe, ajusta, pontosTotal, gastos, livres, lista, todas, pastas,
+  return { render, criar, duplicar, apagar, novaPasta, apagaPasta, renomeiaPasta, emCena, entregar, mover, derivados, distribuir, mexe, ajusta, pontosTotal, gastos, livres, lista, todas, pastas,
     get dirty() { return dirty; }, set dirty(v) { dirty = v; }, get sel() { return sel; }, set sel(v) { sel = v; dirty = true; } };
 })();
