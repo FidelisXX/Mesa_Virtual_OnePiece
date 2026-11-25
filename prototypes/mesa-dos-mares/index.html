@@ -125,6 +125,7 @@
 <script src="js/naval.js"></script>
 <script src="js/chat.js"></script>
 <script src="js/criar.js"></script>
+<script src="js/akuma-dados.js"></script>
 <script src="js/akuma.js"></script>
 <script src="js/midia.js"></script>
 <script>
@@ -475,7 +476,7 @@ function renderSheet() {
     <h3>Perícias</h3><div class="pericias">${PERICIAS.map(p => `<button class="per ${prof_(p.k) ? 'on' : ''}" data-per="${p.k}" title="${p.a}${prof_(p.k) ? ' · proficiente' : ''}"><span>${prof_(p.k) ? '●' : '○'} ${p.nome}</span><b>${sg(pericia(p))}</b></button>`).join('')}</div>
     <h3>Estilo de combate</h3><div class="note"><b>${cl.nome}</b> · Dado de Vida d${cl.dv} · salvaguardas ${(cl.salv || []).join(' e ')} · atributo primário <b>${atkAttr(c)}</b> · arma favorita: ${esc(cl.arma || '—')}<br>${(c.hb || []).map(k => '<b>' + esc((HABILIDADES[k] || { nome: k }).nome) + ':</b> ' + esc((HABILIDADES[k] || { t: '' }).t)).join('<br>')}</div>
     <h3>Espécie e profissão</h3><div class="note"><b>${race.nome}:</b> ${esc(race.ben || race.esp)}${race.dif ? '<br><b>Dificuldade:</b> ' + esc(race.dif) : ''}${vr ? '<br><b>' + esc(vr) + ':</b> ' + esc(race.variantes.find(v => v.k === c.variante).t) : ''}${c.falha ? '<br><b>Aspecto Humano:</b> ' + esc(c.falha) : ''}${c.rara && VARIACOES_RARAS[c.rara] ? '<br><b>' + VARIACOES_RARAS[c.rara].nome + ':</b> ' + esc(VARIACOES_RARAS[c.rara].t) : ''}<br><b>${prof.nome}:</b> ${esc(prof.desc)}<br><b>${esc(ant.nome)}:</b> ${esc(ant.car)}${c.akuma ? `<br><b>Akuma no Mi:</b> ${esc(c.akuma.n)} · ${esc(c.akuma.p)}` : ''}</div>
-    <div class="row"><button class="btn sm wood" id="shAkuma">Catálogo de Akuma no Mi</button></div>
+    <div class="row"><button class="btn sm wood" id="shAkuma">Mercado Negro (Akuma no Mi)</button></div>
     ${c.sonho || c.caminho || c.sing || c.honra || c.aparencia ? `<h3>Personagem</h3><div class="note">${c.sonho ? '<b>Sonho:</b> ' + esc(c.sonho) + '<br>' : ''}${c.caminho ? '<b>Caminho:</b> ' + (REALIZACOES[c.caminho.r] || '') + ' pelo ' + (FORMAS[c.caminho.f] || '') + '<br>' : ''}${c.sing ? '<b>Singularidades e Defeitos:</b> ' + esc(c.sing) + '<br>' : ''}${c.honra ? '<b>Código de Honra:</b> ' + esc(c.honra) + '<br>' : ''}${c.aparencia ? esc(c.aparencia) : ''}</div>` : ''}
     ${(c.equip || []).length ? `<h3>Equipamento</h3><div class="note">${c.equip.map(esc).join('<br>')}</div>` : ''}
     <h3>Técnicas</h3><div class="row"><span class="note">Você tem <b>${(c.ataques || []).length + 1}</b> técnica(s).</span><button class="btn sm" id="shGoTec">Abrir e criar técnicas</button></div>
@@ -603,7 +604,7 @@ function renderMesa() {
   const c = me(), el = $('mesaDyn'), v = currentView(); if (!c) { el.innerHTML = ''; return; }
   let h = '';
   const ship = c.gm ? (isDeck(v) ? db.ships[v.slice(6)] : null) : shipOf(c);
-  h += '<div class="row"><button class="btn sm wood" id="musBtn">♪ Trilha sonora</button><button class="btn sm wood" id="akBtn">Akuma no Mi</button></div>';
+  h += '<div class="row"><button class="btn sm wood" id="musBtn">♪ Trilha sonora</button><button class="btn sm wood" id="akBtn">Mercado Negro</button></div>';
   if (!c.gm && c.quest && c.quest.estado === 'ativa') h += `<h3>Missão</h3><div class="ord"><div style="flex:1"><b>${esc(c.quest.titulo)}</b> <span class="tag">${{ facil: 'fácil', media: 'média', dificil: 'difícil' }[c.quest.dificuldade] || ''}</span><div class="note">${esc(c.quest.descricao)}<br><b>Objetivo:</b> ${esc(c.quest.objetivo)}</div></div></div><div class="row"><button class="btn sm" id="qDone">Concluir (receber a recompensa)</button><button class="btn sm wood" id="qDrop">Abandonar</button></div>`;
   else if (!c.gm && isIsland(v) && ship && ship.at === v && Master.modo(v) === 'ia') h += '<div class="row"><button class="btn sm" id="qNew" ' + (Master.thinking ? 'disabled' : '') + '>Pedir uma missão ao narrador</button></div>';
   if (c.gm) {

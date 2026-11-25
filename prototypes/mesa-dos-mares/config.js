@@ -21,6 +21,11 @@ window.CONFIG = {
   cdMedia:        { value: 15,   min: 5,   max: 30,  step: 1 },
   cdDificil:      { value: 20,   min: 5,   max: 35,  step: 1 },
   berriesStart:   { value: 0, min: 0, max: 500000, step: 1000 },   // Berries ao criar o personagem
+  // ---- Mercado Negro: preço de cada Akuma no Mi, em Berries, pela categoria da fruta ----
+  akumaPrecoC:    { value: 1000000000, min: 1000000, max: 10000000000, step: 100000000 },   // C: a mais barata, 1 bilhão
+  akumaPrecoB:    { value: 2000000000, min: 1000000, max: 10000000000, step: 100000000 },
+  akumaPrecoA:    { value: 3500000000, min: 1000000, max: 10000000000, step: 100000000 },
+  akumaPrecoS:    { value: 5000000000, min: 1000000, max: 10000000000, step: 100000000 },   // S: a mais cara, 5 bilhões
 
   // ---- Nível 1 a 100: o XP do próximo nível é xpBase × nível ^ xpExp ----
   xpBase:         { value: 40,   min: 5,   max: 400, step: 5 },
