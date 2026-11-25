@@ -245,21 +245,27 @@ const imgTag = (c, cls) => `<img class="${cls || 'pic xs'}" src="${portraitURL(c
 
 // ---- Login (conta local, no lugar do Supabase) ----
 function loginHTML() {
+  const nuvem = Acc.nuvem();
   return `<div class="card small"><h1>Mesa dos Mares</h1><div class="tagline">Uma carreira de One Piece jogada por texto</div>
   <div class="field"><label>Usuário</label><input type="text" id="lgUser" maxlength="24" autocomplete="off"></div>
-  <div class="field"><label>Senha</label><input type="password" id="lgPass" maxlength="40" autocomplete="off"></div>
+  <div class="field"><label>Senha${nuvem ? ' (6 ou mais caracteres)' : ''}</label><input type="password" id="lgPass" maxlength="40" autocomplete="${nuvem ? 'current-password' : 'off'}"></div>
   <div class="note" id="lgErr" style="color:var(--no);min-height:20px"></div>
   <div class="title-actions"><button class="btn" id="lgIn">Entrar</button><button class="btn wood" id="lgReg">Criar conta</button><button class="btn wood" id="lgGuest">Entrar como convidado <small>(Enter)</small></button></div>
-  <div class="note" style="text-align:center">As contas ficam salvas neste navegador. O login de verdade e o banco de dados entram com o Supabase, no mesmo formato. Cada aba é um participante.</div></div>`;
+  <div class="note" style="text-align:center">${nuvem ? 'Sua conta fica guardada na nuvem e vale em qualquer aparelho. Nenhum e-mail é pedido: só usuário e senha. O convidado não guarda nada fora deste aparelho.' : 'As contas ficam salvas neste navegador. Cada aba é um participante.'}</div></div>`;
 }
 function bindLogin() {
-  const go = async err => { if (err) { $('lgErr').textContent = err; return; } await depoisDoLogin(); };
-  $('lgIn').onclick = () => go(Acc.login($('lgUser').value, $('lgPass').value));
-  $('lgReg').onclick = () => go(Acc.register($('lgUser').value, $('lgPass').value));
-  $('lgGuest').onclick = guestLogin;
-  ['lgUser', 'lgPass'].forEach(id => $(id).onkeydown = e => { if (e.key === 'Enter') { if ($('lgUser').value) $('lgIn').click(); else guestLogin(); } });
+  const go = async fn => {
+    $('lgErr').textContent = ''; ['lgIn', 'lgReg', 'lgGuest'].forEach(i => { $(i).disabled = true; });
+    let err; try { err = await fn(); } catch (e) { err = 'Não consegui falar com o servidor: ' + ((e && e.message) || 'erro'); }
+    ['lgIn', 'lgReg', 'lgGuest'].forEach(i => { if ($(i)) $(i).disabled = false; });
+    if (err) { if ($('lgErr')) $('lgErr').textContent = err; return; } await depoisDoLogin();
+  };
+  $('lgIn').onclick = () => go(() => Acc.entrar($('lgUser').value, $('lgPass').value));
+  $('lgReg').onclick = () => go(() => Acc.criar($('lgUser').value, $('lgPass').value));
+  $('lgGuest').onclick = () => go(() => Acc.convidado());
+  ['lgUser', 'lgPass'].forEach(id => $(id).onkeydown = e => { if (e.key === 'Enter') { if ($('lgUser').value) $('lgIn').click(); else $('lgGuest').click(); } });
 }
-async function guestLogin() { const e = Acc.register('convidado', 'convidado'); if (e) Acc.login('convidado', 'convidado'); await depoisDoLogin(); }
+async function guestLogin() { const e = await Acc.convidado(); if (e && $('lgErr')) { $('lgErr').textContent = e; return; } await depoisDoLogin(); }
 // Depois de entrar na conta: um convite pendente (link ?convite=CODIGO) abre a mesa; senão, a lista de mesas
 let convitePendente = (params.get('convite') || '').toUpperCase();
 // Com o Supabase, a mesa só aparece para quem já é membro: o convite pede ao banco que a traga
@@ -373,7 +379,7 @@ function bindRoleta() {
 
 // Sem servidor nem Supabase, as mesas ficam só neste navegador. Se o Supabase foi configurado mas não conectou, diz por quê e o que fazer.
 function avisoSemRede() {
-  if (typeof SB !== 'undefined' && SB.configurado) return '<b style="color:var(--danger)">O Supabase está configurado, mas não conectou' + (SB.erro ? ': ' + esc(SB.erro) : '') + '.</b> ' + esc(SB.dica || 'Confira a configuração do projeto.') + ' Enquanto isso, as mesas ficam só neste navegador e ninguém entra pelo convite de outro aparelho.';
+  if (typeof SB !== 'undefined' && SB.configurado && !SB.modoConta) return '<b style="color:var(--danger)">O Supabase está configurado, mas não conectou' + (SB.erro ? ': ' + esc(SB.erro) : '') + '.</b> ' + esc(SB.dica || 'Confira a configuração do projeto.') + ' Enquanto isso, as mesas ficam só neste navegador e ninguém entra pelo convite de outro aparelho.';
   return 'Modo arquivo: as mesas ficam só neste navegador. Para jogar com outros aparelhos, rode <code>node server/narrador.js --lan</code> e abra o endereço que ele mostrar.';
 }
 // ---- Criação de personagem: js/criar.js (os sete passos do Livro do Jogador) ----
@@ -1036,6 +1042,11 @@ reset();
 // A primeira tela depende da conta e da mesa em que a pessoa estava
 function iniciar() {
   const p = params.get('scene'); if (p) { setScene(p); return; }
+  const antes = myAcc; abrirTela();
+  // Com o Supabase: se a sessão guardada for de outra conta (ou de ninguém no jogo ainda), entra nela e abre a tela de novo
+  if (Acc.nuvem()) Acc.retomar().then(ok => { if (ok && myAcc !== antes) abrirTela(); }).catch(() => { /* sem sessão guardada: segue no login */ });
+}
+function abrirTela() {
   if (!Acc.cur()) { setScene('title'); return; }
   if (convitePendente) { depoisDoLogin(); return; }
   if (myMesa && !Mesas.atual()) { myMesa = null; sessionStorage.removeItem('mdm-mesa'); }

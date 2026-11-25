@@ -3,7 +3,8 @@
 // Date: 2026-11-23
 // O Supabase como transporte da mesa (no lugar do servidor local): guarda as linhas de cada mesa no Postgres,
 // repassa as mudanças em tempo real e controla quem entra (convite). Só liga se existir supabase-config.js.
-// As contas continuam locais neste passo; quem entra no Supabase é anônimo (auth.uid), e é a MESA que dá acesso.
+// Contas: Supabase Auth (usuário + senha; o usuário vira um e-mail interno, nenhum e-mail de verdade é pedido). Quem joga como convidado entra de forma anônima.
+// Quem entra recebe um auth.uid, e é a MESA que dá acesso aos dados.
 'use strict';
 const SB = (() => {
   let cli = null, on = false, cid = '', q = [], timer = 0, canais = {}, erro = '';
@@ -15,12 +16,55 @@ const SB = (() => {
     if (!c || !c.url || !c.anonKey || /SEU-PROJETO/.test(c.url)) return false;
     if (!window.supabase) { erro = 'a biblioteca do Supabase não carregou'; return false; }
     try {
-      cli = window.supabase.createClient(c.url, c.anonKey, { auth: { persistSession: true, autoRefreshToken: true }, realtime: { params: { eventsPerSecond: 20 } } });
+      if (!cli) cli = window.supabase.createClient(c.url, c.anonKey, { auth: { persistSession: true, autoRefreshToken: true }, realtime: { params: { eventsPerSecond: 20 } } });
       const s = await cli.auth.getSession();
-      if (!s.data.session) { const r = await cli.auth.signInAnonymously(); if (r.error) throw r.error; }
+      if (!s.data.session) { on = false; return false; }   // ninguém entrou ainda: o jogo pede o login
       const sonda = await cli.from('mesas').select('id').limit(1); if (sonda.error) throw sonda.error;   // as tabelas existem?
       on = true; return true;
-    } catch (e) { erro = (e && e.message) || String(e); console.warn('Supabase indisponível:', erro); cli = null; return false; }
+    } catch (e) { erro = (e && e.message) || String(e); console.warn('Supabase indisponível:', erro); cli = null; on = false; return false; }
+  }
+
+  // ---- Contas ----
+  const emailDe = k => String(k).toLowerCase() + '@mesadosmares.app';   // e-mail interno: a pessoa só vê o usuário
+  const meta = u => (u && u.user_metadata) || {};
+  const traduz = e => {
+    const m = (e && e.message) || String(e);
+    if (/invalid login credentials/i.test(m)) return 'Usuário ou senha incorretos.';
+    if (/already registered|already been registered|user already exists/i.test(m)) return 'Esse usuário já existe.';
+    if (/email not confirmed/i.test(m)) return CONFIRMA;
+    if (/password.*(at least|short|weak)|should be at least/i.test(m)) return 'A senha precisa de ao menos 6 caracteres.';
+    if (/rate limit|too many/i.test(m)) return 'Muitas tentativas seguidas: espere um pouco e tente de novo.';
+    erro = m; return dica() || m;
+  };
+  const CONFIRMA = 'O Supabase está pedindo confirmação de e-mail: em Authentication → Sign In / Providers → Email, desligue "Confirm email", salve e tente de novo.';
+  const dePerfil = u => ({ usuario: meta(u).usuario || String(u.email || '').split('@')[0], roleta: meta(u).roleta || null });
+  async function entrar(k, senha) {
+    const r = await cli.auth.signInWithPassword({ email: emailDe(k), password: String(senha) });
+    if (r.error) return { erro: traduz(r.error) };
+    return dePerfil(r.data.user);
+  }
+  async function criarConta(k, senha, nome) {
+    const r = await cli.auth.signUp({ email: emailDe(k), password: String(senha), options: { data: { usuario: String(nome || k) } } });
+    if (r.error) return { erro: traduz(r.error) };
+    if (!r.data.session) return { erro: CONFIRMA };
+    return dePerfil(r.data.user);
+  }
+  async function convidado() {
+    const s = await cli.auth.getSession(), u = s.data && s.data.session && s.data.session.user;
+    if (u && !u.is_anonymous) await cli.auth.signOut();
+    if (!(u && u.is_anonymous)) { const r = await cli.auth.signInAnonymously(); if (r.error) return { erro: traduz(r.error) }; }
+    return {};
+  }
+  // Quem está dentro agora (nulo para convidado ou ninguém): usado ao abrir o jogo com a sessão guardada
+  async function perfil() {
+    if (!cli) return null; const s = await cli.auth.getSession(), u = s.data && s.data.session && s.data.session.user;
+    return u && !u.is_anonymous ? dePerfil(u) : null;
+  }
+  async function salvarPerfil(dados) { try { await cli.auth.updateUser({ data: dados }); } catch (e) { console.warn('Supabase: não salvou o perfil', e && e.message); } }
+  async function sair() {
+    if (!cli) return;
+    try { await cli.auth.signOut(); } catch (e) { /* tudo bem */ }
+    Object.keys(canais).forEach(k => { try { cli.removeChannel(canais[k]); } catch (e) { /* tudo bem */ } }); canais = {}; on = false;
   }
 
   // ---- Ler: o estado completo de um escopo ----
@@ -114,5 +158,5 @@ const SB = (() => {
   const dica = () => { const d = DICAS.find(([re]) => re.test(erro)); return d ? d[1] : ''; };
   const configurado = () => { const c = cfg(); return !!(c && c.url && c.anonKey && !/SEU-PROJETO/.test(c.url)); };
 
-  return { iniciar, estado, enviar, assinar, entrarCodigo, sairMesa, token, get erro() { return erro; }, get dica() { return dica(); }, get configurado() { return configurado(); }, get on() { return on; }, get siteUrl() { const c = cfg(); return (c && c.siteUrl) || ''; } };
+  return { iniciar, estado, enviar, assinar, entrarCodigo, sairMesa, token, entrar, criarConta, convidado, perfil, salvarPerfil, sair, get modoConta() { return !!cli; }, get erro() { return erro; }, get dica() { return dica(); }, get configurado() { return configurado(); }, get on() { return on; }, get siteUrl() { const c = cfg(); return (c && c.siteUrl) || ''; } };
 })();

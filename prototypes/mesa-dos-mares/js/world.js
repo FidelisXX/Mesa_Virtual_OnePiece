@@ -6,10 +6,12 @@
 'use strict';
 
 // ======================================================================================
-// Contas (stand-in do login do Supabase): salvas neste navegador, senha com hash simples
+// Contas. Com o Supabase pronto, o login é o Supabase Auth (a conta vale em qualquer aparelho e a senha não fica no navegador);
+// sem ele, contas locais neste navegador, com hash simples. O espelho local (G.accounts) guarda só o usuário e a roleta.
 // ======================================================================================
 const Acc = (() => {
   const key = u => String(u || '').trim().toLowerCase();
+  const contaNuvem = () => typeof SB !== 'undefined' && !!SB.modoConta;
   const hash = (u, p) => String(hashStr('mdm:' + key(u) + ':' + p));
   return {
     cur: () => (myAcc && G.accounts[myAcc]) || null,
@@ -26,14 +28,57 @@ const Acc = (() => {
       if (!a || a.pass !== hash(user, pass)) return 'Usuário ou senha incorretos.';
       myAcc = a.key; sessionStorage.setItem('mdm-acc', myAcc); return null;
     },
-    logout() { myAcc = null; myId = null; sessionStorage.removeItem('mdm-acc'); sessionStorage.removeItem('mdm-me'); },
+    logout() {
+      myAcc = null; myId = null; sessionStorage.removeItem('mdm-acc'); sessionStorage.removeItem('mdm-me');
+      if (contaNuvem()) { SB.sair(); if (typeof Net !== 'undefined') Net.parar(); }
+    },
+    // ---- Supabase Auth (assíncrono) ----
+    nuvem: contaNuvem,
+    validar(user, pass) {
+      const k = key(user);
+      if (!/^[a-z0-9._-]{3,24}$/.test(k)) return 'O usuário precisa ter de 3 a 24 letras, números, ponto, hífen ou _ (sem espaço nem acento).';
+      if (String(pass || '').length < 6) return 'A senha precisa de ao menos 6 caracteres.';
+      return null;
+    },
+    // Depois de entrar no Supabase: religa a rede (agora com sessão), carrega os dados e abre a conta aqui
+    async adotar(perfil, k, jaLigado) {
+      if (!jaLigado && typeof carregarTudo === 'function') await carregarTudo();
+      k = key(k || perfil.usuario); let a = G.accounts[k];
+      if (!a) a = { key: k, user: perfil.usuario || k, pass: '', roleta: null, created: Date.now() };
+      if (perfil.roleta) a.roleta = perfil.roleta; else if (a.roleta && k !== 'convidado') SB.salvarPerfil({ roleta: a.roleta });   // a roleta vale para a conta em todo aparelho
+      a.pass = ''; commit('accounts', k, a); myAcc = k; sessionStorage.setItem('mdm-acc', myAcc); return null;
+    },
+    async entrar(user, pass) {
+      if (!contaNuvem()) return this.login(user, pass);
+      const k = key(user), e = this.validar(user, pass === '' ? 'xxxxxx' : pass); if (e && !/senha/.test(e)) return e;
+      const r = await SB.entrar(k, pass); if (r.erro) return r.erro;
+      return this.adotar(r, k);
+    },
+    async criar(user, pass) {
+      if (!contaNuvem()) return this.register(user, pass);
+      const e = this.validar(user, pass); if (e) return e;
+      const r = await SB.criarConta(key(user), pass, String(user).trim()); if (r.erro) return r.erro;
+      return this.adotar(r, key(user));
+    },
+    async convidado() {
+      if (!contaNuvem()) { const e = this.register('convidado', 'convidado'); if (e) this.login('convidado', 'convidado'); return null; }
+      const r = await SB.convidado(); if (r.erro) return r.erro;
+      return this.adotar({ usuario: 'convidado', roleta: null }, 'convidado');
+    },
+    // Ao abrir o jogo com a sessão do Supabase guardada: entra direto na conta dela
+    async retomar() {
+      if (!contaNuvem()) return false;
+      const p = await SB.perfil(); if (!p) return false;
+      const k = key(p.usuario); if (myAcc === k && G.accounts[k]) return true;
+      await this.adotar(p, k, true); return true;
+    },
     chars: () => Object.values(db.chars).filter(c => c.acc === myAcc),
     // Roleta: uma vez por conta; cada raça rara tem roletaChance (1%) de sair
     spin() {
       const a = this.cur(); if (!a || a.roleta) return null;
       const r = rng(), ch = tune.roletaChance;
       const ks = Object.keys(VARIACOES_RARAS), i = Math.floor(r / ch);
-      a.roleta = { res: i < ks.length ? ks[i] : 'nada', ts: Date.now() }; commit('accounts', a.key, a); return a.roleta.res;
+      a.roleta = { res: i < ks.length ? ks[i] : 'nada', ts: Date.now() }; commit('accounts', a.key, a); if (contaNuvem() && a.key !== 'convidado') SB.salvarPerfil({ roleta: a.roleta }); return a.roleta.res;
     },
     unlocked: () => { const a = Acc.cur(); return a && a.roleta && a.roleta.res !== 'nada' ? [a.roleta.res] : []; },
   };

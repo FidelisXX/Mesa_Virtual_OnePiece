@@ -155,6 +155,7 @@ function emit(table, row, remote) { dirty[table] = true; listeners.forEach(f => 
 const Net = (() => {
   let on = false, cid = uid(), q = [], timer = 0, leitor = null, escopos = [], urls = [], lan = false, vezes = 0, sb = false;
   async function iniciar() {
+    on = false; sb = false;   // pode rodar de novo depois do login
     if (typeof SB !== 'undefined' && await SB.iniciar(cid)) { on = true; sb = true; return true; }   // Supabase, se houver supabase-config.js
     if (!/^https?:$/.test(location.protocol)) return false;
     try { const r = await fetch('/info', { signal: AbortSignal.timeout(2500), cache: 'no-store' }), j = await r.json(); if (!j || !j.rede) return false; on = true; urls = j.urls || []; lan = !!j.lan; return true; }
@@ -196,7 +197,8 @@ const Net = (() => {
   async function ressincronizar() {
     try { G = completar(await estado('g'), { accounts: {}, mesas: {} }); if (myMesa) db = completar(await estado(myMesa), emptyDb()); Object.keys(dirty).forEach(k => { dirty[k] = true; }); } catch (e) { /* tenta na próxima */ }
   }
-  return { iniciar, estado, enviar, assinar, get sb() { return sb; }, entrarCodigo: c => SB.entrarCodigo(c), get on() { return on; }, get cid() { return cid; }, get urls() { return urls; }, get lan() { return lan; } };
+  function parar() { on = false; sb = false; }
+  return { iniciar, parar, estado, enviar, assinar, get sb() { return sb; }, entrarCodigo: c => SB.entrarCodigo(c), get on() { return on; }, get cid() { return cid; }, get urls() { return urls; }, get lan() { return lan; } };
 })();
 
 // commit: grava local (otimista), persiste e avisa os outros (abas ou aparelhos). key === null: a tabela inteira é a linha (cargos, world).
