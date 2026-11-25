@@ -176,6 +176,12 @@ code { background: var(--code); padding: 0 4px; border-radius: 4px; font-size: 1
 .attr { display: flex; align-items: center; gap: 8px; padding: 7px 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; }
 .attr .k { font-weight: 700; font-size: 13px; width: 34px; color: var(--muted); } .attr .v { font-size: 24px; font-weight: 800; width: 28px; text-align: center; }
 .attr .n { display: none; } .attr .btn { margin-left: auto; }
+.mesa-sec { border-top: 1px solid var(--border); margin-top: 4px; }
+.mesa-sec > summary { display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 10px 2px; font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); font-weight: 700; list-style: none; }
+.mesa-sec > summary::-webkit-details-marker { display: none; }
+.mesa-sec > summary::after { content: '▸'; font-size: 14px; } .mesa-sec[open] > summary::after { content: '▾'; }
+.mesa-sec[open] > summary { color: var(--text); }
+.mesa-sec-cab { margin-top: 18px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; }
 h3 { margin: 16px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); font-weight: 700; }
 .note { font-size: 13px; color: var(--muted); line-height: 1.45; }
 .note b { color: var(--text); }

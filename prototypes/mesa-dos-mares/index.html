@@ -89,8 +89,8 @@
     <section class="panel" id="p-mesa">
       <div class="scroll">
         <div id="mesaDyn"></div>
-        <div id="tkForm">
-          <h3>Novo token</h3>
+        <details id="tkForm" class="mesa-sec" data-sec="token">
+          <summary>Novo token</summary>
           <div class="row">
             <input type="text" id="tkNome" placeholder="Nome do token" maxlength="24" style="flex:1;min-width:90px">
             <select id="tkKind" class="gm-only"></select>
@@ -104,7 +104,7 @@
             <button class="btn sm" id="tkAdd">Criar token</button>
           </div>
           <div class="note">O token aparece no mapa da ilha onde você está. Sem imagem, ele ganha um busto desenhado.</div>
-        </div>
+        </details>
       </div>
     </section>
   </aside>
@@ -679,30 +679,35 @@ function gmPlaces() {
   out.push(['prisao-enies', 'Enies Lobby'], ['prisao-impel', 'Impel Down']);
   return out;
 }
+let mesaAberta = '', tkIniciado = '';   // a seção da aba Mesa que está aberta (uma por vez)
 function renderMesa() {
   const c = me(), el = $('mesaDyn'), v = currentView(); if (!c) { el.innerHTML = ''; return; }
   let h = '';
+  const S = {}, hS = [''];   // o Mestre vê a aba em seções: o que usa agora no topo, o resto recolhido
+  const abre = () => { hS[0] = h; if (c.gm) h = ''; }, fecha = k => { if (c.gm) { S[k] = (S[k] || '') + h; h = hS[0]; } };
   const ship = c.gm ? (isDeck(v) ? db.ships[v.slice(6)] : null) : shipOf(c);
   h += '<div class="row"><button class="btn sm wood" id="musBtn">♪ Trilha sonora</button><button class="btn sm wood" id="akBtn">Mercado Negro</button></div>';
   if (!c.gm && c.quest && c.quest.estado === 'ativa') h += `<h3>Missão</h3><div class="ord"><div style="flex:1"><b>${esc(c.quest.titulo)}</b> <span class="tag">${{ facil: 'fácil', media: 'média', dificil: 'difícil' }[c.quest.dificuldade] || ''}</span><div class="note">${esc(c.quest.descricao)}<br><b>Objetivo:</b> ${esc(c.quest.objetivo)}</div></div></div><div class="row"><button class="btn sm" id="qDone">Concluir (receber a recompensa)</button><button class="btn sm wood" id="qDrop">Abandonar</button></div>`;
   else if (!c.gm && isIsland(v) && ship && ship.at === v && Master.modo(v) === 'ia') h += '<div class="row"><button class="btn sm" id="qNew" ' + (Master.thinking ? 'disabled' : '') + '>Pedir uma missão ao narrador</button></div>';
   if (c.gm) {
-    h += `<h3>Mestre</h3><div class="row"><select id="gmGo" style="flex:1">${gmPlaces().map(([k, n]) => `<option value="${k}" ${k === v ? 'selected' : ''} ${k.startsWith('g:') ? 'disabled' : ''}>${esc(n)}${k.startsWith('g:') ? '' : (Chat.unread(k) && k !== v ? ' (' + Chat.unread(k) + ' novas)' : '')}</option>`).join('')}</select></div>
+    S.lugar = `<div class="row"><select id="gmGo" style="flex:1">${gmPlaces().map(([k, n]) => `<option value="${k}" ${k === v ? 'selected' : ''} ${k.startsWith('g:') ? 'disabled' : ''}>${esc(n)}${k.startsWith('g:') ? '' : (Chat.unread(k) && k !== v ? ' (' + Chat.unread(k) + ' novas)' : '')}</option>`).join('')}</select></div>
       <div class="row"><label class="note">Quem narra esta ilha: <select id="gmNarr"><option value="" ${!Master.modo(v) ? 'selected' : ''}>a escolher (pergunta a quem chegar)</option><option value="ia" ${Master.modo(v) === 'ia' ? 'selected' : ''}>Narrador de IA</option><option value="humano" ${Master.modo(v) === 'humano' ? 'selected' : ''}>Narrador humano</option></select></label></div>
       <div class="row"><label><input type="checkbox" id="gmAuto" ${db.world.auto ? 'checked' : ''}> Mestre automático (narra, sorteia eventos e arma lutas)</label></div>`;
   }
   if (c.prisao) h += `<h3>Prisão</h3><div class="note">Você cumpre pena em ${c.prisao.lugar === 'impel' ? 'Impel Down' : 'Enies Lobby'}. O Mestre pode soltá-lo antes.</div>`;
   else if (c.faccao === 'marinha' && !c.gm) h += cargosHTML(c);
   if (ship && !c.prisao) {
-    h += `<h3>Navio</h3><div class="note"><b>${esc(shipName(ship))}</b> · Casco ${ship.casco}/${ship.cascoMax} · Comida ${ship.comida} · Canhões ${ship.canhoes}/bordo · Velas ${ship.velas || 0}<br>Tripulação: ${crewOf(ship.key).map(x => esc(x.nome) + ' (' + PROFS[x.prof].nome + ')').join(', ') || 'vazia'}</div>`;
+    abre();
+    h += `${c.gm ? '' : '<h3>Navio</h3>'}<div class="note"><b>${esc(shipName(ship))}</b> · Casco ${ship.casco}/${ship.cascoMax} · Comida ${ship.comida} · Canhões ${ship.canhoes}/bordo · Velas ${ship.velas || 0}<br>Tripulação: ${crewOf(ship.key).map(x => esc(x.nome) + ' (' + PROFS[x.prof].nome + ')').join(', ') || 'vazia'}</div>`;
     if (ship.travel) {
       h += `<div class="note">Viajando para <b>${esc(ISLAND[ship.travel.to].nome)}</b>: ${Math.round(Travel.progress(ship) * 100)}% · chega em ${Travel.eta(ship)} s.</div>`;
       if (c.gm) h += `<div class="row"><button class="btn sm" data-ev="random">Sortear evento</button><select id="evClima"><option value="">Clima…</option>${Object.entries(Events.CLIMA).map(([k, e]) => `<option value="${k}">${e.nome}</option>`).join('')}</select><button class="btn sm red" data-ev="rt">Briga naval 3D</button><button class="btn sm red" data-ev="turn">Briga por turnos</button><select id="evDiff"><option value="">Difícil?</option><option value="facil">Fácil</option><option value="moderada">Moderada</option><option value="dificil">Difícil</option></select></div>`;
     } else if (c.gm && ship.at) h += `<div class="note">Atracado em ${esc(ISLAND[ship.at].nome)}.</div>`;
+    fecha('navio');
   }
   if (isIsland(v) && !c.prisao) {
     const isl = ISLAND[v], t = db.tokens[Island.sel], mine = t && t.owner === myId;
-    h += `<h3>${esc(isl.nome)}</h3>`;
+    if (!c.gm) h += `<h3>${esc(isl.nome)}</h3>`;
     if (!c.gm && ship && ship.at === v) {
       h += `<div class="row"><button class="btn sm" id="actTrain">${c.treino ? 'Parar o treino' : 'Treinar'}</button>${c.faccao === 'pirata' ? '<button class="btn sm red" id="actSaque">Saquear a ilha</button>' : ''}<button class="btn sm wood" id="actMestre">Pedir cena ao mestre automático</button></div>`;
       if (c.faccao === 'marinha') h += `<div class="note">Missões da Marinha${c.missao && db.missions[c.missao] && !db.missions[c.missao].done ? ' (uma em andamento)' : ''}:</div><div class="row">${Object.entries(Combat.MISSIONS).map(([k, m]) => `<button class="btn sm" data-ms="${k}" title="${esc(m.desc)}">${m.nome}</button>`).join('')}</div>`;
@@ -712,12 +717,15 @@ function renderMesa() {
     }
     if (c.gm) {
       const cf = db.islandCfg[v] || {}, tool = Island.editTool;
-      h += `<h3>Gerador de ilha</h3><div class="row"><select id="genTema">${['vila', 'cidade', 'base', 'navio'].map(k => `<option ${(cf.tema || isl.tema) === k ? 'selected' : ''}>${k}</option>`).join('')}</select><button class="btn sm" id="genGo">Gerar novo mapa</button><button class="btn sm wood" id="genReset">Voltar ao original</button></div>
+      abre();
+      h += `<div class="row"><select id="genTema">${['vila', 'cidade', 'base', 'navio'].map(k => `<option ${(cf.tema || isl.tema) === k ? 'selected' : ''}>${k}</option>`).join('')}</select><button class="btn sm" id="genGo">Gerar novo mapa</button><button class="btn sm wood" id="genReset">Voltar ao original</button></div>
       <div class="gen-grid"><label>Largura<input type="number" id="genCols" min="14" max="70" value="${cf.cols || 26}"></label><label>Altura<input type="number" id="genRows" min="10" max="50" value="${cf.rows || 18}"></label><label>Terra %<input type="number" id="genTerra" min="50" max="130" step="5" value="${Math.round((cf.terra || 1) * 100)}"></label><label>Casas<input type="number" id="genCasas" min="0" max="80" placeholder="auto" value="${cf.casas == null ? '' : cf.casas}"></label><label>Árvores<input type="number" id="genArv" min="0" max="160" placeholder="auto" value="${cf.arvores == null ? '' : cf.arvores}"></label></div>
       <div class="note">Desenhar o mapa: escolha a ferramenta e clique no mapa. Mudar casas ou árvores refaz o que foi desenhado à mão.</div>
       <div class="row">${[['casa', 'Casa'], ['casaG', 'Casa grande'], ['arvore', 'Árvore'], ['apagar', 'Borracha']].map(([k, nm]) => `<button class="btn sm ${tool === k ? '' : 'wood'}" data-tool="${k}">${nm}</button>`).join('')}<button class="btn sm" id="genFim" ${tool ? '' : 'hidden'}>Concluir</button><button class="btn sm red" id="genLimpa">Limpar o mapa</button></div>`;
+      fecha('gerador');
     }
     if (t && t.isl === v) {
+      abre();
       const canEdit = isGM() || (mine && !t.pc), cc = Combat.charOf(t);
       h += `<h3>Token selecionado</h3><div class="ord"><img class="pic sm" src="${Chat.tokenPortrait(t)}" alt=""><b>${esc(t.nome)}${t.lv ? ' <small>nv ' + t.lv + '</small>' : ''}</b>${t.hpMax ? `<span>${t.hp}/${t.hpMax}</span>` : ''}</div>`;
       if (t.nota) h += `<div class="note">${esc(t.nota)}${t.perfil ? ' <i>(' + esc(t.perfil) + ')</i>' : ''}</div>`;
@@ -725,19 +733,27 @@ function renderMesa() {
       if (isGM() && t.hpMax) h += `<div class="row"><button class="btn sm wood" data-d="1">Vida −1</button><button class="btn sm wood" data-d="-1">Vida +1</button><button class="btn sm wood" data-d="5">−5</button><button class="btn sm wood" data-pub="1">${t.pub ? 'Esconder barras' : 'Mostrar barras'}</button>${t.owner === 'gm' ? '<button class="btn sm" data-npc="1">NPC age</button>' : ''}</div>`;
       if (isGM() && !t.pc) h += `<div class="row"><label class="note">Loja: <select id="tkLoja"><option value="">nenhuma</option>${Object.entries(LOJAS).map(([k, l]) => `<option value="${k}" ${t.loja === k ? 'selected' : ''}>${l.nome}</option>`).join('')}</select></label></div>`;
       if (canEdit && !t.pc) h += `<div class="row"><button class="btn sm red" data-del="${t.id}">Remover token${isGM() ? ' (tecla Delete)' : ''}</button></div>`;
+      fecha('token');
     }
     const cb = db.combat[v];
+    abre();
     h += '<h3>Combate</h3>';
     if (cb && cb.on) {
       h += `<div class="note">Rodada <b>${cb.round}</b></div>` + cb.order.map((id, i) => { const k = db.tokens[id]; return k ? `<div class="ord ${i === cb.turn ? 'turn' : ''}"><img class="pic sm" src="${Chat.tokenPortrait(k)}" alt=""><b>${esc(k.nome)}</b><span class="ini">${cb.vals[id]}</span></div>` : ''; }).join('');
       const cur = db.tokens[cb.order[cb.turn]];
       h += `<div class="row">${isGM() ? '<button class="btn sm" data-cmb="next">Próximo turno</button><button class="btn sm wood" data-cmb="end">Encerrar combate</button>' : (cur && cur.owner === myId ? '<button class="btn" data-cmb="next">Terminar meu turno</button>' : '<span class="note">Aguarde a sua vez.</span>')}</div>`;
     } else h += `<div class="row"><button class="btn sm" data-cmb="start">Iniciar combate (rolar iniciativa)</button></div><div class="note">Rola d20 + AGI para cada token com Vida nesta ilha. Quem vence ganha XP, Berries e reputação.</div>`;
-    if (c.gm) { const free = Object.values(db.chars).filter(x => x.prisao); if (free.length) h += '<h3>Presos</h3>' + free.map(x => `<div class="ord"><b>${esc(x.nome)}</b><span class="note">${x.prisao.lugar === 'impel' ? 'Impel Down' : 'Enies Lobby'}</span><button class="btn sm" data-free="${x.id}">Soltar</button></div>`).join(''); }
+    fecha('combate');
+    if (c.gm) { const free = Object.values(db.chars).filter(x => x.prisao); if (free.length) S.presos = free.map(x => `<div class="ord"><b>${esc(x.nome)}</b><span class="note">${x.prisao.lugar === 'impel' ? 'Impel Down' : 'Enies Lobby'}</span><button class="btn sm" data-free="${x.id}">Soltar</button></div>`).join(''); }
   } else if (c.gm && !isIsland(v)) {
-    const free = Object.values(db.chars).filter(x => x.prisao); if (free.length) h += '<h3>Presos</h3>' + free.map(x => `<div class="ord"><b>${esc(x.nome)}</b><span class="note">${x.prisao.lugar === 'impel' ? 'Impel Down' : 'Enies Lobby'}</span><button class="btn sm" data-free="${x.id}">Soltar</button></div>`).join('');
+    const free = Object.values(db.chars).filter(x => x.prisao); if (free.length) S.presos = free.map(x => `<div class="ord"><b>${esc(x.nome)}</b><span class="note">${x.prisao.lugar === 'impel' ? 'Impel Down' : 'Enies Lobby'}</span><button class="btn sm" data-free="${x.id}">Soltar</button></div>`).join('');
   }
-  if (c.gm) h += `<h3>Vento (luta por turnos)</h3><div class="row"><input type="range" id="wind" min="0" max="359" value="${Math.round(((db.world.wind * 180 / Math.PI) % 360 + 360) % 360)}" style="flex:1"></div>`;
+  if (c.gm) S.vento = `<div class="row"><input type="range" id="wind" min="0" max="359" value="${Math.round(((db.world.wind * 180 / Math.PI) % 360 + 360) % 360)}" style="flex:1"></div>`;
+  if (c.gm) {
+    const aberta = mesaAberta || (isDeck(v) ? 'navio' : ''), sec = (k, titulo, corpo) => corpo ? `<details class="mesa-sec" data-sec="${k}" ${aberta === k ? 'open' : ''}><summary>${titulo}</summary>${corpo}</details>` : '';
+    h += (S.token || '') + (S.combate || '') + (S.presos ? '<h3>Presos</h3>' + S.presos : '') + '<div class="mesa-sec-cab">Mais ferramentas</div>' + sec('lugar', 'Lugar e narração', S.lugar) + sec('navio', 'Navio e viagem', S.navio) + sec('gerador', 'Gerador de ilha', S.gerador) + sec('vento', 'Vento (luta por turnos)', S.vento);
+    $('tkForm').open = aberta === 'token';
+  } else if (tkIniciado !== myId) { $('tkForm').open = true; tkIniciado = myId; }
   el.innerHTML = h;
   $('tkForm').hidden = !(isIsland(v) && !c.prisao);
   const on = (sel, fn) => el.querySelectorAll(sel).forEach(fn);
@@ -838,6 +854,11 @@ function gmGo(p) {
 // ---- Novo token e painéis ----
 function bindPanels() {
   document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => setTab(b.dataset.t));
+  $('p-mesa').addEventListener('toggle', e => {   // o evento toggle não sobe: escuta na captura
+    const d = e.target; if (!d.matches || !d.matches('details.mesa-sec') || !isGM()) return;
+    if (d.open) { mesaAberta = d.dataset.sec; document.querySelectorAll('#p-mesa details.mesa-sec').forEach(o => { if (o !== d && o.open) o.open = false; }); }
+    else if (mesaAberta === d.dataset.sec) mesaAberta = '';
+  }, true);
   $('tkFile').onchange = e => processUpload(e.target.files[0], tune.tokenImgSize, url => { pendingTokImg = url; $('tkPrev').src = url; $('tkPrev').hidden = false; });
   $('tkAdd').onclick = () => {
     const c = me(), v = currentView(); if (!c || !isIsland(v)) return;
