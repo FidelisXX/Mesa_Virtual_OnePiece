@@ -328,3 +328,15 @@ production/session-logs/session-cost.md
 production/session-logs/session-log.md
 ---
 
+## Session End: 20261125_120904
+### Commits
+aa75112 iteration 26: added ajuste de Vida e PE ganho pelo proprio jogador
+ea7864a ajuste
+8453309 ajuste na ficha
+e1fdddd iteration 25: added o Mestre ve e edita as fichas dos jogadores
+bd62f54 iteration 24: added login pelo Supabase Auth (conta vale em qualquer aparelho)
+2f447e5 akuma
+238649f iteration 23: added Mercado Negro de Akuma no Mi (165 frutas do Livro das Akuma, compra com Berries)
+9a6ba46 iteration 22: added permissoes (GRANT) das tabelas no schema do Supabase
+---
+
