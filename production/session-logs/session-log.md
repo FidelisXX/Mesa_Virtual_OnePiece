@@ -357,3 +357,23 @@ bd62f54 iteration 24: added login pelo Supabase Auth (conta vale em qualquer apa
 production/session-logs/compaction-log.txt
 ---
 
+## Session End: 20261125_153728
+### Commits
+eedba3d iteration 32: added Mestre entrega uma ficha a um jogador
+18e75a2 iteration 31: added barra de atalhos do mapa para o Mestre usar golpes de ficha
+9bf399a iteration 30: added Mestre usa os golpes do token de ficha na aba Tecnicas
+67afedf iteration 29: added tecla Delete para o Mestre remover o token selecionado
+c569436 Ajuste
+f7cadbd iteration 28: added aba Fichas do Mestre com pontos pelo nivel, tecnicas e pastas
+2f86e92 iteration 27: added Mestre move qualquer token, inclusive os presos
+625f1de att
+aa75112 iteration 26: added ajuste de Vida e PE ganho pelo proprio jogador
+ea7864a ajuste
+8453309 ajuste na ficha
+e1fdddd iteration 25: added o Mestre ve e edita as fichas dos jogadores
+bd62f54 iteration 24: added login pelo Supabase Auth (conta vale em qualquer aparelho)
+2f447e5 akuma
+238649f iteration 23: added Mercado Negro de Akuma no Mi (165 frutas do Livro das Akuma, compra com Berries)
+9a6ba46 iteration 22: added permissoes (GRANT) das tabelas no schema do Supabase
+---
+
