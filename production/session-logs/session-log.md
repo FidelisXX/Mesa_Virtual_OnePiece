@@ -377,3 +377,108 @@ bd62f54 iteration 24: added login pelo Supabase Auth (conta vale em qualquer apa
 9a6ba46 iteration 22: added permissoes (GRANT) das tabelas no schema do Supabase
 ---
 
+## Session End: 20261125_161402
+### Commits
+a9e271e iteration 33: added aba Mesa do Mestre em secoes (token e combate no topo, resto recolhido)
+d3e4dec att
+eedba3d iteration 32: added Mestre entrega uma ficha a um jogador
+18e75a2 iteration 31: added barra de atalhos do mapa para o Mestre usar golpes de ficha
+9bf399a iteration 30: added Mestre usa os golpes do token de ficha na aba Tecnicas
+67afedf iteration 29: added tecla Delete para o Mestre remover o token selecionado
+c569436 Ajuste
+f7cadbd iteration 28: added aba Fichas do Mestre com pontos pelo nivel, tecnicas e pastas
+2f86e92 iteration 27: added Mestre move qualquer token, inclusive os presos
+625f1de att
+aa75112 iteration 26: added ajuste de Vida e PE ganho pelo proprio jogador
+ea7864a ajuste
+8453309 ajuste na ficha
+e1fdddd iteration 25: added o Mestre ve e edita as fichas dos jogadores
+bd62f54 iteration 24: added login pelo Supabase Auth (conta vale em qualquer aparelho)
+2f447e5 akuma
+238649f iteration 23: added Mercado Negro de Akuma no Mi (165 frutas do Livro das Akuma, compra com Berries)
+9a6ba46 iteration 22: added permissoes (GRANT) das tabelas no schema do Supabase
+---
+
+## Session End: 20261125_163403
+### Commits
+d1abf5a iteration 34: added barra Falando como no chat do Mestre, que segue o NPC selecionado
+a9e271e iteration 33: added aba Mesa do Mestre em secoes (token e combate no topo, resto recolhido)
+d3e4dec att
+eedba3d iteration 32: added Mestre entrega uma ficha a um jogador
+18e75a2 iteration 31: added barra de atalhos do mapa para o Mestre usar golpes de ficha
+9bf399a iteration 30: added Mestre usa os golpes do token de ficha na aba Tecnicas
+67afedf iteration 29: added tecla Delete para o Mestre remover o token selecionado
+c569436 Ajuste
+f7cadbd iteration 28: added aba Fichas do Mestre com pontos pelo nivel, tecnicas e pastas
+2f86e92 iteration 27: added Mestre move qualquer token, inclusive os presos
+625f1de att
+aa75112 iteration 26: added ajuste de Vida e PE ganho pelo proprio jogador
+ea7864a ajuste
+8453309 ajuste na ficha
+e1fdddd iteration 25: added o Mestre ve e edita as fichas dos jogadores
+bd62f54 iteration 24: added login pelo Supabase Auth (conta vale em qualquer aparelho)
+2f447e5 akuma
+238649f iteration 23: added Mercado Negro de Akuma no Mi (165 frutas do Livro das Akuma, compra com Berries)
+### Uncommitted Changes
+production/session-logs/.session-end.hash
+production/session-logs/session-cost.md
+production/session-logs/session-log.md
+---
+
+## Session End: 20261125_165701
+### Commits
+fec7558 iteration 36: added mover ficha de pasta pelo seletor ou arrastando
+21a4aa7 iteration 35: added cabecalho do chat em uma linha e menu de ajustes nas abas
+d1abf5a iteration 34: added barra Falando como no chat do Mestre, que segue o NPC selecionado
+a9e271e iteration 33: added aba Mesa do Mestre em secoes (token e combate no topo, resto recolhido)
+d3e4dec att
+eedba3d iteration 32: added Mestre entrega uma ficha a um jogador
+18e75a2 iteration 31: added barra de atalhos do mapa para o Mestre usar golpes de ficha
+9bf399a iteration 30: added Mestre usa os golpes do token de ficha na aba Tecnicas
+67afedf iteration 29: added tecla Delete para o Mestre remover o token selecionado
+c569436 Ajuste
+f7cadbd iteration 28: added aba Fichas do Mestre com pontos pelo nivel, tecnicas e pastas
+2f86e92 iteration 27: added Mestre move qualquer token, inclusive os presos
+625f1de att
+aa75112 iteration 26: added ajuste de Vida e PE ganho pelo proprio jogador
+ea7864a ajuste
+8453309 ajuste na ficha
+e1fdddd iteration 25: added o Mestre ve e edita as fichas dos jogadores
+bd62f54 iteration 24: added login pelo Supabase Auth (conta vale em qualquer aparelho)
+2f447e5 akuma
+238649f iteration 23: added Mercado Negro de Akuma no Mi (165 frutas do Livro das Akuma, compra com Berries)
+### Uncommitted Changes
+production/session-logs/.session-end.hash
+production/session-logs/session-cost.md
+production/session-logs/session-log.md
+---
+
+## Session End: 20261125_171223
+### Commits
+352de40 iteration 37: added explicacao de como ter mais PP na criacao de tecnica
+fec7558 iteration 36: added mover ficha de pasta pelo seletor ou arrastando
+21a4aa7 iteration 35: added cabecalho do chat em uma linha e menu de ajustes nas abas
+d1abf5a iteration 34: added barra Falando como no chat do Mestre, que segue o NPC selecionado
+a9e271e iteration 33: added aba Mesa do Mestre em secoes (token e combate no topo, resto recolhido)
+d3e4dec att
+eedba3d iteration 32: added Mestre entrega uma ficha a um jogador
+18e75a2 iteration 31: added barra de atalhos do mapa para o Mestre usar golpes de ficha
+9bf399a iteration 30: added Mestre usa os golpes do token de ficha na aba Tecnicas
+67afedf iteration 29: added tecla Delete para o Mestre remover o token selecionado
+c569436 Ajuste
+f7cadbd iteration 28: added aba Fichas do Mestre com pontos pelo nivel, tecnicas e pastas
+2f86e92 iteration 27: added Mestre move qualquer token, inclusive os presos
+625f1de att
+aa75112 iteration 26: added ajuste de Vida e PE ganho pelo proprio jogador
+ea7864a ajuste
+8453309 ajuste na ficha
+e1fdddd iteration 25: added o Mestre ve e edita as fichas dos jogadores
+bd62f54 iteration 24: added login pelo Supabase Auth (conta vale em qualquer aparelho)
+2f447e5 akuma
+238649f iteration 23: added Mercado Negro de Akuma no Mi (165 frutas do Livro das Akuma, compra com Berries)
+### Uncommitted Changes
+production/session-logs/.session-end.hash
+production/session-logs/session-cost.md
+production/session-logs/session-log.md
+---
+
