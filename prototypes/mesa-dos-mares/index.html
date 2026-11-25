@@ -48,19 +48,21 @@
     <div id="tabs">
       <button data-t="cena" class="only-mobile" aria-label="Cena"><span class="ic">🗺</span>Cena</button>
       <button data-t="chat" class="on"><span class="ic">💬</span>Chat<span class="badge" id="chatBadge" hidden></span></button>
-      <button data-t="ficha"><span class="ic">📜</span>Ficha</button>
+      <button data-t="ficha"><span class="ic">📜</span><span class="l-pl">Ficha</span><span class="l-gm">Jogadores</span></button>
       <button data-t="tec"><span class="ic">⚔</span>Técnicas</button>
       <button data-t="mesa"><span class="ic">👥</span>Mesa</button>
       <button data-t="fichas" class="gm-only"><span class="ic">🗂</span>Fichas</button>
-      <button class="tbtn" id="musicBtn" title="Trilha sonora da mesa">♪</button><button class="tbtn" id="wideBtn" title="Mais espaço para a narração">Foco</button><button class="tbtn" id="themeBtn" title="Tema escuro ou claro">Tema</button><button class="tbtn" id="iaBtn" title="Chave da API e servidor do narrador de IA">IA</button>
+      <button class="tbtn" id="cfgBtn" title="Ajustes: trilha sonora, foco, tema e IA" aria-haspopup="true" aria-label="Ajustes">⚙</button>
+      <div id="cfgMenu" hidden><button id="musicBtn" title="Trilha sonora da mesa">♪ Trilha sonora</button><button id="wideBtn" title="Mais espaço para a narração">Foco: mais espaço para o chat</button><button id="themeBtn" title="Tema escuro ou claro">Tema claro ou escuro</button><button id="iaBtn" title="Chave da API e servidor do narrador de IA">Chave e servidor da IA</button></div>
     </div>
 
     <section class="panel on" id="p-chat">
       <div id="chatHead">
-        <div id="chatPlace"></div>
-        <div id="chatWho"></div>
-        <div id="chatLock"></div>
-        <div class="row" style="margin:4px 0 0"><label class="btn wood sm" for="chatBgFile" title="Imagem de fundo só para você, neste lugar">Fundo do chat…</label><input type="file" id="chatBgFile" accept="image/*"><button class="btn wood sm" id="chatBgClear" hidden>Sem fundo</button></div>
+        <div id="chatTop"><div id="chatPlace"></div><div id="chatWho"></div><button class="tbtn" id="chatMenuBtn" title="Fundo do chat e quem lê este chat" aria-label="Mais opções do chat">⋯</button></div>
+        <div id="chatMenu" hidden>
+          <div id="chatLock"></div>
+          <div class="row" style="margin:4px 0 0"><label class="btn wood sm" for="chatBgFile" title="Imagem de fundo só para você, neste lugar">Fundo do chat…</label><input type="file" id="chatBgFile" accept="image/*"><button class="btn wood sm" id="chatBgClear" hidden>Sem fundo</button></div>
+        </div>
       </div>
       <div id="chatList"></div>
       <div id="chatPreview" hidden></div>
@@ -853,7 +855,11 @@ function gmGo(p) {
 
 // ---- Novo token e painéis ----
 function bindPanels() {
-  document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => setTab(b.dataset.t));
+  document.querySelectorAll('#tabs button[data-t]').forEach(b => b.onclick = () => setTab(b.dataset.t));
+  $('cfgBtn').onclick = e => { e.stopPropagation(); $('cfgMenu').hidden = !$('cfgMenu').hidden; };
+  $('cfgMenu').addEventListener('click', () => { $('cfgMenu').hidden = true; });
+  document.addEventListener('click', e => { if (!$('cfgMenu').hidden && !e.target.closest('#cfgMenu')) $('cfgMenu').hidden = true; });
+  $('chatMenuBtn').onclick = () => { $('chatMenu').hidden = !$('chatMenu').hidden; };
   $('p-mesa').addEventListener('toggle', e => {   // o evento toggle não sobe: escuta na captura
     const d = e.target; if (!d.matches || !d.matches('details.mesa-sec') || !isGM()) return;
     if (d.open) { mesaAberta = d.dataset.sec; document.querySelectorAll('#p-mesa details.mesa-sec').forEach(o => { if (o !== d && o.open) o.open = false; }); }

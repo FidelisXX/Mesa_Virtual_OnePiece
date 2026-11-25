@@ -83,6 +83,18 @@ label.btn { display: inline-block; }
 .scroll { overflow-y: auto; padding: 14px; }
 
 /* chat */
+#tabs { position: relative; }
+.l-gm { display: none; } body.gm .l-gm { display: inline; } body.gm .l-pl { display: none; }
+body.gm #tabs button[data-t="chat"] { order: 0; } body.gm #tabs button[data-t="mesa"] { order: 1; } body.gm #tabs button[data-t="ficha"] { order: 2; } body.gm #tabs button[data-t="fichas"] { order: 3; } body.gm #tabs button[data-t="tec"] { order: 4; } #tabs .tbtn#cfgBtn { order: 9; }
+#cfgMenu { position: absolute; right: 8px; top: calc(100% - 2px); z-index: 40; display: flex; flex-direction: column; min-width: 230px; padding: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 8px 24px rgba(0, 0, 0, .18); }
+#cfgMenu[hidden] { display: none; }
+#cfgMenu button { text-align: left; padding: 9px 12px; font-size: 14px; background: transparent; border: 0; border-radius: 8px; color: var(--text); }
+#cfgMenu button:hover { background: var(--surface3); }
+#chatTop { display: flex; align-items: center; gap: 10px; }
+#chatTop #chatPlace { flex: 0 1 auto; min-width: 0; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#chatTop #chatWho { flex: 1; min-width: 0; margin-top: 0; overflow: hidden; white-space: nowrap; }
+#chatTop .tbtn { margin: 0; }
+#chatMenu { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border); }
 #chatHead { padding: 10px 14px 8px; border-bottom: 1px solid var(--border); background: var(--surface); }
 #chatPlace { font-size: 19px; font-weight: 700; letter-spacing: -.01em; }
 #chatWho { display: flex; align-items: center; gap: 3px; margin-top: 3px; min-height: 26px; }
@@ -282,7 +294,7 @@ h3 { margin: 16px 0 6px; font-size: 12px; text-transform: uppercase; letter-spac
   body.mobile #tabs button[data-t].on { border-top-color: var(--accent); }
   body.mobile #tabs .ic { display: block; font-size: 19px; line-height: 1.1; }
   body.mobile #tabs .badge { right: 8px; top: 3px; }
-  body.mobile #tabs .tbtn { display: none; }
+  body.mobile #tabs .tbtn, body.mobile #chatMenuBtn, body.mobile #chatMenu { display: none; }
   body.mobile.cena .panel { display: none !important; }
   body.mobile .panel { order: 1; }
   body.mobile #stage { min-height: 0; }

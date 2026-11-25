@@ -148,7 +148,7 @@ const Chat = (() => {
     $('chatPlace').textContent = chanName(ch);
     $('chatWho').innerHTML = here.map(c => `<img class="pic xs" src="${portraitURL(c)}" title="${esc(c.nome)}${c.gm ? ' (Narrador)' : ''}" alt="">`).join('') +
       `<span class="who-n">${here.length} aqui</span>`;
-    const lock = $('chatLock'); lock.textContent = isIsland(ch) ? 'Só quem está nesta ilha lê este chat.' : isPrison(ch) ? 'Só quem está preso aqui lê este chat.' : 'Só a tripulação a bordo lê este chat.'; applyBg(ch);
+    const lock = $('chatLock'); lock.textContent = isIsland(ch) ? 'Só quem está nesta ilha lê este chat.' : isPrison(ch) ? 'Só quem está preso aqui lê este chat.' : 'Só a tripulação a bordo lê este chat.'; $('chatPlace').title = lock.textContent; applyBg(ch);
     // sussurro: alvos
     const sel = $('susAlvo'), cur = sel.value;
     sel.innerHTML = here.filter(c => c.id !== myId).map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join('') || '<option value="">ninguém aqui</option>';
