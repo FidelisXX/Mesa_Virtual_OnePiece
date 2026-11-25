@@ -97,7 +97,7 @@ const Island = (() => {
       if (drag) {
         if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 4) return;
         if (!drag.moved && !drag.ok) { toast('Esse token não é seu.'); drag = null; return; }
-        { const tt = db.tokens[drag.id]; if (!drag.moved && tt && tt.status && tt.status.prender > 0) { toast(tt.nome + ' está preso e não anda.'); drag = null; return; } }
+        { const tt = db.tokens[drag.id]; if (!drag.moved && tt && tt.status && tt.status.prender > 0 && !isGM()) { toast(tt.nome + ' está preso e não anda.'); drag = null; return; } }
         drag.moved = true;
         const t = db.tokens[drag.id], w = toWorld(e); if (!t) { drag = null; return; }
         t.x = (w.x - drag.ox) / tune.cellPx; t.y = (w.y - drag.oy) / tune.cellPx; dirty.tokens = true;
