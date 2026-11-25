@@ -695,7 +695,7 @@ function renderMesa() {
       if (cc && !cc.gm) h += `<div class="note">${esc(RACES[cc.raca].nome)} · ${esc(CLASSES[cc.classe].nome)} · ${esc(titulo(cc))}</div>`;
       if (isGM() && t.hpMax) h += `<div class="row"><button class="btn sm wood" data-d="1">Vida −1</button><button class="btn sm wood" data-d="-1">Vida +1</button><button class="btn sm wood" data-d="5">−5</button><button class="btn sm wood" data-pub="1">${t.pub ? 'Esconder barras' : 'Mostrar barras'}</button>${t.owner === 'gm' ? '<button class="btn sm" data-npc="1">NPC age</button>' : ''}</div>`;
       if (isGM() && !t.pc) h += `<div class="row"><label class="note">Loja: <select id="tkLoja"><option value="">nenhuma</option>${Object.entries(LOJAS).map(([k, l]) => `<option value="${k}" ${t.loja === k ? 'selected' : ''}>${l.nome}</option>`).join('')}</select></label></div>`;
-      if (canEdit && !t.pc) h += `<div class="row"><button class="btn sm red" data-del="${t.id}">Remover token</button></div>`;
+      if (canEdit && !t.pc) h += `<div class="row"><button class="btn sm red" data-del="${t.id}">Remover token${isGM() ? ' (tecla Delete)' : ''}</button></div>`;
     }
     const cb = db.combat[v];
     h += '<h3>Combate</h3>';
@@ -900,6 +900,12 @@ function updateHud() {
   }
 }
 
+// Delete: o Mestre tira do mapa o token selecionado (o token de um jogador volta sozinho, então esse fica)
+function removeSelToken() {
+  const t = db.tokens[Island.sel]; if (!t || !isGM()) return;
+  if (t.pc) { toast('O token de um jogador volta sozinho. Para tirá-lo do mapa, leve o personagem a outro lugar.'); return; }
+  commit('tokens', t.id, null); Island.sel = null; mesaDirty = true; toast('Removido: ' + t.nome);
+}
 // F: seleciona o próximo inimigo vivo, do mais perto para o mais longe
 function focusFoe() {
   const isl = currentView(), mt = Combat.myTok(isl), list = Object.values(db.tokens).filter(t => t.isl === isl && t.owner === 'gm' && t.hp > 0 && t.kind !== 'tenryu');
@@ -962,6 +968,7 @@ const scenes = {
       if (mode === 'naval') Naval.update(dt);
       if (mode === 'island') { Island.populate(state.view); if (!c.gm) { Island.ensureMyToken(state.view); perguntarNarrador(state.view); } }
       if (mode === 'island' && pressed('KeyF')) focusFoe();
+      if (mode === 'island' && c.gm && (pressed('Delete') || pressed('Backspace'))) removeSelToken();
       if (mode === 'island' && !c.gm) for (let i = 1; i <= 9; i++) if (pressed('Digit' + i)) useTec(i - 1);
       // pena cumprida?
       Object.values(db.chars).forEach(x => { if (x.prisao && Date.now() >= x.prisao.ate && (x.id === myId || isGM())) { releasePrison(x); sheetDirty = true; mesaDirty = true; } });
