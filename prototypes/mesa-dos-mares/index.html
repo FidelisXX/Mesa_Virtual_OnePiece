@@ -918,16 +918,28 @@ let chartSig = '', worldSig = '', turnSig = '';
 // O Mundo do narrador: quem está onde, e o botão para levar um jogador a uma ilha
 function renderWorldHud(ch) {
   const sel = World.sel && ISLAND[World.sel], jog = Object.values(db.chars).filter(x => !x.gm);
-  const sig = JSON.stringify([sel && sel.id, jog.map(x => [x.id, x.nome, chanOf(x)]), World.pick]); if (sig === worldSig) return; worldSig = sig;
+  const sig = JSON.stringify([sel && [sel.id, sel.nome, sel.tema, World.movida(sel.id)], jog.map(x => [x.id, x.nome, chanOf(x)]), World.pick, World.foco, World.nova]); if (sig === worldSig) return; worldSig = sig;
   if (!World.pick || !db.chars[World.pick]) World.pick = jog[0] ? jog[0].id : null;
-  let h = '<div class="nv-top plate"><b>Mundo</b> · ' + (jog.length ? jog.length + ' jogador(es) nos quatro mares' : 'ninguém criou personagem ainda') + '</div>';
+  const foco = World.foco;
+  let h = '<div class="nv-top plate w-mares"><b>Mundo</b>' +
+    '<button class="btn' + (foco ? ' wood' : '') + '" data-mar="">Todos os mares</button>' + Object.entries(SEAS).map(([k, m]) => '<button class="btn' + (foco === k ? '' : ' wood') + '" data-mar="' + k + '">' + esc(m.nome) + '</button>').join('') +
+    (foco ? '<button class="btn' + (World.nova ? '' : ' wood') + '" id="wNova">' + (World.nova ? 'Cancelar ilha nova' : '+ Nova ilha') + '</button>' : '') + '</div>';
   if (sel) {
     const aqui = jog.filter(x => chanOf(x) === sel.id);
-    h += '<div class="nv-actions plate"><div class="nv-lbl"><b>' + esc(sel.nome) + '</b> · ' + SEAS[sel.mar].nome + ' · ' + (aqui.length ? aqui.map(x => esc(x.nome)).join(', ') : 'ninguém aqui') + '</div><div class="row">' +
+    h += '<div class="nv-actions plate"><div class="nv-lbl"><b>' + esc(sel.nome) + '</b> · ' + SEAS[sel.mar].nome + ' · ' + (aqui.length ? aqui.map(x => esc(x.nome)).join(', ') : 'ninguém aqui') + '</div>' +
+      (sel.nova ? '<div class="row w-edit"><input id="wNome" maxlength="40" value="' + esc(sel.nome) + '" aria-label="Nome da ilha"><select id="wTema">' + Object.entries(World.TEMAS).map(([k, n]) => '<option value="' + k + '"' + (sel.tema === k ? ' selected' : '') + '>' + n + '</option>').join('') + '</select><button class="btn wood" id="wApaga">Apagar ilha</button></div>' : '') +
+      '<div class="row">' +
       (jog.length ? '<select id="wPick">' + jog.map(x => '<option value="' + x.id + '"' + (x.id === World.pick ? ' selected' : '') + '>' + esc(x.nome) + ' (' + esc(chanName(chanOf(x))) + ')</option>').join('') + '</select><button class="btn" id="wPut">Levar para cá</button>' : '') +
-      '<button class="btn wood" id="wOpen">Abrir a ilha</button></div></div>';
-  } else h += '<div class="nv-actions plate"><div class="nv-lbl">Toque numa ilha para ver quem está nela, abrir o mapa ou levar um jogador.</div></div>';
+      '<button class="btn wood" id="wOpen">Abrir a ilha</button>' + (World.movida(sel.id) ? '<button class="btn wood" id="wVolta">Voltar ao lugar original</button>' : '') + '</div>' +
+      '<div class="nv-lbl"><small>Arraste a ilha no mapa para mudar o lugar dela.</small></div></div>';
+  } else h += '<div class="nv-actions plate"><div class="nv-lbl">' + (World.nova ? 'Clique no mar onde a ilha nova vai ficar.' : foco ? 'Toque numa ilha para ver quem está nela, ou arraste para mudar o lugar. "+ Nova ilha" cria uma ilha onde você clicar.' : 'Toque numa ilha para ver quem está nela, abrir o mapa ou levar um jogador. Escolha um mar no topo para vê-lo sozinho e criar ilhas nele.') + '</div></div>';
   ch.innerHTML = h;
+  ch.querySelectorAll('[data-mar]').forEach(b => { b.onclick = () => { World.foco = b.dataset.mar || null; worldSig = ''; }; });
+  if ($('wNova')) $('wNova').onclick = () => { World.nova = !World.nova; World.sel = null; worldSig = ''; };
+  if ($('wNome')) $('wNome').onchange = e => { const n = e.target.value.trim(); if (n) World.editar(sel.id, { nome: n }); worldSig = ''; };
+  if ($('wTema')) $('wTema').onchange = e => { World.editar(sel.id, { tema: e.target.value }); worldSig = ''; };
+  if ($('wApaga')) $('wApaga').onclick = () => { if (confirm('Apagar ' + sel.nome + '? Os tokens dela somem junto.')) { World.apagar(sel.id); worldSig = ''; } };
+  if ($('wVolta')) $('wVolta').onclick = () => { World.voltarLugar(sel.id); worldSig = ''; };
   if ($('wPick')) $('wPick').onchange = e => { World.pick = e.target.value; };
   if ($('wPut')) $('wPut').onclick = () => { World.inserir($('wPick').value, sel.id); worldSig = ''; };
   if ($('wOpen')) $('wOpen').onclick = () => { gmGo(sel.id); };
@@ -1165,7 +1177,7 @@ carregarLocalSync(); // começa com a cópia local; o servidor, se existir, a tr
 mobileSync();
 try { Sea.init($('sea')); } catch (e) { seaOK = false; console.warn('3D indisponível:', e && e.message); }
 Island.attach(canvas); Naval.attach(canvas);
-canvas.addEventListener('click', e => { if (scene === 'play' && stageMode() === 'world') World.click(e, canvas); });
+World.attach(canvas);
 ['pointerdown', 'click'].forEach(ev => canvas.addEventListener(ev, e => { if (scene === 'play' && stageMode() === 'chart') { const s = db.ships[chartKey()]; if (s) Travel.click(e, canvas, s); } }));
 $('sea').addEventListener('click', e => { if (scene === 'play' && stageMode() === 'fight') Fight3D.click(e, $('sea')); });
 Chat.init(); bindPanels(); setTab('chat');

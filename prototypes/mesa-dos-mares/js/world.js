@@ -186,22 +186,87 @@ const Travel = (() => {
   function chart(mar, W, H) {
     const k = mar + W + 'x' + H; if (bgCache[k]) return bgCache[k];
     const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const g = cv.getContext('2d'), R = artRng(hashStr(mar));
-    g.fillStyle = PARCH; g.fillRect(0, 0, W, H);
-    for (let i = 0; i < 36; i++) { const x = R() * W, y = R() * H, r = 40 + R() * 160, gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(150,110,60,${0.05 + R() * 0.07})`); gr.addColorStop(1, 'rgba(150,110,60,0)'); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); }
-    g.fillStyle = SEAS[mar].cor + '22'; g.fillRect(0, 0, W, H);
-    g.strokeStyle = 'rgba(52,96,112,.5)'; g.lineWidth = 1.6;
-    for (let y = 20; y < H; y += 26) for (let x = ((y / 26) % 2) * 28; x < W; x += 74) { g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + 8, y - 6, x + 16, y); g.quadraticCurveTo(x + 24, y + 6, x + 32, y); g.stroke(); }
-    // meridianos e paralelos sépia
-    g.strokeStyle = 'rgba(110,80,45,.28)'; g.lineWidth = 1; g.beginPath(); for (let x = 0; x <= W; x += W / 10) { g.moveTo(x, 0); g.lineTo(x, H); } for (let y = 0; y <= H; y += H / 6) { g.moveTo(0, y); g.lineTo(W, y); } g.stroke();
+    // água azul-turquesa, mais funda nas bordas
+    const gr0 = g.createLinearGradient(0, 0, W, H); gr0.addColorStop(0, '#2a9fbf'); gr0.addColorStop(0.5, '#23a3c2'); gr0.addColorStop(1, '#1b7fae'); g.fillStyle = gr0; g.fillRect(0, 0, W, H);
+    g.fillStyle = SEAS[mar].cor + '38'; g.fillRect(0, 0, W, H);
+    for (let i = 0; i < 46; i++) { const x = R() * W, y = R() * H, r = 50 + R() * 170, claro = R() < 0.55, gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, claro ? `rgba(120,225,225,${0.08 + R() * 0.14})` : `rgba(8,55,105,${0.08 + R() * 0.14})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); }
+    // pinceladas de onda (claras e escuras), como tinta
+    const n = Math.round(W * H / 260); g.lineCap = 'round';
+    for (let i = 0; i < n; i++) {
+      const x = R() * W, y = R() * H, L = 6 + R() * 16, k = R(); g.lineWidth = 1 + R() * 1.8;
+      g.strokeStyle = k < 0.45 ? `rgba(225,250,250,${0.08 + R() * 0.16})` : k < 0.8 ? `rgba(10,70,120,${0.12 + R() * 0.18})` : `rgba(90,200,215,${0.15 + R() * 0.2})`;
+      g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + L / 2, y - 2 - R() * 3, x + L, y); g.stroke();
+    }
+    // espuma parada: cristas brancas
+    for (let i = 0; i < W * H / 2600; i++) { const x = R() * W, y = R() * H, L = 5 + R() * 9; g.strokeStyle = `rgba(255,255,255,${0.35 + R() * 0.4})`; g.lineWidth = 1.4; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + L / 2, y - 4, x + L, y); g.stroke(); }
+    // pedrinhas e recifes soltos
+    for (let i = 0; i < 9; i++) { const x = 30 + R() * (W - 60), y = 30 + R() * (H - 60); for (let j = 0; j < 3; j++) { const px = x + (R() - 0.5) * 16, py = y + (R() - 0.5) * 10, rr = 1.5 + R() * 2.5; g.fillStyle = 'rgba(160,240,230,.25)'; g.beginPath(); g.ellipse(px, py, rr * 2, rr * 1.3, 0, 0, 7); g.fill(); g.fillStyle = '#5d6b4a'; g.beginPath(); g.ellipse(px, py, rr, rr * 0.7, 0, 0, 7); g.fill(); } }
+    // vinheta funda nas bordas
+    const vg = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75); vg.addColorStop(0, 'rgba(0,30,60,0)'); vg.addColorStop(1, 'rgba(0,30,60,.38)'); g.fillStyle = vg; g.fillRect(0, 0, W, H);
     drawCompass(g, W - 90, H - 90, 54);
-    g.strokeStyle = INK; g.lineWidth = 5; g.strokeRect(4, 4, W - 8, H - 8);
+    // moldura de pergaminho
+    const f = Math.max(8, Math.min(W, H) * 0.018);
+    g.lineWidth = f; g.strokeStyle = '#d9c08a'; g.strokeRect(f / 2, f / 2, W - f, H - f);
+    g.lineWidth = 2; g.strokeStyle = INK; g.strokeRect(1, 1, W - 2, H - 2); g.strokeRect(f, f, W - f * 2, H - f * 2);
+    g.lineWidth = 1; g.strokeStyle = 'rgba(122,90,52,.8)'; g.strokeRect(f * 0.45, f * 0.45, W - f * 0.9, H - f * 0.9);
     return (bgCache[k] = cv);
+  }
+  // O mar vivo: o que se mexe por cima da carta (espuma, redemoinhos, baleias, barquinhos e gaivotas)
+  function vida(g, mar, x0, y0, W, H) {
+    const vel = tune.marVel, t = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000 * vel, R = artRng(hashStr(mar + ':vida'));
+    const f = Math.max(8, Math.min(W, H) * 0.018);
+    g.save(); g.beginPath(); g.rect(x0 + f, y0 + f, W - f * 2, H - f * 2); g.clip(); g.translate(x0, y0); g.lineCap = 'round';
+    // redemoinhos girando
+    for (let i = 0; i < tune.marRedemoinhos; i++) {
+      const cx = W * (0.12 + R() * 0.76), cy = H * (0.15 + R() * 0.7), r = Math.min(W, H) * (0.06 + R() * 0.05), dir = R() < 0.5 ? 1 : -1;
+      g.save(); g.translate(cx, cy); g.rotate(t * 0.6 * dir);
+      for (let b = 0; b < 3; b++) { g.beginPath(); for (let s = 0; s <= 40; s++) { const a = s / 40 * Math.PI * 3.2 + b * 2.1, rr = r * (s / 40); const px = Math.cos(a) * rr * dir, py = Math.sin(a) * rr * 0.62; s ? g.lineTo(px, py) : g.moveTo(px, py); } g.strokeStyle = b ? 'rgba(10,60,110,.35)' : 'rgba(225,250,255,.5)'; g.lineWidth = 2; g.stroke(); }
+      g.restore();
+    }
+    // sombras de baleia passando devagar
+    for (let i = 0; i < tune.marBaleias; i++) {
+      const y = H * (0.2 + R() * 0.65), v = 6 + R() * 8, dir = R() < 0.5 ? 1 : -1, L = Math.min(W, H) * (0.14 + R() * 0.06), fase = R() * (W + L * 2);
+      const x = dir > 0 ? ((t * v + fase) % (W + L * 2)) - L : W + L - ((t * v + fase) % (W + L * 2)), y2 = y + Math.sin(t * 0.3 + i) * 8;
+      g.save(); g.translate(x, y2); g.scale(dir, 1); g.fillStyle = 'rgba(8,40,80,.28)';
+      g.beginPath(); g.ellipse(0, 0, L * 0.5, L * 0.16, 0, 0, 7); g.fill();
+      const cau = Math.sin(t * 2 + i) * L * 0.05; g.beginPath(); g.moveTo(-L * 0.45, 0); g.lineTo(-L * 0.68, -L * 0.13 + cau); g.lineTo(-L * 0.6, cau * 0.3); g.lineTo(-L * 0.68, L * 0.13 + cau); g.closePath(); g.fill();
+      g.beginPath(); g.ellipse(L * 0.05, L * 0.17, L * 0.12, L * 0.035, 0.5, 0, 7); g.fill(); g.restore();
+    }
+    // espuma que aparece e some nas cristas
+    const nE = Math.round(W * H / 9000 * tune.marEspuma);
+    for (let i = 0; i < nE; i++) {
+      const x = R() * W, y = R() * H, ph = R() * 6.28, sp = 0.6 + R() * 0.9, a = Math.max(0, Math.sin(t * sp + ph)), L = 6 + R() * 10, dx = Math.sin(t * 0.4 + ph) * 3;
+      if (a < 0.05) continue; g.strokeStyle = `rgba(255,255,255,${(a * 0.75).toFixed(2)})`; g.lineWidth = 1.6;
+      g.beginPath(); g.moveTo(x + dx, y); g.quadraticCurveTo(x + dx + L / 2, y - 3 - a * 2, x + dx + L, y); g.stroke();
+      if (a > 0.85) { g.fillStyle = 'rgba(255,255,255,.8)'; g.beginPath(); g.arc(x + dx + L * 0.3, y - 3, 1.3, 0, 7); g.fill(); }
+    }
+    // brilhos de sol
+    for (let i = 0; i < 14; i++) { const x = R() * W, y = R() * H, a = Math.max(0, Math.sin(t * 1.7 + i * 1.3)) ** 6; if (a > 0.1) { g.fillStyle = `rgba(255,255,230,${(a * 0.9).toFixed(2)})`; g.beginPath(); g.moveTo(x, y - 4 * a); g.lineTo(x + 1, y); g.lineTo(x, y + 4 * a); g.lineTo(x - 1, y); g.closePath(); g.fill(); g.beginPath(); g.moveTo(x - 4 * a, y); g.lineTo(x, y + 1); g.lineTo(x + 4 * a, y); g.lineTo(x, y - 1); g.closePath(); g.fill(); } }
+    // barquinhos de enfeite, ao longe
+    for (let i = 0; i < tune.marBarcos; i++) {
+      const y = H * (0.1 + R() * 0.8), v = 3 + R() * 5, dir = R() < 0.5 ? 1 : -1, fase = R() * (W + 60), L = 16 + R() * 6;
+      const x = dir > 0 ? ((t * v + fase) % (W + 60)) - 30 : W + 30 - ((t * v + fase) % (W + 60)), bob = Math.sin(t * 1.5 + i) * 1.5;
+      g.strokeStyle = 'rgba(255,255,255,.45)'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(x - dir * L * 0.5, y + bob); g.lineTo(x - dir * L * 1.6, y + bob - 3); g.moveTo(x - dir * L * 0.5, y + bob); g.lineTo(x - dir * L * 1.6, y + bob + 3); g.stroke();
+      drawBoat(g, x, y + bob, L, dir > 0 ? 0 : Math.PI, i % 3 === 2 ? 'marinha' : 'pirata');
+    }
+    // gaivotas
+    for (let i = 0; i < tune.marGaivotas; i++) {
+      const cx = R() * W, cy = R() * H, r = 30 + R() * 60, sp = 0.15 + R() * 0.2, a = t * sp + R() * 6.28, x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r * 0.6, w = 3 + Math.sin(t * 6 + i) * 1.5;
+      g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(x - 5, y - w * 0.4); g.quadraticCurveTo(x - 2.5, y - w, x, y); g.quadraticCurveTo(x + 2.5, y - w, x + 5, y - w * 0.4); g.stroke();
+    }
+    g.restore();
   }
   function islet(g, isl, x, y, r, docked) {
     const R = artRng(hashStr(isl.id)); g.save(); g.translate(x, y);
-    g.fillStyle = 'rgba(43,33,24,.25)'; g.beginPath(); g.ellipse(4, 6, r * 1.15, r * 0.7, 0, 0, 7); g.fill();
-    g.beginPath(); for (let i = 0; i <= 16; i++) { const a = i / 16 * Math.PI * 2, rr = r * (0.85 + R() * 0.3); const px = Math.cos(a) * rr * 1.15, py = Math.sin(a) * rr * 0.72; i ? g.lineTo(px, py) : g.moveTo(px, py); } g.closePath();
-    g.fillStyle = isl.tema === 'base' ? '#cfd8e6' : isl.tema === 'navio' ? '#c99c62' : '#a9cf7c'; g.fill(); g.lineWidth = 2.5; g.strokeStyle = INK; g.stroke();
+    // água rasa clara em volta e a praia
+    const sh = g.createRadialGradient(0, 0, r * 0.6, 0, 0, r * 1.9); sh.addColorStop(0, 'rgba(170,245,230,.75)'); sh.addColorStop(1, 'rgba(170,245,230,0)'); g.fillStyle = sh; g.beginPath(); g.ellipse(0, 0, r * 2.1, r * 1.45, 0, 0, 7); g.fill();
+    g.fillStyle = 'rgba(8,40,70,.3)'; g.beginPath(); g.ellipse(3, 6, r * 1.2, r * 0.76, 0, 0, 7); g.fill();
+    const borda = []; for (let i = 0; i <= 16; i++) { const a = i / 16 * Math.PI * 2, rr = r * (0.85 + R() * 0.3); borda.push([Math.cos(a) * rr * 1.15, Math.sin(a) * rr * 0.72]); }
+    const contorno = k => { g.beginPath(); borda.forEach(([px, py], i) => (i ? g.lineTo(px * k, py * k) : g.moveTo(px * k, py * k))); g.closePath(); };
+    if (isl.tema !== 'navio') { contorno(1.14); g.fillStyle = '#ecd9a0'; g.fill(); g.lineWidth = 1.2; g.strokeStyle = 'rgba(255,255,255,.7)'; g.stroke(); }
+    contorno(1);
+    g.fillStyle = isl.tema === 'base' ? '#cfd8e6' : isl.tema === 'navio' ? '#c99c62' : '#7fbf5a'; g.fill(); g.lineWidth = 2.2; g.strokeStyle = INK; g.stroke();
+    if (isl.tema !== 'navio' && isl.tema !== 'base') for (let i = 0; i < 4; i++) { const tx = (R() - 0.5) * r * 1.5, ty = (R() - 0.5) * r * 0.7; g.fillStyle = '#4f8f3a'; g.beginPath(); g.arc(tx, ty, r * 0.14, 0, 7); g.fill(); }
     const roof = '#' + (isl.telhado || 0xc4472f).toString(16).padStart(6, '0'), n = isl.tema === 'cidade' ? 5 : 3;
     for (let i = 0; i < n; i++) { const hx = (R() - 0.5) * r * 1.2, hy = (R() - 0.5) * r * 0.5; g.fillStyle = '#f7efd6'; g.fillRect(hx - 5, hy - 3, 10, 8); g.strokeRect(hx - 5, hy - 3, 10, 8); g.fillStyle = roof; g.beginPath(); g.moveTo(hx - 7, hy - 3); g.lineTo(hx, hy - 10); g.lineTo(hx + 7, hy - 3); g.closePath(); g.fill(); g.stroke(); }
     if (isl.tema === 'base') { g.fillStyle = NAVY; g.fillRect(-2, -r * 0.7, 3, 14); g.fillRect(1, -r * 0.7, 12, 7); }
@@ -213,6 +278,7 @@ const Travel = (() => {
     const top = 64, bottom = 84, pad = 24; layout = { x: pad, y: top, w: W - pad * 2, h: H - top - bottom };
     g.fillStyle = canvasBg(); g.fillRect(0, 0, W, H);
     g.save(); g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 20; g.drawImage(chart(s.mar, layout.w, layout.h), layout.x, layout.y); g.restore();
+    vida(g, s.mar, layout.x, layout.y, layout.w, layout.h);
     const P = (cx, cy) => [layout.x + cx * layout.w, layout.y + cy * layout.h];
     // rota
     const t = s.travel, dest = t ? ISLAND[t.to] : sel ? ISLAND[sel] : null, orig = t ? ISLAND[t.from] : s.at ? ISLAND[s.at] : null;
@@ -238,7 +304,7 @@ const Travel = (() => {
     const hit = islandsOf(s.mar).find(i => Math.hypot(x - (layout.x + i.cx * layout.w), y - (layout.y + i.cy * layout.h)) < 40);
     if (hit && !s.travel) { sel = hit.id === s.at ? null : hit.id; mesaDirty = true; tone(400, 0.05, 'triangle', 0.1); }
   }
-  return { dist, duration, foodNeed, progress, eta, start, arrive, pause, resume, tick, draw, click, boatPos, chart, islet, get sel() { return sel; }, set sel(v) { sel = v; } };
+  return { dist, duration, foodNeed, progress, eta, start, arrive, pause, resume, tick, draw, click, boatPos, chart, vida, islet,get sel() { return sel; }, set sel(v) { sel = v; } };
 })();
 
 // ======================================================================================

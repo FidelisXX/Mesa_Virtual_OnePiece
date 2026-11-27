@@ -43,6 +43,16 @@ const ISLANDS = [
 const ISLAND = Object.fromEntries(ISLANDS.map(i => [i.id, i]));
 const islandsOf = mar => ISLANDS.filter(i => i.mar === mar);
 const isBase = isl => !!isl && isl.tema === 'base';
+// Ilhas criadas ou mudadas de lugar pelo Mestre: db.world.ilhas[id] é uma ilha nova (nova: true) ou só o novo cx/cy de uma do catálogo
+const ISLANDS_BASE = ISLANDS.map(i => Object.assign({}, i));
+let ilhasSig = null;
+function syncIlhas() {
+  const w = (db && db.world && db.world.ilhas) || {}, sg = JSON.stringify(w); if (sg === ilhasSig) return; ilhasSig = sg;
+  ISLANDS.length = 0; Object.keys(ISLAND).forEach(k => { delete ISLAND[k]; });
+  ISLANDS_BASE.forEach(b => ISLANDS.push(Object.assign({}, b, w[b.id] || {}, { id: b.id, mar: b.mar })));
+  Object.values(w).forEach(i => { if (i && i.nova && SEAS[i.mar] && !ISLANDS_BASE.some(b => b.id === i.id)) ISLANDS.push(Object.assign({}, i)); });
+  ISLANDS.forEach(i => { ISLAND[i.id] = i; });
+}
 
 // Atributos, espécies, estilos e profissões: OP RPG (js/opdata.js). Os nomes abaixo ficam para o resto do jogo.
 const ATTRS = ATRIBUTOS.map(a => ({ k: a.k, nome: a.nome }));
@@ -114,7 +124,7 @@ function emptyDb() {
 }
 function completar(d, base) { d = d && typeof d === 'object' ? d : {}; Object.keys(base).forEach(k => { if (d[k] === undefined) d[k] = base[k]; }); return d; }
 function lerLocal(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
-function carregarLocalSync() { G = completar(lerLocal(GKEY), { accounts: {}, mesas: {} }); db = myMesa ? completar(lerLocal(dbKey()), emptyDb()) : emptyDb(); }
+function carregarLocalSync() { G = completar(lerLocal(GKEY), { accounts: {}, mesas: {} }); db = myMesa ? completar(lerLocal(dbKey()), emptyDb()) : emptyDb(); syncIlhas(); }
 // Modo arquivo (sem servidor): tudo no navegador. Modo rede: o servidor é a fonte e o navegador guarda só uma cópia.
 async function carregarTudo() {
   await Net.iniciar();
@@ -124,6 +134,7 @@ async function carregarTudo() {
 async function carregarMesa() {
   if (!myMesa) db = emptyDb();
   else db = completar(Net.on ? await Net.estado(myMesa).catch(() => null) : lerLocal(dbKey()), emptyDb());
+  syncIlhas();
   if (Net.on) Net.assinar(myMesa ? ['g', myMesa] : ['g']);
 }
 async function abrirMesa(id) {
@@ -150,7 +161,7 @@ const bc = ('BroadcastChannel' in window) ? new BroadcastChannel('mesa-dos-mares
 const dirty = { accounts: true, mesas: true, chars: true, tokens: true, msgs: true, combat: true, ships: true, world: true, naval: true, cargos: true, islandCfg: true, missions: true };
 const listeners = []; // fn(table, row, remote) chamado em toda mudança (local ou remota)
 const bcHandlers = {}; // mensagens efêmeras de outros módulos: bcHandlers[tipo] = fn(msg)
-function emit(table, row, remote) { dirty[table] = true; listeners.forEach(f => f(table, row, remote)); }
+function emit(table, row, remote) { dirty[table] = true; if (table === 'world') syncIlhas();listeners.forEach(f => f(table, row, remote)); }
 
 const Net = (() => {
   let on = false, cid = uid(), q = [], timer = 0, leitor = null, escopos = [], urls = [], lan = false, vezes = 0, sb = false;
@@ -195,7 +206,7 @@ const Net = (() => {
     if (leitor === ctl && !ctl.signal.aborted) setTimeout(() => { if (leitor === ctl) ler(); }, 2000);
   }
   async function ressincronizar() {
-    try { G = completar(await estado('g'), { accounts: {}, mesas: {} }); if (myMesa) db = completar(await estado(myMesa), emptyDb()); Object.keys(dirty).forEach(k => { dirty[k] = true; }); } catch (e) { /* tenta na próxima */ }
+    try { G = completar(await estado('g'), { accounts: {}, mesas: {} }); if (myMesa) db = completar(await estado(myMesa), emptyDb()); syncIlhas(); Object.keys(dirty).forEach(k => { dirty[k] = true; }); } catch (e) { /* tenta na próxima */ }
   }
   function parar() { on = false; sb = false; }
   return { iniciar, parar, estado, enviar, assinar, get sb() { return sb; }, entrarCodigo: c => SB.entrarCodigo(c), get on() { return on; }, get cid() { return cid; }, get urls() { return urls; }, get lan() { return lan; } };

@@ -152,8 +152,16 @@ window.CONFIG = {
   navalFleeCD:    { value: 18,   min: 8,   max: 30,  step: 1 },     // CD para fugir pela borda do mapa
   navalNpcDelay:  { value: 1.1,  min: 0.2, max: 4,   step: 0.1 },   // s antes de o navio inimigo agir
 
+  // ---- Carta do mar (água viva) ----
+  marVel:         { value: 1,    min: 0,   max: 3,   step: 0.1 },   // velocidade da animação da água (0 = parada)
+  marEspuma:      { value: 1,    min: 0,   max: 3,   step: 0.1 },   // quantidade de espuma que pisca nas ondas
+  marBaleias:     { value: 2,    min: 0,   max: 6,   step: 1 },     // sombras de baleia por mar
+  marRedemoinhos: { value: 2,    min: 0,   max: 5,   step: 1 },     // redemoinhos por mar
+  marBarcos:      { value: 3,    min: 0,   max: 8,   step: 1 },     // barquinhos de enfeite por mar
+  marGaivotas:    { value: 4,    min: 0,   max: 12,  step: 1 },     // gaivotas por mar
+
   // ---- Ilha (battlemap 2D) ----
-  cellPx:         { value: 48,   min: 24,  max: 96,  step: 4 },     // px por quadrado no zoom 1
+  cellPx:        { value: 48,   min: 24,  max: 96,  step: 4 },     // px por quadrado no zoom 1
   tokenImgSize:   { value: 128,  min: 48,  max: 256, step: 16 },    // px da imagem enviada (recorte quadrado)
   zoomMin:        { value: 0.3,  min: 0.1, max: 1,   step: 0.05 },
   zoomMax:        { value: 3,    min: 1,   max: 8,   step: 0.25 },
