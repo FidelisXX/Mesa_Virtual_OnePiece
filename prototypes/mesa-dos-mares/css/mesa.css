@@ -40,6 +40,7 @@ body.in-title #app, body.in-create #app { grid-template-columns: minmax(0, 1fr);
 kbd, .kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin: 0 2px; border: 1px solid var(--glass-border); border-bottom-width: 2px; border-radius: 6px; background: var(--code); font: 600 12px/1.5 inherit; text-align: center; color: inherit; }
 #islandHud { position: absolute; left: 12px; top: 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: calc(100% - 24px); }
 #islandHud .plate { padding: 7px 14px; font-size: 15px; }
+#grupoPlate { display: flex; align-items: center; gap: 8px; font-size: 14px !important; } #grupoPlate[hidden] { display: none; }
 #islandHelp { position: absolute; left: 12px; bottom: 12px; padding: 6px 12px; font-size: 13px; color: var(--muted); }
 #hotbar { position: absolute; left: 50%; bottom: 44px; transform: translateX(-50%); display: flex; gap: 6px; padding: 6px; max-width: calc(100% - 24px); overflow-x: auto; }
 .hot { display: flex; flex-direction: column; align-items: flex-start; min-width: 112px; padding: 6px 10px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); text-align: left; color: var(--text); }

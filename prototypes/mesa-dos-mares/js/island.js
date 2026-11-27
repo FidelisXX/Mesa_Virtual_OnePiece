@@ -10,6 +10,7 @@ const Island = (() => {
   const IS = id => Object.assign({}, ISLAND[id], (db.islandCfg && db.islandCfg[id]) || {});
   let sel = null, drag = null, pan = null, isl = null, cv = null, spaceDown = false;
   let tmoveClock = 0, editTool = null, lastPing = 0;
+  let grupo = new Set(), caixa = null, modoArea = false;   // o Mestre seleciona vários tokens numa área e arrasta todos juntos
   const MPQ = 1.5;   // metros por quadrado (o livro usa a grade de 1,5 m)
   const pings = [];  // pontos marcados no mapa: { x, y, t, nome, cor } (x e y em quadrados)
   function addPing(p) { pings.push({ x: p.x, y: p.y, t: state.t, nome: p.nome || '', cor: p.cor || null }); if (pings.length > 12) pings.shift(); }
@@ -88,10 +89,19 @@ const Island = (() => {
       if (editTool && isGM() && e.button === 0 && !spaceDown) { editAt(toWorld(e)); return; }
       const w = toWorld(e), t = (e.button === 0 && !spaceDown) ? hitToken(w) : null;
       if (t) {
+        if (isGM() && grupo.size > 1 && grupo.has(t.id)) {   // arrastar um do grupo leva todos, mantendo as distâncias
+          const ini = {}; grupo.forEach(gid => { const o = db.tokens[gid]; if (o) ini[gid] = { x: o.x, y: o.y }; });
+          drag = { id: t.id, ox: w.x - t.x * tune.cellPx, oy: w.y - t.y * tune.cellPx, x0: t.x, y0: t.y, sx: e.clientX, sy: e.clientY, moved: false, ok: true, ini };
+          dirty.tokens = true; return;
+        }
+        if (grupo.size) grupo.clear();
         sel = t.id; dirty.tokens = true; uiSelChanged();
         drag = { id: t.id, ox: w.x - t.x * tune.cellPx, oy: w.y - t.y * tune.cellPx, x0: t.x, y0: t.y, sx: e.clientX, sy: e.clientY, moved: false, ok: canMove(t) };
       } else {
-        if (e.button === 0 && !spaceDown) { sel = null; uiSelChanged(); }
+        if (isGM() && e.button === 0 && !spaceDown && (e.shiftKey || modoArea)) {   // Shift (ou o botão Selecionar área) + arrastar no vazio: a caixa de seleção
+          caixa = { x0: w.x, y0: w.y, x1: w.x, y1: w.y }; grupo.clear(); sel = null; uiSelChanged(); dirty.tokens = true; return;
+        }
+        if (e.button === 0 && !spaceDown) { sel = null; if (grupo.size) { grupo.clear(); dirty.tokens = true; } uiSelChanged(); }
         const c = cam(isl); pan = { sx: e.clientX, sy: e.clientY, cx: c.x, cy: c.y, moved: false, ping: e.button === 0 && !spaceDown && !editTool };
       }
     });
@@ -102,6 +112,7 @@ const Island = (() => {
         const z = clamp(pinch.z * s.d / pinch.d, tune.zoomMin, tune.zoomMax), k = z / pinch.z, px = pinch.mx - r.left, py = pinch.my - r.top;
         c.z = z; c.x = px - (px - pinch.cx) * k + (s.mx - pinch.mx); c.y = py - (py - pinch.cy) * k + (s.my - pinch.my); dirty.tokens = true; saveCam(isl); return;
       }
+      if (caixa) { const w = toWorld(e); caixa.x1 = w.x; caixa.y1 = w.y; dirty.tokens = true; return; }
       if (drag) {
         if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 4) return;
         if (!drag.moved && !drag.ok) { toast('Esse token não é seu.'); drag = null; return; }
@@ -109,7 +120,9 @@ const Island = (() => {
         drag.moved = true;
         const t = db.tokens[drag.id], w = toWorld(e); if (!t) { drag = null; return; }
         t.x = (w.x - drag.ox) / tune.cellPx; t.y = (w.y - drag.oy) / tune.cellPx; dirty.tokens = true;
-        tmoveClock++; if (tmoveClock % 3 === 0) sendTokMove(t.id, t.x, t.y);
+        const outros = drag.ini ? Object.keys(drag.ini).filter(gid => gid !== t.id && db.tokens[gid]) : [];
+        outros.forEach(gid => { const o = db.tokens[gid]; o.x = drag.ini[gid].x + (t.x - drag.x0); o.y = drag.ini[gid].y + (t.y - drag.y0); });
+        tmoveClock++; if (tmoveClock % 3 === 0) { sendTokMove(t.id, t.x, t.y); outros.forEach(gid => sendTokMove(gid, db.tokens[gid].x, db.tokens[gid].y)); }
       } else if (pan) {
         if (!pan.moved && Math.hypot(e.clientX - pan.sx, e.clientY - pan.sy) < 4) return; pan.moved = true;
         const c = cam(isl); c.x = pan.cx + e.clientX - pan.sx; c.y = pan.cy + e.clientY - pan.sy; dirty.tokens = true; saveCam(isl);
@@ -118,7 +131,21 @@ const Island = (() => {
     const up = e => {
       if (e && e.pointerId != null) pts.delete(e.pointerId); if (pts.size < 2) pinch = null;
       if (e && pts.size > 0 && !drag) return; // sobrou um dedo depois da pinça: não vira arrasto
-      if (drag && drag.moved) {
+      if (caixa) {   // fecha a caixa: quem tem o centro dentro dela entra no grupo
+        const cell = tune.cellPx, x0 = Math.min(caixa.x0, caixa.x1) / cell, x1 = Math.max(caixa.x0, caixa.x1) / cell, y0 = Math.min(caixa.y0, caixa.y1) / cell, y1 = Math.max(caixa.y0, caixa.y1) / cell;
+        const dentro = tokensOn(isl).filter(o => { const p = pegada(o), cx = o.x + p / 2, cy = o.y + p / 2; return cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1; });
+        caixa = null; dirty.tokens = true;
+        if (dentro.length === 1) sel = dentro[0].id; else grupo = new Set(dentro.map(o => o.id));
+        uiSelChanged(); drag = null; pan = null; return;
+      }
+      if (drag && drag.moved && drag.ini) {   // o grupo: se algum não cabe no destino, todos tremem e voltam
+        const ids = Object.keys(drag.ini).filter(gid => db.tokens[gid]), main = db.tokens[drag.id] || {};
+        const ddx = Math.round(main.x - drag.x0), ddy = Math.round(main.y - drag.y0), doGrupo = o => drag.ini[o.id] != null;
+        const bloq = ids.some(gid => ocupado(isl, drag.ini[gid].x + ddx, drag.ini[gid].y + ddy, db.tokens[gid].tam, doGrupo));
+        ids.forEach(gid => { const o = db.tokens[gid]; if (bloq) { o.x = drag.ini[gid].x; o.y = drag.ini[gid].y; tremer(gid); } else { o.x = drag.ini[gid].x + ddx; o.y = drag.ini[gid].y + ddy; } commit('tokens', gid, o); });
+        tone(bloq ? 140 : 220, bloq ? 0.12 : 0.06, 'square', 0.12);
+      }
+      else if (drag && drag.moved) {
         const t = db.tokens[drag.id];
         if (t) {
           const nx = Math.round(t.x), ny = Math.round(t.y);
@@ -204,7 +231,7 @@ const Island = (() => {
     });
   }
   function draw(g, W, H, id) {
-    if (isl !== id) { isl = id; sel = null; uiSelChanged(); }
+    if (isl !== id) { isl = id; sel = null; grupo.clear(); caixa = null; uiSelChanged(); }
     const c = cam(id); if (c.fit || !c.z) fitCam(id, W, H);
     // mesa de madeira escura em volta do mapa
     g.fillStyle = canvasBg(); g.fillRect(0, 0, W, H);
@@ -219,21 +246,28 @@ const Island = (() => {
     tokensOn(id).sort(drawOrder).forEach(t => {
       const z = t.tam || 1, tr = tremidas[t.id] != null ? state.t - tremidas[t.id] : TREME, dx = tr < TREME ? Math.sin(tr * 55) * cell * 0.14 * (1 - tr / TREME) : 0;
       if (tr >= TREME) delete tremidas[t.id];
-      drawToken(g, t, t.x * cell + dx, t.y * cell, cell * z, { sel: t.id === sel, turn: t.id === turnId, bars: canSeeBars(t), label: true }); statusIcons(g, t, t.x * cell, t.y * cell, cell * z); if (t.loja) shopBadge(g, t.x * cell, t.y * cell, cell * z);
+      drawToken(g, t, t.x * cell + dx, t.y * cell, cell * z, { sel: t.id === sel || grupo.has(t.id), turn: t.id === turnId, bars: canSeeBars(t), label: true }); statusIcons(g, t, t.x * cell, t.y * cell, cell * z); if (t.loja) shopBadge(g, t.x * cell, t.y * cell, cell * z);
     });
     // a metragem do arrasto: de onde o token saiu até onde ele está (1 quadrado = 1,5 m; a diagonal conta como 1)
     if (drag && drag.moved && db.tokens[drag.id]) {
       const t = db.tokens[drag.id], z = t.tam || 1, sx = (drag.x0 + z / 2) * cell, sy = (drag.y0 + z / 2) * cell, ex = (t.x + z / 2) * cell, ey = (t.y + z / 2) * cell;
       const sq = Math.max(Math.abs(Math.round(t.x - drag.x0)), Math.abs(Math.round(t.y - drag.y0))), metros = sq * MPQ, dono = db.chars[t.owner];
       const max = dono && !dono.gm ? ((RACES[dono.raca] || {}).desloc || 9) : 0, alem = max && metros > max, cor = alem ? '#e0533d' : '#2f8f5b';
-      const tx = Math.round(t.x), ty = Math.round(t.y), bloq = ocupado(id, tx, ty, t.tam, o => o.id === t.id), pz = pegada(t) * cell;
-      g.save(); g.setLineDash([cell * 0.15, cell * 0.1]); g.lineWidth = cell * 0.07; g.strokeStyle = bloq ? '#e0533d' : '#2f8f5b'; if (bloq) { g.fillStyle = 'rgba(224,83,61,.22)'; g.fillRect(tx * cell, ty * cell, pz, pz); } g.strokeRect(tx * cell, ty * cell, pz, pz); g.restore();
+      const ign = o => o.id === t.id || !!(drag.ini && drag.ini[o.id] != null), membros = drag.ini ? Object.keys(drag.ini).map(gid => db.tokens[gid]).filter(Boolean) : [t];
+      const alvos = membros.map(o => { const ox = Math.round(o.x), oy = Math.round(o.y); return { ox, oy, pz: pegada(o) * cell, b: ocupado(id, ox, oy, o.tam, ign) }; }), bloq = alvos.some(a => a.b);
+      g.save(); g.setLineDash([cell * 0.15, cell * 0.1]); g.lineWidth = cell * 0.07;
+      alvos.forEach(a => { g.strokeStyle = bloq ? '#e0533d' : '#2f8f5b'; if (a.b) { g.fillStyle = 'rgba(224,83,61,.22)'; g.fillRect(a.ox * cell, a.oy * cell, a.pz, a.pz); } g.strokeRect(a.ox * cell, a.oy * cell, a.pz, a.pz); });
+      g.restore();
       g.save(); g.setLineDash([cell * 0.2, cell * 0.14]); g.lineWidth = cell * 0.09; g.strokeStyle = cor; g.lineCap = 'round'; g.beginPath(); g.moveTo(sx, sy); g.lineTo(ex, ey); g.stroke(); g.setLineDash([]);
       g.beginPath(); g.arc(sx, sy, cell * 0.2, 0, 7); g.fillStyle = cor; g.fill();
       const txt = (bloq ? 'Ocupado · ' : '') + metros.toLocaleString('pt-BR') + ' m' + (max ? ' / ' + max + ' m' : '') + ' · ' + sq + (sq === 1 ? ' quadrado' : ' quadrados');
       g.font = '700 ' + Math.round(cell * 0.34) + 'px Segoe UI, sans-serif'; const tw = g.measureText(txt).width + cell * 0.5, bx = ex - tw / 2, by = ey - z * cell / 2 - cell * 0.95;
       g.fillStyle = 'rgba(20,24,28,.88)'; g.beginPath(); g.roundRect ? g.roundRect(bx, by, tw, cell * 0.6, cell * 0.2) : g.rect(bx, by, tw, cell * 0.6); g.fill();
       g.fillStyle = alem || bloq ? '#ff9a8a' : '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, ex, by + cell * 0.31); g.restore();
+    }
+    if (caixa) {   // a caixa de seleção do Mestre
+      const bx = Math.min(caixa.x0, caixa.x1), by = Math.min(caixa.y0, caixa.y1), bw = Math.abs(caixa.x1 - caixa.x0), bh = Math.abs(caixa.y1 - caixa.y0);
+      g.save(); g.fillStyle = 'rgba(47,143,91,.14)'; g.strokeStyle = '#2f8f5b'; g.lineWidth = 2 / c.z; g.setLineDash([8 / c.z, 6 / c.z]); g.fillRect(bx, by, bw, bh); g.strokeRect(bx, by, bw, bh); g.restore();
     }
     // os pings: anéis que se abrem e somem
     for (let i = pings.length - 1; i >= 0; i--) {
@@ -249,5 +283,7 @@ const Island = (() => {
 
   // tela: o ponto da tela no centro de um quadrado do mapa aberto (útil para apontar e para testes)
   const tela = (x, y) => { const c = cam(isl), r = cv.getBoundingClientRect(); return { x: r.left + c.x + (x + 0.5) * tune.cellPx * c.z, y: r.top + c.y + (y + 0.5) * tune.cellPx * c.z }; };
-  return { attach, draw, populate, ensureMyToken, addToken, tokensOn, canMove, freeSpot, ocupado, tela, tremendo: tid => tremidas[tid] != null, get sel() { return sel; }, set sel(v) { sel = v; }, get editTool() { return editTool; }, set editTool(v) { editTool = v || null; dirty.tokens = true; uiSelChanged(); }, fit: id => { cam(id).fit = true; dirty.tokens = true; } };
+  return { attach, draw, populate, ensureMyToken, addToken, tokensOn, canMove, freeSpot, ocupado, tela, tremendo: tid => tremidas[tid] != null,
+    get grupo() { return [...grupo].filter(gid => db.tokens[gid]); }, limparGrupo() { grupo.clear(); dirty.tokens = true; uiSelChanged(); },
+    get modoArea() { return modoArea; }, set modoArea(v) { modoArea = !!v; }, get sel() { return sel; }, set sel(v) { sel = v; }, get editTool() { return editTool; }, set editTool(v) { editTool = v || null; dirty.tokens = true; uiSelChanged(); }, fit: id => { cam(id).fit = true; dirty.tokens = true; } };
 })();

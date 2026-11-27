@@ -26,11 +26,13 @@
         <div class="plate" id="islName"></div>
         <button class="btn" id="btnCarta">Carta náutica</button>
         <button class="btn wood" id="btnCentro">Centralizar mapa</button>
+        <button class="btn wood gm-only" id="btnArea" title="Ligado: arrastar no vazio seleciona os tokens de uma área (no computador, segurar Shift faz o mesmo)">Selecionar área</button>
+        <div class="plate" id="grupoPlate" hidden></div>
         <div class="plate" id="turnPlate" hidden></div>
       </div>
       <button id="trilhaPill" class="plate" hidden title="Trilha sonora da mesa"><span class="tp-ic" aria-hidden="true">♪</span><span class="tp-t"><b>Trilha</b> · <span id="tpTxt">sem música</span></span><span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span></button>
       <div id="hotbar" class="plate" hidden></div>
-      <div id="islandHelp" class="plate" hidden>1-9 técnicas · Arraste tokens · roda: zoom · <kbd>Espaço</kbd> ou botão do meio: mover o mapa · <kbd>F</kbd> próximo inimigo · <kbd>Enter</kbd> chat</div>
+      <div id="islandHelp" class="plate" hidden>1-9 técnicas · Arraste tokens · roda: zoom · <kbd>Espaço</kbd> ou botão do meio: mover o mapa · <kbd>F</kbd> próximo inimigo · <kbd>Enter</kbd> chat<span class="gm-only"> · <kbd>Shift</kbd> + arrastar: selecionar área</span></div>
     </div>
     <div id="tpad" hidden>
       <div class="tp-l"><button data-hold="KeyA" aria-label="Virar à esquerda">◀</button><button data-hold="KeyD" aria-label="Virar à direita">▶</button></div>
@@ -902,6 +904,8 @@ function bindPanels() {
   $('wideBtn').onclick = () => { setSide(null); const w = document.body.classList.toggle('wide'); try { localStorage.setItem('mdm-wide', w ? '1' : '0'); } catch (e) { /* tudo bem */ } };
   $('btnCarta').onclick = () => { if (me().gm) { worldOpen = true; World.sel = null; worldSig = ''; } else { chartOpen = true; Travel.sel = null; } mesaDirty = true; };
   $('btnCentro').onclick = () => Island.fit(currentView());
+  $('btnArea').onclick = () => { Island.modoArea = !Island.modoArea; };
+  $('grupoPlate').onclick = e => { if (e.target.id === 'grupoX') Island.limparGrupo(); };
   $('trilhaPill').onclick = () => { if ($('trilhaPill').dataset.acao === 'ativar') Trilha.ativar(); else Trilha.modal(); trilhaSig = ''; };
   $('chatBgFile').onchange = e => { Chat.setBg(e.target.files[0]); e.target.value = ''; };
   $('chatBgClear').onclick = () => Chat.clearBg();
@@ -937,6 +941,8 @@ function updateHud() {
   const isl = mode === 'island'; $('islandHud').hidden = !isl; $('islandHelp').hidden = !isl; renderHotbar(isl); renderChips();
   if (isl) {
     $('islName').innerHTML = `<b>${esc(chanName(v))}</b>` + (Island.editTool ? ' <small>· desenhando: ' + ({ casa: 'casa', casaG: 'casa grande', arvore: 'árvore', apagar: 'borracha' }[Island.editTool]) + '</small>' : ''); $('btnCarta').textContent = c.gm ? 'Mundo' : 'Carta náutica';
+    { const gp = $('grupoPlate'), gr = Island.grupo, sg = gr.length + '|' + Island.modoArea; $('btnArea').classList.toggle('wood', !Island.modoArea); $('btnArea').textContent = Island.modoArea ? 'Selecionar área: ligado' : 'Selecionar área';
+      gp.hidden = !(c.gm && gr.length); if (!gp.hidden && gp.dataset.sg !== sg) { gp.dataset.sg = sg; gp.innerHTML = '<b>' + gr.length + ' tokens</b> selecionados · arraste um para mover todos · <kbd>Delete</kbd> remove <button class="btn sm wood" id="grupoX">Limpar</button>'; } }
     const cb = db.combat[v], tp = $('turnPlate');
     if (cb && cb.on) {
       const ids = cb.order.filter(id => db.tokens[id]), sig = JSON.stringify([cb.turn, cb.round, ids.map(id => [id, db.tokens[id].hp > 0, db.tokens[id].nome]), Island.sel, ids.length ? cb.vals : 0]);
@@ -970,6 +976,11 @@ function updateHud() {
 
 // Delete: o Mestre tira do mapa o token selecionado (o token de um jogador volta sozinho, então esse fica)
 function removeSelToken() {
+  const gr = Island.grupo;
+  if (gr.length && isGM()) {   // o grupo selecionado: sai todo mundo, menos os tokens de jogador (que voltariam sozinhos)
+    const sai = gr.map(i => db.tokens[i]).filter(t => t && !t.pc); sai.forEach(t => commit('tokens', t.id, null)); Island.limparGrupo(); mesaDirty = true;
+    toast('Removidos: ' + sai.length + ' token(s)' + (sai.length < gr.length ? ' (os de jogador ficam)' : '')); return;
+  }
   const t = db.tokens[Island.sel]; if (!t || !isGM()) return;
   if (t.pc) { toast('O token de um jogador volta sozinho. Para tirá-lo do mapa, leve o personagem a outro lugar.'); return; }
   commit('tokens', t.id, null); Island.sel = null; mesaDirty = true; toast('Removido: ' + t.nome);
