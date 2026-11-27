@@ -482,3 +482,22 @@ production/session-logs/session-cost.md
 production/session-logs/session-log.md
 ---
 
+## Session End: 20261127_152408
+### Commits
+c298cfc iteration 40: added Mestre seleciona tokens numa area e arrasta todos juntos
+39dc2ec iteration 39: added dois tokens nao ocupam o mesmo espaco (o token treme e volta)
+3a37d5e iteration 38: added pilula da trilha sonora no topo do mapa
+---
+
+## Session End: 20261127_153151
+### Commits
+b4ebace iteration 41: added mover tokens com as setas do teclado
+c298cfc iteration 40: added Mestre seleciona tokens numa area e arrasta todos juntos
+39dc2ec iteration 39: added dois tokens nao ocupam o mesmo espaco (o token treme e volta)
+3a37d5e iteration 38: added pilula da trilha sonora no topo do mapa
+### Uncommitted Changes
+production/session-logs/.session-end.hash
+production/session-logs/session-cost.md
+production/session-logs/session-log.md
+---
+
