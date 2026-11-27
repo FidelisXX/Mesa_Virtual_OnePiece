@@ -237,7 +237,7 @@ const Combat = (() => {
     else {
       let steps = 3; while (steps-- > 0 && cheb(t, tg) > reach) {
         const nx = t.x + Math.sign(tg.x - t.x), ny = t.y + Math.sign(tg.y - t.y);
-        if (!tokensOn(isl).some(o => o !== t && o.hp > 0 && o.x === nx && o.y === ny)) { t.x = nx; t.y = ny; } else break;
+        if (!Island.ocupado(isl, nx, ny, t.tam, o => o.id === t.id)) { t.x = nx; t.y = ny; } else break;
       }
       commit('tokens', t.id, t);
     }

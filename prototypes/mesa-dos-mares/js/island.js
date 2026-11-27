@@ -54,6 +54,14 @@ const Island = (() => {
   }
   const tokensOn = id => Object.values(db.tokens).filter(t => t.isl === id);
   const canMove = t => isGM() || t.owner === myId;
+  // Dois tokens nunca ocupam o mesmo espaço: cada um cobre tam × tam quadrados (no mínimo 1)
+  const pegada = t => Math.max(1, Math.round((t && t.tam) || 1));
+  const tremidas = {}, TREME = 0.45;   // quando o token tentou ir para um lugar ocupado (ele treme um instante)
+  const tremer = tid => { tremidas[tid] = state.t; dirty.tokens = true; };
+  function ocupado(id, x, y, tam, ignora) {
+    const a = Math.max(1, Math.round(tam || 1));
+    return tokensOn(id).some(o => !(ignora && ignora(o)) && x < o.x + pegada(o) && o.x < x + a && y < o.y + pegada(o) && o.y < y + a);
+  }
   const canSeeBars = t => t.pub || isGM() || t.owner === myId || t.owner !== 'gm';
 
   function toWorld(e) {
@@ -112,7 +120,12 @@ const Island = (() => {
       if (e && pts.size > 0 && !drag) return; // sobrou um dedo depois da pinça: não vira arrasto
       if (drag && drag.moved) {
         const t = db.tokens[drag.id];
-        if (t) { t.x = Math.round(t.x); t.y = Math.round(t.y); commit('tokens', t.id, t); tone(220, 0.06, 'square', 0.12); }
+        if (t) {
+          const nx = Math.round(t.x), ny = Math.round(t.y);
+          if (ocupado(isl, nx, ny, t.tam, o => o.id === t.id)) { t.x = drag.x0; t.y = drag.y0; tremer(t.id); tone(140, 0.12, 'square', 0.12); }   // lugar ocupado: o token treme e volta
+          else { t.x = nx; t.y = ny; tone(220, 0.06, 'square', 0.12); }
+          commit('tokens', t.id, t);
+        }
       }
       else if (drag && !drag.moved) { const t = db.tokens[drag.id]; if (t && t.loja && typeof Shop !== 'undefined' && Shop.open) Shop.open(t.id); } // clicar num lojista abre o balcão
       if (pan && pan.ping && !pan.moved && !drag && e && e.type === 'pointerup' && isl && scene === 'play' && stageMode() === 'island') ping(toWorld(e));   // um toque num lugar vazio marca o ponto
@@ -131,14 +144,14 @@ const Island = (() => {
   }
 
   // Um lugar vazio perto do cais para um token novo.
-  function freeSpot(id, cx, cy) {
-    const occ = new Set(tokensOn(id).map(t => t.x + ',' + t.y)), L = islandMap(IS(id), tune.cellPx).L;
+  function freeSpot(id, cx, cy, tam) {
+    const L = islandMap(IS(id), tune.cellPx).L, a = Math.max(1, Math.round(tam || 1));
     cx = cx == null ? Math.round(L.cols / 2 - 1) : cx; cy = cy == null ? Math.round(L.rows * 0.72) : cy;
     for (let r = 0; r < 12; r++) for (let dx = -r; dx <= r; dx++) for (let dy = -r; dy <= r; dy++) {
       if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
       const x = cx + dx, y = cy + dy;
-      if (x < 1 || y < 1 || x >= L.cols - 1 || y >= L.rows - 1) continue;
-      if (!occ.has(x + ',' + y) && (L.inside(x + 0.5, y + 0.5) || L.special === 'navio')) return { x, y };
+      if (x < 1 || y < 1 || x + a > L.cols - 1 || y + a > L.rows - 1) continue;
+      if (!ocupado(id, x, y, a) && (L.inside(x + a / 2, y + a / 2) || L.special === 'navio')) return { x, y };
     }
     return { x: 12, y: 12 };
   }
@@ -165,7 +178,7 @@ const Island = (() => {
   function ensureMyToken(id) {
     const c = me(); if (!c || c.gm || !isIsland(id)) return;
     if (tokensOn(id).some(t => t.owner === myId && t.pc)) return;
-    const p = freeSpot(id), tid = 'pc-' + myId + '-' + id;
+    const p = freeSpot(id, null, null, (RACES[c.raca] || {}).size || 1), tid = 'pc-' + myId + '-' + id;
     commit('tokens', tid, { id: tid, isl: id, owner: myId, pc: true, nome: c.nome, img: c.img || null, x: p.x, y: p.y,
       hp: c.hp, hpMax: c.hpMax, st: c.st, stMax: c.stMax, pub: true, seed: Math.abs(hashStr(myId)), lv: c.lv, tam: (RACES[c.raca] || {}).size || 1, status: {} });
   }
@@ -204,19 +217,23 @@ const Island = (() => {
     // tokens: NPCs embaixo dos jogadores
     const cb = db.combat[id], turnId = cb && cb.on ? cb.order[cb.turn] : null;
     tokensOn(id).sort(drawOrder).forEach(t => {
-      const z = t.tam || 1; drawToken(g, t, t.x * cell, t.y * cell, cell * z, { sel: t.id === sel, turn: t.id === turnId, bars: canSeeBars(t), label: true }); statusIcons(g, t, t.x * cell, t.y * cell, cell * z); if (t.loja) shopBadge(g, t.x * cell, t.y * cell, cell * z);
+      const z = t.tam || 1, tr = tremidas[t.id] != null ? state.t - tremidas[t.id] : TREME, dx = tr < TREME ? Math.sin(tr * 55) * cell * 0.14 * (1 - tr / TREME) : 0;
+      if (tr >= TREME) delete tremidas[t.id];
+      drawToken(g, t, t.x * cell + dx, t.y * cell, cell * z, { sel: t.id === sel, turn: t.id === turnId, bars: canSeeBars(t), label: true }); statusIcons(g, t, t.x * cell, t.y * cell, cell * z); if (t.loja) shopBadge(g, t.x * cell, t.y * cell, cell * z);
     });
     // a metragem do arrasto: de onde o token saiu até onde ele está (1 quadrado = 1,5 m; a diagonal conta como 1)
     if (drag && drag.moved && db.tokens[drag.id]) {
       const t = db.tokens[drag.id], z = t.tam || 1, sx = (drag.x0 + z / 2) * cell, sy = (drag.y0 + z / 2) * cell, ex = (t.x + z / 2) * cell, ey = (t.y + z / 2) * cell;
       const sq = Math.max(Math.abs(Math.round(t.x - drag.x0)), Math.abs(Math.round(t.y - drag.y0))), metros = sq * MPQ, dono = db.chars[t.owner];
       const max = dono && !dono.gm ? ((RACES[dono.raca] || {}).desloc || 9) : 0, alem = max && metros > max, cor = alem ? '#e0533d' : '#2f8f5b';
+      const tx = Math.round(t.x), ty = Math.round(t.y), bloq = ocupado(id, tx, ty, t.tam, o => o.id === t.id), pz = pegada(t) * cell;
+      g.save(); g.setLineDash([cell * 0.15, cell * 0.1]); g.lineWidth = cell * 0.07; g.strokeStyle = bloq ? '#e0533d' : '#2f8f5b'; if (bloq) { g.fillStyle = 'rgba(224,83,61,.22)'; g.fillRect(tx * cell, ty * cell, pz, pz); } g.strokeRect(tx * cell, ty * cell, pz, pz); g.restore();
       g.save(); g.setLineDash([cell * 0.2, cell * 0.14]); g.lineWidth = cell * 0.09; g.strokeStyle = cor; g.lineCap = 'round'; g.beginPath(); g.moveTo(sx, sy); g.lineTo(ex, ey); g.stroke(); g.setLineDash([]);
       g.beginPath(); g.arc(sx, sy, cell * 0.2, 0, 7); g.fillStyle = cor; g.fill();
-      const txt = metros.toLocaleString('pt-BR') + ' m' + (max ? ' / ' + max + ' m' : '') + ' · ' + sq + (sq === 1 ? ' quadrado' : ' quadrados');
+      const txt = (bloq ? 'Ocupado · ' : '') + metros.toLocaleString('pt-BR') + ' m' + (max ? ' / ' + max + ' m' : '') + ' · ' + sq + (sq === 1 ? ' quadrado' : ' quadrados');
       g.font = '700 ' + Math.round(cell * 0.34) + 'px Segoe UI, sans-serif'; const tw = g.measureText(txt).width + cell * 0.5, bx = ex - tw / 2, by = ey - z * cell / 2 - cell * 0.95;
       g.fillStyle = 'rgba(20,24,28,.88)'; g.beginPath(); g.roundRect ? g.roundRect(bx, by, tw, cell * 0.6, cell * 0.2) : g.rect(bx, by, tw, cell * 0.6); g.fill();
-      g.fillStyle = alem ? '#ff9a8a' : '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, ex, by + cell * 0.31); g.restore();
+      g.fillStyle = alem || bloq ? '#ff9a8a' : '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, ex, by + cell * 0.31); g.restore();
     }
     // os pings: anéis que se abrem e somem
     for (let i = pings.length - 1; i >= 0; i--) {
@@ -230,5 +247,7 @@ const Island = (() => {
     g.restore();
   }
 
-  return { attach, draw, populate, ensureMyToken, addToken, tokensOn, canMove, freeSpot, get sel() { return sel; }, set sel(v) { sel = v; }, get editTool() { return editTool; }, set editTool(v) { editTool = v || null; dirty.tokens = true; uiSelChanged(); }, fit: id => { cam(id).fit = true; dirty.tokens = true; } };
+  // tela: o ponto da tela no centro de um quadrado do mapa aberto (útil para apontar e para testes)
+  const tela = (x, y) => { const c = cam(isl), r = cv.getBoundingClientRect(); return { x: r.left + c.x + (x + 0.5) * tune.cellPx * c.z, y: r.top + c.y + (y + 0.5) * tune.cellPx * c.z }; };
+  return { attach, draw, populate, ensureMyToken, addToken, tokensOn, canMove, freeSpot, ocupado, tela, tremendo: tid => tremidas[tid] != null, get sel() { return sel; }, set sel(v) { sel = v; }, get editTool() { return editTool; }, set editTool(v) { editTool = v || null; dirty.tokens = true; uiSelChanged(); }, fit: id => { cam(id).fit = true; dirty.tokens = true; } };
 })();
