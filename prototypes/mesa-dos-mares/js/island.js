@@ -75,6 +75,28 @@ const Island = (() => {
   }
   const drawOrder = (a, b) => (a.owner === 'gm' ? 0 : 1) - (b.owner === 'gm' ? 0 : 1);
 
+  // Setas: um quadrado por toque. Move o grupo do Mestre, o token selecionado ou, sem seleção, o meu token.
+  // Mesmas regras do arrasto: só quem pode mover, o preso não anda (salvo pelo Mestre) e lugar ocupado ou fora do mapa faz tremer.
+  function passo(dx, dy) {
+    if (drag || caixa || !isl) return false;
+    let ids = grupo.size > 1 && isGM() ? [...grupo].filter(i => db.tokens[i]) : (sel && db.tokens[sel] && db.tokens[sel].isl === isl ? [sel] : []);
+    if (!ids.length && !isGM()) { const meu = tokensOn(isl).find(t => t.owner === myId && t.pc); if (meu) ids = [meu.id]; }
+    if (!ids.length) return false;
+    const toks = ids.map(i => db.tokens[i]), dentro = new Set(ids), L = islandMap(IS(isl), tune.cellPx).L;
+    const nega = () => { toks.forEach(t => tremer(t.id)); tone(140, 0.08, 'square', 0.1); return true; };
+    if (toks.length === 1 && (!canMove(toks[0]) || (toks[0].status && toks[0].status.prender > 0 && !isGM()))) return nega();
+    const destino = t => ({ x: Math.round(t.x) + dx, y: Math.round(t.y) + dy });
+    if (toks.some(t => { const d = destino(t), a = pegada(t); return d.x < 0 || d.y < 0 || d.x + a > L.cols || d.y + a > L.rows || ocupado(isl, d.x, d.y, t.tam, o => dentro.has(o.id)); })) return nega();
+    toks.forEach(t => { const d = destino(t); t.x = d.x; t.y = d.y; commit('tokens', t.id, t); });
+    dirty.tokens = true; tone(220, 0.04, 'square', 0.08); return true;
+  }
+  const SETAS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+  addEventListener('keydown', e => {
+    const d = SETAS[e.code]; if (!d || typing(e) || scene !== 'play' || stageMode() !== 'island') return;
+    const ov = document.getElementById('overlay'); if (ov && ov.className === 'on') return;   // com uma janela aberta, as setas não mexem no mapa
+    if (passo(d[0], d[1])) e.preventDefault();
+  });
+
   function attach(canvas) {
     cv = canvas;
     // Pinça com dois dedos: zoom e arrasto do mapa no celular
@@ -285,5 +307,5 @@ const Island = (() => {
   const tela = (x, y) => { const c = cam(isl), r = cv.getBoundingClientRect(); return { x: r.left + c.x + (x + 0.5) * tune.cellPx * c.z, y: r.top + c.y + (y + 0.5) * tune.cellPx * c.z }; };
   return { attach, draw, populate, ensureMyToken, addToken, tokensOn, canMove, freeSpot, ocupado, tela, tremendo: tid => tremidas[tid] != null,
     get grupo() { return [...grupo].filter(gid => db.tokens[gid]); }, limparGrupo() { grupo.clear(); dirty.tokens = true; uiSelChanged(); },
-    get modoArea() { return modoArea; }, set modoArea(v) { modoArea = !!v; }, get sel() { return sel; }, set sel(v) { sel = v; }, get editTool() { return editTool; }, set editTool(v) { editTool = v || null; dirty.tokens = true; uiSelChanged(); }, fit: id => { cam(id).fit = true; dirty.tokens = true; } };
+    get modoArea() { return modoArea; }, set modoArea(v) { modoArea = !!v; }, passo, get sel() { return sel; }, set sel(v) { sel = v; }, get editTool() { return editTool; }, set editTool(v) { editTool = v || null; dirty.tokens = true; uiSelChanged(); }, fit: id => { cam(id).fit = true; dirty.tokens = true; } };
 })();
