@@ -927,7 +927,7 @@ function renderWorldHud(ch) {
   if (sel) {
     const aqui = jog.filter(x => chanOf(x) === sel.id);
     h += '<div class="nv-actions plate"><div class="nv-lbl"><b>' + esc(sel.nome) + '</b> · ' + SEAS[sel.mar].nome + ' · ' + (aqui.length ? aqui.map(x => esc(x.nome)).join(', ') : 'ninguém aqui') + '</div>' +
-      (sel.nova ? '<div class="row w-edit"><input id="wNome" maxlength="40" value="' + esc(sel.nome) + '" aria-label="Nome da ilha"><select id="wTema">' + Object.entries(World.TEMAS).map(([k, n]) => '<option value="' + k + '"' + (sel.tema === k ? ' selected' : '') + '>' + n + '</option>').join('') + '</select><button class="btn wood" id="wApaga">Apagar ilha</button></div>' : '') +
+      (sel.nova ? '<div class="row w-edit"><input type="text" id="wNome" maxlength="40" value="' + esc(sel.nome) + '" aria-label="Nome da ilha"><select id="wTema">' + Object.entries(World.TEMAS).map(([k, n]) => '<option value="' + k + '"' + (sel.tema === k ? ' selected' : '') + '>' + n + '</option>').join('') + '</select><button class="btn wood" id="wApaga">Apagar ilha</button></div>' : '') +
       '<div class="row">' +
       (jog.length ? '<select id="wPick">' + jog.map(x => '<option value="' + x.id + '"' + (x.id === World.pick ? ' selected' : '') + '>' + esc(x.nome) + ' (' + esc(chanName(chanOf(x))) + ')</option>').join('') + '</select><button class="btn" id="wPut">Levar para cá</button>' : '') +
       '<button class="btn wood" id="wOpen">Abrir a ilha</button>' + (World.movida(sel.id) ? '<button class="btn wood" id="wVolta">Voltar ao lugar original</button>' : '') + '</div>' +
