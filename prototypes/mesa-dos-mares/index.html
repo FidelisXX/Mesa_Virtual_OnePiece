@@ -28,6 +28,7 @@
         <button class="btn wood" id="btnCentro">Centralizar mapa</button>
         <div class="plate" id="turnPlate" hidden></div>
       </div>
+      <button id="trilhaPill" class="plate" hidden title="Trilha sonora da mesa"><span class="tp-ic" aria-hidden="true">♪</span><span class="tp-t"><b>Trilha</b> · <span id="tpTxt">sem música</span></span><span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span></button>
       <div id="hotbar" class="plate" hidden></div>
       <div id="islandHelp" class="plate" hidden>1-9 técnicas · Arraste tokens · roda: zoom · <kbd>Espaço</kbd> ou botão do meio: mover o mapa · <kbd>F</kbd> próximo inimigo · <kbd>Enter</kbd> chat</div>
     </div>
@@ -52,8 +53,8 @@
       <button data-t="tec"><span class="ic">⚔</span>Técnicas</button>
       <button data-t="mesa"><span class="ic">👥</span>Mesa</button>
       <button data-t="fichas" class="gm-only"><span class="ic">🗂</span>Fichas</button>
-      <button class="tbtn" id="cfgBtn" title="Ajustes: trilha sonora, foco, tema e IA" aria-haspopup="true" aria-label="Ajustes">⚙</button>
-      <div id="cfgMenu" hidden><button id="musicBtn" title="Trilha sonora da mesa">♪ Trilha sonora</button><button id="wideBtn" title="Mais espaço para a narração">Foco: mais espaço para o chat</button><button id="themeBtn" title="Tema escuro ou claro">Tema claro ou escuro</button><button id="iaBtn" title="Chave da API e servidor do narrador de IA">Chave e servidor da IA</button></div>
+      <button class="tbtn" id="cfgBtn" title="Ajustes: foco, tema e IA" aria-haspopup="true" aria-label="Ajustes">⚙</button>
+      <div id="cfgMenu" hidden><button id="wideBtn" title="Mais espaço para a narração">Foco: mais espaço para o chat</button><button id="themeBtn" title="Tema escuro ou claro">Tema claro ou escuro</button><button id="iaBtn" title="Chave da API e servidor do narrador de IA">Chave e servidor da IA</button></div>
     </div>
 
     <section class="panel on" id="p-chat">
@@ -697,7 +698,7 @@ function renderMesa() {
   const S = {}, hS = [''];   // o Mestre vê a aba em seções: o que usa agora no topo, o resto recolhido
   const abre = () => { hS[0] = h; if (c.gm) h = ''; }, fecha = k => { if (c.gm) { S[k] = (S[k] || '') + h; h = hS[0]; } };
   const ship = c.gm ? (isDeck(v) ? db.ships[v.slice(6)] : null) : shipOf(c);
-  h += '<div class="row"><button class="btn sm wood" id="musBtn">♪ Trilha sonora</button><button class="btn sm wood" id="akBtn">Mercado Negro</button></div>';
+  h += '<div class="row"><button class="btn sm wood" id="akBtn">Mercado Negro</button></div>';
   if (!c.gm && c.quest && c.quest.estado === 'ativa') h += `<h3>Missão</h3><div class="ord"><div style="flex:1"><b>${esc(c.quest.titulo)}</b> <span class="tag">${{ facil: 'fácil', media: 'média', dificil: 'difícil' }[c.quest.dificuldade] || ''}</span><div class="note">${esc(c.quest.descricao)}<br><b>Objetivo:</b> ${esc(c.quest.objetivo)}</div></div></div><div class="row"><button class="btn sm" id="qDone">Concluir (receber a recompensa)</button><button class="btn sm wood" id="qDrop">Abandonar</button></div>`;
   else if (!c.gm && isIsland(v) && ship && ship.at === v && Master.modo(v) === 'ia') h += '<div class="row"><button class="btn sm" id="qNew" ' + (Master.thinking ? 'disabled' : '') + '>Pedir uma missão ao narrador</button></div>';
   if (c.gm) {
@@ -776,7 +777,6 @@ function renderMesa() {
   on('[data-ms]', b => b.onclick = () => Combat.accept(b.dataset.ms));
   on('[data-buy]', b => b.onclick = () => Shop.buy(b.dataset.buy));
   on('[data-loja]', b => b.onclick = () => lojaModal(b.dataset.loja));
-  if ($('musBtn')) $('musBtn').onclick = () => Trilha.modal();
   if ($('qDone')) $('qDone').onclick = () => Quest.concluir(me());
   if ($('qDrop')) $('qDrop').onclick = () => { if (confirm('Abandonar a missão?')) Quest.abandonar(me()); };
   if ($('qNew')) $('qNew').onclick = () => Master.abertura(v, me());
@@ -902,7 +902,7 @@ function bindPanels() {
   $('wideBtn').onclick = () => { setSide(null); const w = document.body.classList.toggle('wide'); try { localStorage.setItem('mdm-wide', w ? '1' : '0'); } catch (e) { /* tudo bem */ } };
   $('btnCarta').onclick = () => { if (me().gm) { worldOpen = true; World.sel = null; worldSig = ''; } else { chartOpen = true; Travel.sel = null; } mesaDirty = true; };
   $('btnCentro').onclick = () => Island.fit(currentView());
-  $('musicBtn').onclick = () => Trilha.modal();
+  $('trilhaPill').onclick = () => { if ($('trilhaPill').dataset.acao === 'ativar') Trilha.ativar(); else Trilha.modal(); trilhaSig = ''; };
   $('chatBgFile').onchange = e => { Chat.setBg(e.target.files[0]); e.target.value = ''; };
   $('chatBgClear').onclick = () => Chat.clearBg();
 }
@@ -928,8 +928,11 @@ function renderWorldHud(ch) {
   if ($('wPut')) $('wPut').onclick = () => { World.inserir($('wPick').value, sel.id); worldSig = ''; };
   if ($('wOpen')) $('wOpen').onclick = () => { gmGo(sel.id); };
 }
+let trilhaSig = '';
 function updateHud() {
   const c = me(), mode = scene === 'play' && c ? stageMode() : 'none', v = c && currentView();
+  { const p = $('trilhaPill'); p.hidden = scene !== 'play' || !c;   // a trilha fica sempre à vista no topo do mapa
+    if (!p.hidden) { const e = Trilha.estado(), sg = JSON.stringify(e); if (sg !== trilhaSig) { trilhaSig = sg; $('tpTxt').textContent = e.txt; p.classList.toggle('on', e.ouvindo); p.classList.toggle('ativar', e.acao === 'ativar'); p.dataset.acao = e.acao; p.title = e.acao === 'ativar' ? 'Clique para ouvir' + (e.faixa ? ': ' + e.faixa : ' a trilha') : 'Trilha sonora da mesa'; } } }
   Naval.hud($('navalHud')); Fight3D.hud($('fightHud'));
   const isl = mode === 'island'; $('islandHud').hidden = !isl; $('islandHelp').hidden = !isl; renderHotbar(isl); renderChips();
   if (isl) {

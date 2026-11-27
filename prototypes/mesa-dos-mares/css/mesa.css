@@ -64,7 +64,19 @@ label.btn { display: inline-block; }
 .die-cap { margin-top: 2px; padding: 3px 12px; background: var(--glass); color: var(--glass-text); border: 1px solid var(--glass-border); border-radius: 12px; font-size: 15px; display: inline-block; }
 @keyframes tumble { from { transform: rotate(0) translateY(-6px); } 50% { transform: rotate(180deg) translateY(6px); } to { transform: rotate(360deg) translateY(-6px); } }
 @keyframes land { 0% { transform: scale(1.5); } 100% { transform: scale(1); } }
-#toasts { position: absolute; right: 12px; top: 12px; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; z-index: 9; pointer-events: none; }
+#trilhaPill { position: absolute; right: 12px; top: 12px; z-index: 8; display: flex; align-items: center; gap: 8px; padding: 7px 14px; max-width: min(46%, 320px); font-size: 14px; border-radius: 999px; cursor: pointer; }
+#trilhaPill[hidden] { display: none; }
+#trilhaPill .tp-ic { color: var(--accent2, #e0a21a); font-size: 16px; }
+#trilhaPill .tp-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#trilhaPill .eq { display: inline-flex; gap: 2px; align-items: flex-end; height: 14px; flex: none; }
+#trilhaPill .eq i { width: 3px; height: 4px; border-radius: 1px; background: currentColor; opacity: .5; }
+#trilhaPill.on .eq i { opacity: 1; background: var(--accent2, #e0a21a); animation: eqb .9s ease-in-out infinite alternate; }
+#trilhaPill.on .eq i:nth-child(2) { animation-delay: .2s; } #trilhaPill.on .eq i:nth-child(3) { animation-delay: .45s; } #trilhaPill.on .eq i:nth-child(4) { animation-delay: .1s; }
+@keyframes eqb { from { height: 3px; } to { height: 14px; } }
+#trilhaPill.ativar { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+#trilhaPill.ativar #tpTxt { color: var(--accent); font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { #trilhaPill.on .eq i { animation: none; height: 10px; } }
+#toasts { position: absolute; right: 12px; top: 60px; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; z-index: 9; pointer-events: none; }
 .toast { background: var(--glass); color: var(--glass-text); border: 1px solid var(--glass-border); border-left: 3px solid var(--accent); border-radius: 10px; padding: 8px 14px; font-size: 14px; max-width: 360px; backdrop-filter: blur(10px); animation: fadein .2s; }
 @keyframes fadein { from { opacity: 0; transform: translateY(-6px); } }
 
@@ -316,6 +328,7 @@ h3 { margin: 16px 0 6px; font-size: 12px; text-transform: uppercase; letter-spac
   body.mobile #hotbar { bottom: 8px; }
   body.mobile #islandHelp { display: none; }
   body.mobile #islandHud { left: 8px; top: 8px; gap: 6px; }
+  body.mobile #trilhaPill { right: 8px; top: 8px; padding: 5px 10px; font-size: 12px; max-width: 44%; }
   body.mobile #islandHud .plate, body.mobile #islandHud .btn { font-size: 13px; padding: 6px 10px; }
   body.mobile .hot { min-width: 96px; min-height: 48px; }
   body.mobile .toast { max-width: 80vw; }

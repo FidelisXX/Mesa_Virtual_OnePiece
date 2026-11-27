@@ -98,6 +98,19 @@ const Trilha = (() => {
     parar(); tocandoSig = ''; meu = { nome: file.name }; audio = new Audio(URL.createObjectURL(file)); audio.loop = true; audio.volume = loc().vol / 100; audio.play().catch(() => { travado = true; });
   }
   function pararMeu() { meu = null; parar(); tocandoSig = ''; }
+  // O que a pílula do topo mostra: o nome do que toca, "sem música" ou "ativar som" (desligada aqui ou o navegador bloqueou o áudio)
+  function estado() {
+    const t = T(), l = loc(), f = t.lista.find(x => x.id === t.atual);
+    if (meu) return { txt: meu.nome, ouvindo: !travado, acao: travado ? 'ativar' : 'abrir' };
+    if (!t.tocando || !f) return { txt: 'sem música', ouvindo: false, acao: 'abrir' };
+    if (!l.ligada || travado) return { txt: 'ativar som', ouvindo: false, acao: 'ativar', faixa: f.nome };
+    return { txt: f.nome, ouvindo: true, acao: 'abrir' };
+  }
+  function ativar() {
+    const v = loc();
+    if (!v.ligada) { v.ligada = true; salvaLoc(v); sync(); return; }
+    if (travado && audio) audio.play().then(() => { travado = false; }).catch(() => {});
+  }
 
   // ---- A janela da trilha ----
   function modal() {
@@ -129,5 +142,5 @@ const Trilha = (() => {
     };
     desenha();
   }
-  return { add, tocar, pausar, tirar, volume, soMestre, ytId, sync, modal, T };
+  return { add, tocar, pausar, tirar, volume, soMestre, ytId, sync, modal, estado, ativar, T };
 })();
